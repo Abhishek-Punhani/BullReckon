@@ -24,3 +24,4 @@ export interface BacktestConfig extends BaseConfig {
   MAX_BACKTEST_DURATION_DAYS: number;
   WORKER_CONCURRENCY: number;
 }
+

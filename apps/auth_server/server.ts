@@ -1,7 +1,7 @@
 import { BaseApp } from "../../shared/BaseApp";
 import { DatabaseManager } from "../../shared/dbManager";
 import { authConfig } from "./config";
-
+import { authRoutes } from "./routes/auth.routes";
 
 class AuthService {
   private app: BaseApp;
@@ -10,12 +10,11 @@ class AuthService {
   constructor() {
     // Initialize database
     this.db = DatabaseManager.getInstance(authConfig);
-    
+
     // Initialize app with auth-specific configuration
     this.app = new BaseApp({
-      serviceName: 'BullReckon Auth Service',
+      serviceName: "BullReckon Auth Service",
       config: authConfig,
-      enableSockets: true,
       enableSessions: true,
       enableFileUpload: true,
       customRateLimit: {
@@ -28,17 +27,16 @@ class AuthService {
   }
 
   private setupRoutes(): void {
+    this.app.addRoutes("/api/auth", authRoutes);
   }
-
-
 
   public async start(): Promise<void> {
     try {
       await this.db.connect();
       await this.app.listen(authConfig.PORT);
-      console.log('🔐 Auth Service started successfully');
+      console.log("🔐 Auth Service started successfully");
     } catch (error) {
-      console.error('💥 Failed to start Auth Service:', error);
+      console.error("💥 Failed to start Auth Service:", error);
       process.exit(1);
     }
   }
@@ -55,10 +53,10 @@ authService.start();
 
 // Graceful shutdown
 const shutdownHandler = async () => {
-  console.log('🛑 Shutting down Auth Service...');
+  console.log("🛑 Shutting down Auth Service...");
   await authService.stop();
   process.exit(0);
 };
 
-process.on('SIGTERM', shutdownHandler);
-process.on('SIGINT', shutdownHandler);
+process.on("SIGTERM", shutdownHandler);
+process.on("SIGINT", shutdownHandler);

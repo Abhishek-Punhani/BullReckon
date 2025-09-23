@@ -16,7 +16,13 @@ import http from "http";
 
 import { errorHandler } from "../middleware/errorHandler";
 import { BaseConfig } from "../types/config";
-
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
+}
 export interface AppOptions {
   serviceName: string;
   config: BaseConfig;

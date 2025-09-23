@@ -7,14 +7,10 @@ export interface IUser extends Document {
     lastName: string;
     email: string;
     password?: string;
-    phone?: string;
     photo?: string;
     role: "user" | "admin" | "trader" | "premium";
-    dateOfBirth?: Date;
-    age: number;
     balance: number;
     lastLogin?: Date;
-    isVerified: boolean;
     refreshToken?: string;
     passwordResetToken?: string;
     passwordResetExpires?: Date;
@@ -64,16 +60,6 @@ const userSchema = new mongoose.Schema(
                     "Password must contain at least one uppercase letter, one lowercase letter, and one number",
             },
         },
-        phone: {
-            type: String,
-            validate: {
-                validator: function (v: string) {
-                    if (!v) return true; // Optional field
-                    return validator.isMobilePhone(v, "any");
-                },
-                message: "Please provide a valid phone number",
-            },
-        },
         photo: {
             type: String,
             validate: {
@@ -92,22 +78,6 @@ const userSchema = new mongoose.Schema(
             },
             default: "user",
         },
-        dateOfBirth: {
-            type: Date,
-            validate: {
-                validator: function (date: Date) {
-                    if (!date) return true; // Optional
-                    const today = new Date();
-                    const minAge = new Date(
-                        today.getFullYear() - 13,
-                        today.getMonth(),
-                        today.getDate()
-                    );
-                    return date <= minAge;
-                },
-                message: "User must be at least 13 years old",
-            },
-        },
         balance: {
             type: Number,
             default: 100000, // Starting virtual cash $100k
@@ -115,17 +85,20 @@ const userSchema = new mongoose.Schema(
             max: [10000000, "Balance cannot exceed $10M"],
         },
         lastLogin: Date,
-        isVerified: {
-            type: Boolean,
-            default: false,
+        refreshToken: {
+            type: String,
+            default: "",
         },
-        refreshToken: String,
-        passwordResetToken: String,
+        passwordResetToken: {
+            type: String,
+            default: "",
+        },
         passwordResetExpires: Date,
         googleId: {
             type: String,
             unique: true,
             sparse: true,
+            default: "",
         },
         authMethod: {
             type: String,
@@ -139,22 +112,6 @@ const userSchema = new mongoose.Schema(
         toObject: { virtuals: true },
     }
 );
-
-// Virtual for age calculation
-userSchema.virtual("age").get(function () {
-    if (!this.dateOfBirth) return 0;
-    const today = new Date();
-    const birthDate = new Date(this.dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (
-        monthDiff < 0 ||
-        (monthDiff === 0 && today.getDate() < birthDate.getDate())
-    ) {
-        age--;
-    }
-    return age;
-});
 
 // Password hashing middleware
 userSchema.pre("save", async function (next) {
