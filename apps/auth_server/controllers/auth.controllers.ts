@@ -140,7 +140,7 @@ export const logoutUser = async (
   res: Response,
   next: NextFunction
 ) => {
-  if (!req?.user) {
+  if (!req.user) {
     return next(new ErrorHandling("User not authenticated", 401));
   }
 
