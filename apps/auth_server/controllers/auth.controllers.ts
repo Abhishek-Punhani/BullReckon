@@ -4,6 +4,11 @@ import { User } from "../../../packages/models";
 import bcrypt from "bcryptjs";
 import { generateTokens } from "../../../shared/tokens";
 import { ErrorHandling } from "../../../middleware/errorHandler";
+import {
+  sendActivationEmail,
+  sendPasswordResetEmail,
+} from "../utils/emailUtils";
+import { AuthenticatedRequest } from "../../../types/auth";
 
 export const registerUser = async (
   req: Request,
@@ -33,10 +38,13 @@ export const registerUser = async (
       password,
       role: "user",
       authMethod: "password",
+      isEmailVerified: false,
     };
     if (photo) userData.photo = photo;
 
     const user = await User.create(userData);
+    await sendActivationEmail(user._id, user.email, user.firstName);
+
     const { accessToken, refreshToken } = await generateTokens(user._id);
     try {
       res.cookie("refreshToken", refreshToken, {
@@ -97,6 +105,13 @@ export const loginUser = async (
         )
       );
     }
+    // check user is verified
+    if (!user.isEmailVerified) {
+      return next(
+        new ErrorHandling("Please verify your email before logging in", 401)
+      );
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return next(new ErrorHandling("Invalid email or password", 401));
@@ -140,7 +155,7 @@ export const logoutUser = async (
   res: Response,
   next: NextFunction
 ) => {
-  if (!req.user) {
+  if (!(req as unknown as AuthenticatedRequest).user) {
     return next(new ErrorHandling("User not authenticated", 401));
   }
 
@@ -199,4 +214,144 @@ export const refreshToken = async (
   } catch (err) {
     next(err);
   }
+};
+
+export const requestActivationEmail = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return next(new ErrorHandling("Email is required", 400));
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return next(new ErrorHandling("User with this email not found", 404));
+    }
+
+    if (user.isEmailVerified) {
+      return next(new ErrorHandling("Email is already verified", 400));
+    }
+
+    await sendActivationEmail(user._id, user.email, user.firstName);
+
+    return res.status(200).json({
+      status: "success",
+      message: "Activation email sent successfully",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const requestPasswordEmail = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { email, type } = req.body;
+    if (!email) {
+      return next(new ErrorHandling("Email is required", 400));
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return next(new ErrorHandling("User with this email not found", 404));
+    }
+
+    if (!user.hasPasswordAuth()) {
+      user.authMethod = "both"; // Enable password authentication
+      await user.save();
+    }
+    await sendPasswordResetEmail(user._id, user.email, user.firstName, type);
+
+    return res.status(200).json({
+      status: "success",
+      message: "Password reset email sent successfully",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const activateUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return next(new ErrorHandling("Activation token is required", 400));
+    }
+
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET_EMAIL!);
+    } catch (err) {
+      return next(
+        new ErrorHandling("Invalid or expired activation token", 400)
+      );
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return next(new ErrorHandling("User not found", 404));
+    }
+
+    if (user.isEmailVerified) {
+      return next(new ErrorHandling("Email is already verified", 400));
+    }
+
+    user.isEmailVerified = true;
+    await user.save();
+
+    return res.status(200).json({
+      status: "success",
+      message: "Email verified successfully",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const changePassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { token, newPassword, type } = req.body;
+  if (!token || !newPassword) {
+    return next(new ErrorHandling("Token and new password are required", 400));
+  }
+
+  let decoded: any;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET_EMAIL!);
+  } catch (err) {
+    return next(new ErrorHandling("Invalid or expired token", 400));
+  }
+
+  const user = await User.findById(decoded.id).select("+password");
+  if (!user || !user.password) {
+    return next(new ErrorHandling("User not found", 404));
+  }
+
+  // Check if user can change password
+  if (!user.hasPasswordAuth()) {
+    user.AuthMethod = "both"; // Enable password authentication
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  return res.status(200).json({
+    status: "success",
+    message: "Password changed successfully",
+    type: type,
+  });
 };
