@@ -1,4 +1,4 @@
-import { BaseApp } from "../../shared/BaseApp";
+import { BaseApp } from "../../shared/baseApp";
 import { DatabaseManager } from "../../shared/dbManager";
 import { authConfig } from "./config";
 import { authRoutes } from "./routes/auth.routes";

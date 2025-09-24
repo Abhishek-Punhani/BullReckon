@@ -16,6 +16,7 @@ import http from "http";
 
 import { errorHandler } from "../middleware/errorHandler";
 import { BaseConfig } from "../types/config";
+import webSocketService from "./webSocketServer";
 
 export interface AppOptions {
   serviceName: string;
@@ -167,11 +168,18 @@ export class BaseApp {
       },
     });
 
-    // Attach socket.io to request object
+    // Attach socket.io to request object for route handlers
     this.app.use((req: any, res, next) => {
       req.io = this.io;
       next();
     });
+
+    // Initialize global WebSocket service with io instance
+    webSocketService.initializeWithIO(this.io);
+
+    // Optionally: Make globally available
+    (global as any).io = this.io;
+    (global as any).webSocketService = webSocketService;
   }
 
   public initializeErrorHandling(): void {
