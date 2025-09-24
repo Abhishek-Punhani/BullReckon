@@ -1,9 +1,8 @@
 export type PasswordEmailType = 'forgot' | 'reset';
 
-export const passwordEmail = (
+export const passwordEmail = (type: PasswordEmailType) => (
     to: string,
-    url: string,
-    type: PasswordEmailType
+    url: string
 ) => {
     const subject =
         type === 'forgot'

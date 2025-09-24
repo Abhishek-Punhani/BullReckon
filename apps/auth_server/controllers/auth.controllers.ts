@@ -43,7 +43,7 @@ export const registerUser = async (
     if (photo) userData.photo = photo;
 
     const user = await User.create(userData);
-    await sendActivationEmail(user._id, user.email, user.firstName);
+    await sendActivationEmail(user._id, user.email);
 
     const { accessToken, refreshToken } = await generateTokens(user._id);
     try {
@@ -236,7 +236,7 @@ export const requestActivationEmail = async (
       return next(new ErrorHandling("Email is already verified", 400));
     }
 
-    await sendActivationEmail(user._id, user.email, user.firstName);
+    await sendActivationEmail(user._id, user.email);
 
     return res.status(200).json({
       status: "success",
@@ -267,7 +267,7 @@ export const requestPasswordEmail = async (
       user.authMethod = "both"; // Enable password authentication
       await user.save();
     }
-    await sendPasswordResetEmail(user._id, user.email, user.firstName, type);
+    await sendPasswordResetEmail(user._id, user.email, type);
 
     return res.status(200).json({
       status: "success",

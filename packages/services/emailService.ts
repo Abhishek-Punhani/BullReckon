@@ -11,10 +11,9 @@ const {
 
 const oauth2Client = new OAuth2(
   MAILING_SERVICE_CLIENT_ID,
-  MAILING_SERVICE_CLIENT_SECRET,    
+  MAILING_SERVICE_CLIENT_SECRET,
   MAILING_SERVICE_REFRESH_TOKEN
 );
-
 
 export const emailService = (to, url, subject, template) => {
   oauth2Client.setCredentials({
@@ -39,7 +38,9 @@ export const emailService = (to, url, subject, template) => {
     html: template(to, url),
   };
   smtpTransport.sendMail(mailOptions, (err, infos) => {
-    if (err) return err;
+    if (err) {
+      return err;
+    }
     return infos;
   });
 };

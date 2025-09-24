@@ -6,7 +6,6 @@ import { passwordEmail } from "../emails/PasswordEmail";
 const sendActivationEmail = async (
   user_id: string,
   email: string,
-  firstName: string
 ) => {
   const CLIENT_URL = process.env.CLIENT_URL;
   const JWT_SECRET_EMAIL = process.env.JWT_SECRET_EMAIL;
@@ -21,9 +20,10 @@ const sendActivationEmail = async (
       email,
       url,
       "Activate your account",
-      activateEmail(firstName, url)
+      activateEmail
     );
   } catch (error) {
+    console.log(error);
     throw new Error("Failed to send activation email");
   }
 };
@@ -31,7 +31,6 @@ const sendActivationEmail = async (
 const sendPasswordResetEmail = async (
   user_id: string,
   email: string,
-  firstName: string,
   type: "reset" | "forgot"
 ) => {
   const CLIENT_URL = process.env.CLIENT_URL;
@@ -47,7 +46,7 @@ const sendPasswordResetEmail = async (
       email,
       url,
       "Reset your password",
-      passwordEmail(email, url, type)
+      passwordEmail(type)
     );
   } catch (error) {
     throw new Error("Failed to send password reset email");
