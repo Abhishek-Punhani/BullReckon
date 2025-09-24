@@ -9,6 +9,8 @@ import {
   sendPasswordResetEmail,
 } from "../utils/emailUtils";
 import { AuthenticatedRequest } from "../../../types/auth";
+import { OAuth2Client } from "google-auth-library";
+import { Types } from "mongoose";
 
 export const registerUser = async (
   req: Request,
@@ -137,7 +139,6 @@ export const loginUser = async (
           lastName: user.lastName,
           photo: user.photo,
           email: user.email,
-          role: user.role,
           balance: user.balance,
         },
         accessToken,
@@ -358,4 +359,83 @@ export const changePassword = async (
     message: "Password changed successfully",
     type: type,
   });
+};
+
+export const googleAuth = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const googleClient = new OAuth2Client(
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  );
+  try {
+    const { credential } = req.body;
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload) {
+      return next(new ErrorHandling("Invalid Google token", 401));
+    }
+    // console.log("Google payload:", payload);
+    const { sub: googleId, email, picture, family_name, given_name } = payload;
+
+    let isNewUser = false;
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      isNewUser = true;
+      user = await User.create({
+        googleId,
+        email,
+        firstName: given_name,
+        lastName: family_name,
+        photo: picture,
+        isEmailVerified: true,
+        authMethod: "google",
+      });
+    } else if (!user.googleId) {
+      user.googleId = googleId;
+      user.authMethod = "both";
+      await user.save();
+    }
+    const { accessToken, refreshToken } = await generateTokens(
+      user._id as Types.ObjectId
+    );
+    if (!user) {
+      return next(new ErrorHandling("User not found after registration", 500));
+    }
+
+    try {
+      res.setHeader(
+        "Set-Cookie",
+        `refreshToken=${refreshToken}; HttpOnly; Path=/; Max-Age=${
+          7 * 24 * 60 * 60
+        }; SameSite=Strict;${
+          process.env.NODE_ENV === "production" ? " Secure;" : ""
+        }`
+      );
+    } catch (error) {
+      console.error("Error setting cookie:", error);
+      return next(new ErrorHandling("Error while setting cookie", 500));
+    }
+
+    return res.json({
+      accessToken,
+      isNewUser,
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        photo: user.photo,
+        email: user.email,
+        balance: user.balance,
+      },
+    });
+  } catch (error) {
+    console.error("Google auth error:", error);
+    return next(new ErrorHandling("Authentication failed", 401));
+  }
 };

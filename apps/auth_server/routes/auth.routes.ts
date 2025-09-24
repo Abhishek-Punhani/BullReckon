@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { protectRoute } from "../../../middleware/authMiddleware";
 import {
+  googleAuth,
   loginUser,
   logoutUser,
   refreshToken,
@@ -21,5 +22,6 @@ authRoutes.post("/request-password-mail", requestPasswordEmail);
 authRoutes.post("/request-activation-mail", requestActivationEmail);
 authRoutes.post("/change-password", requestPasswordEmail);
 authRoutes.post("/verify-email/:token", verifyEmail);
+authRoutes.post("/google-login", googleAuth);
 
 export { authRoutes };
