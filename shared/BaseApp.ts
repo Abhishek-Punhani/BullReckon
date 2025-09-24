@@ -43,7 +43,6 @@ export class BaseApp {
     this.serviceName = options.serviceName;
 
     this.initializeMiddleware(options);
-    this.initializeErrorHandling();
 
     if (options.enableSockets) {
       this.initializeSocketIO();
@@ -102,10 +101,6 @@ export class BaseApp {
       this.initializeSessions();
     }
 
-    // Security and optimization
-    this.app.use(mongoSanitize());
-    this.app.use(compression());
-
     // File upload (optional)
     if (options.enableFileUpload) {
       this.app.use(
@@ -127,6 +122,14 @@ export class BaseApp {
         memory: process.memoryUsage(),
       });
     });
+    // Security and optimization
+    this.app.use((req, res, next) => {
+      // Only sanitize req.body and req.params, not req.query
+      if (req.body) mongoSanitize.sanitize(req.body);
+      if (req.params) mongoSanitize.sanitize(req.params);
+      next();
+    });
+    this.app.use(compression());
   }
   private initializeSessions(): void {
     console.log("config");
@@ -171,7 +174,7 @@ export class BaseApp {
     });
   }
 
-  private initializeErrorHandling(): void {
+  public initializeErrorHandling(): void {
     // 404 handler
     this.app.use((req: Request, res: Response, next: NextFunction) => {
       next(createHttpError.NotFound(`Route ${req.originalUrl} not found`));
