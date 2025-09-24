@@ -11,7 +11,7 @@ const sendActivationEmail = async (
   const JWT_SECRET_EMAIL = process.env.JWT_SECRET_EMAIL;
 
   const token = jwt.sign({ id: user_id }, JWT_SECRET_EMAIL!, {
-    expiresIn: "30m",
+    expiresIn: "5m",
   });
 
   const url = `${CLIENT_URL}/activate/${token}`;
@@ -37,7 +37,7 @@ const sendPasswordResetEmail = async (
   const JWT_SECRET_PASSWORD = process.env.JWT_SECRET_PASSWORD;
 
   const token = jwt.sign({ id: user_id }, JWT_SECRET_PASSWORD!, {
-    expiresIn: "30m",
+    expiresIn: "5m",
   });
 
   const url = `${CLIENT_URL}/reset_password/${token}`;

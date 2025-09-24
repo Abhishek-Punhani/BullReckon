@@ -7,6 +7,7 @@ import {
   registerUser,
   requestActivationEmail,
   requestPasswordEmail,
+  verifyEmail,
 } from "../controllers/auth.controllers";
 
 const authRoutes = Router();
@@ -19,5 +20,6 @@ authRoutes.post("/refresh-token", refreshToken);
 authRoutes.post("/request-password-mail", requestPasswordEmail);
 authRoutes.post("/request-activation-mail", requestActivationEmail);
 authRoutes.post("/change-password", requestPasswordEmail);
+authRoutes.post("/verify-email/:token", verifyEmail);
 
 export { authRoutes };

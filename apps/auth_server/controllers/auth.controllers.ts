@@ -278,13 +278,13 @@ export const requestPasswordEmail = async (
   }
 };
 
-export const activateUser = async (
+export const verifyEmail = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const { token } = req.body;
+    const { token } = req.query;
     if (!token) {
       return next(new ErrorHandling("Activation token is required", 400));
     }
@@ -293,9 +293,10 @@ export const activateUser = async (
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET_EMAIL!);
     } catch (err) {
-      return next(
-        new ErrorHandling("Invalid or expired activation token", 400)
-      );
+      if (err.name === "TokenExpiredError") {
+        return next(new ErrorHandling("Activation token has expired", 400));
+      }
+      return next(new ErrorHandling("Activation token is incorrect", 400));
     }
 
     const user = await User.findById(decoded.id);
@@ -333,7 +334,10 @@ export const changePassword = async (
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET_EMAIL!);
   } catch (err) {
-    return next(new ErrorHandling("Invalid or expired token", 400));
+    if (err.name === "TokenExpiredError") {
+      return next(new ErrorHandling("Activation token has expired", 400));
+    }
+    return next(new ErrorHandling("Activation token is incorrect", 400));
   }
 
   const user = await User.findById(decoded.id).select("+password");
