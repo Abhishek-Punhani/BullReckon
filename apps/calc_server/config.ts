@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config({ path: "../../.env" });
 dotenv.config({ path: ".env" });
-export const authConfig = {
+export const calcConfig = {
   NODE_ENV:
     (process.env.NODE_ENV as "development" | "production" | "test") ||
     "development",
