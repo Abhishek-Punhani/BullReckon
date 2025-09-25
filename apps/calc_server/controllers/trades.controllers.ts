@@ -21,16 +21,8 @@ export const trade = async (
       return next(new ErrorHandling(errorMsg, 400));
     }
 
-    const {
-      userId,
-      symbol,
-      action,
-      quantity,
-      source,
-      limitPrice,
-      stopPrice,
-      strategyId,
-    } = req.body;
+    const { userId, symbol, action, quantity, source, limitPrice, stopPrice } =
+      req.body;
 
     // Fetch latest market price (replace with live market feed API)
     const currentPrice = await fetchLivePrice(symbol);
@@ -63,11 +55,12 @@ export const trade = async (
       fees: tradeValue * 0.001,
       total: tradeValue,
       source,
-      strategyId,
-      limitPrice,
-      stopPrice,
+      strategyId: typeof limitPrice !== "undefined" ? limitPrice : undefined,
+      limitPrice: typeof limitPrice !== "undefined" ? limitPrice : undefined,
+      stopPrice: typeof stopPrice !== "undefined" ? stopPrice : undefined,
       status,
       executedAt: execute ? new Date() : null,
+      // Snapshot of market data at order time
       marketData: {
         open: currentPrice,
         high: currentPrice,
@@ -96,8 +89,22 @@ export const trade = async (
       await portfolio.save();
     } else {
       tempTrade.status = "pending";
-      // TODO
-      // Add a Queue Job to monitor market prices and execute when conditions meet
+      global.queueManager?.addPendingOrderJob({
+        tradeId: tempTrade._id.toString(),
+        userId,
+        symbol,
+        action,
+        quantity,
+        orderType:
+          source === "limit"
+            ? "limit"
+            : source === "stop_loss"
+              ? "stop_loss"
+              : "take_profit",
+        limitPrice,
+        stopPrice,
+        triggerPrice: currentPrice,
+      });
     }
 
     await tempTrade.save();
@@ -113,7 +120,7 @@ export const trade = async (
 };
 
 // Mock market price fetcher
-async function fetchLivePrice(symbol: string): Promise<number> {
+export async function fetchLivePrice(symbol: string): Promise<number> {
   // TODO: replace with real market API
   return 100 + Math.random() * 10;
 }

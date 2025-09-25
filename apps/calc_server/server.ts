@@ -11,6 +11,7 @@ const app = new BaseApp({
   serviceName: "BullReckon Calc Service",
   config: calcConfig,
   enableSockets: true,
+  enableQueues: true,
   enableFileUpload: true,
 });
 
@@ -32,6 +33,9 @@ async function start() {
 // Graceful shutdown
 async function shutdownHandler() {
   console.log("🛑 Shutting down Calc Service...");
+  if (app.queueManager) {
+    await app.queueManager.shutdown();
+  }
   await app.close();
   await db.disconnect();
   process.exit(0);

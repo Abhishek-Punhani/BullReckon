@@ -31,6 +31,7 @@
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
+    "bullmq": "^5.58.8",
     "compression": "^1.8.1",
     "connect-mongo": "^5.1.0",
     "cookie-parser": "^1.4.7",
@@ -45,6 +46,7 @@
     "googleapis": "^160.0.0",
     "helmet": "^8.1.0",
     "http-errors": "^2.0.0",
+    "ioredis": "^5.8.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.2",
     "morgan": "^1.10.1",

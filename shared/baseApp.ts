@@ -13,6 +13,7 @@ import bodyParser from "body-parser";
 import rateLimit from "express-rate-limit";
 import { Server } from "socket.io";
 import http from "http";
+import { QueueManager } from "./queueManager";
 
 import { errorHandler } from "../middleware/errorHandler";
 import { BaseConfig } from "../types/config";
@@ -24,6 +25,7 @@ export interface AppOptions {
   enableSockets?: boolean;
   enableSessions?: boolean;
   enableFileUpload?: boolean;
+  enableQueues?: boolean;
   customRateLimit?: {
     windowMs: number;
     max: number;
@@ -35,6 +37,7 @@ export class BaseApp {
   public app: Application;
   public server?: http.Server;
   public io?: Server;
+  public queueManager?: QueueManager;
   private config: BaseConfig;
   private serviceName: string;
 
@@ -47,6 +50,10 @@ export class BaseApp {
 
     if (options.enableSockets) {
       this.initializeSocketIO();
+    }
+
+    if (options.enableQueues) {
+      this.initializeQueues();
     }
   }
 
@@ -180,6 +187,12 @@ export class BaseApp {
     // Optionally: Make globally available
     (global as any).io = this.io;
     (global as any).webSocketService = webSocketService;
+  }
+
+  private async initializeQueues(): Promise<void> {
+    this.queueManager = QueueManager.getInstance();
+    await this.queueManager.initialize();
+    (global as any).queueManager = this.queueManager;
   }
 
   public initializeErrorHandling(): void {
