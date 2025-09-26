@@ -32,6 +32,8 @@ export class QueueManager {
   // Queue events
   private pendingOrdersQueueEvents!: QueueEvents;
 
+  private customQueues: Record<string, Queue<any>> = {};
+
   private constructor() {
     if (process.env.DISABLE_REDIS_QUEUES !== "true") {
       this.redisConnection = new IORedis({
@@ -162,7 +164,6 @@ export class QueueManager {
         },
       }
     );
-
   }
 
   private async setupQueueEvents(): Promise<void> {
@@ -281,6 +282,35 @@ export class QueueManager {
       await this.redisConnection.quit();
     }
     console.log("✅ Queue Manager shut down successfully");
+  }
+
+  public registerQueue<T = any>(
+    name: string,
+    options: {
+      defaultJobOptions?: any;
+      prefix?: string;
+      connection?: any;
+    } = {}
+  ): Queue<T> {
+    const connection = options.connection || this.redisConnection;
+    const prefix = options.prefix || process.env.REDIS_PREFIX || "bullreckon:";
+
+    if (!connection)
+      throw new Error("Redis connection not available for queue setup");
+
+    if (!this.customQueues[name]) {
+      this.customQueues[name] = new Queue<T>(name, {
+        connection,
+        prefix,
+        defaultJobOptions: options.defaultJobOptions,
+      });
+      console.log(`✅ Registered custom queue: ${name}`);
+    }
+    return this.customQueues[name] as Queue<T>;
+  }
+
+  public getQueue<T = any>(name: string): Queue<T> | undefined {
+    return this.customQueues[name] as Queue<T> | undefined;
   }
 }
 

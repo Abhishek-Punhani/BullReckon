@@ -1,89 +1,170 @@
-import mongoose, { Document } from 'mongoose';
+import mongoose, { Document, Schema } from "mongoose";
 
 export interface IRiskSettings extends Document {
   userId: mongoose.Types.ObjectId;
-  stopLoss: number;
-  takeProfit: number;
-  maxDrawdown: number;
-  capitalAllocation: number;
-  maxOpenPositions: number;
-  riskPerTrade: number;
-  dailyLossLimit: number;
-  tradeFrequencyLimit: number;
-  enableAutoStopLoss: boolean;
-  enableAutoTakeProfit: boolean;
-  validateRiskParams(): boolean;
+
+  // Stop Loss Configuration
+  stopLossPercentage: number; // Default 5%
+  autoStopLossEnabled: boolean;
+  trailingStopEnabled: boolean;
+  trailingStopPercentage?: number;
+
+  // Take Profit Configuration
+  takeProfitPercentage: number; // Default 10%
+  autoTakeProfitEnabled: boolean;
+
+  // Portfolio Risk Limits
+  maxDrawdownPercentage: number; // Default 20%
+  dailyLossLimit?: number; // Dollar amount
+
+  // Position Sizing
+  capitalAllocationPercentage: number; // Default 25% per trade
+  positionSizingEnabled: boolean;
+  maxPositionsAllowed: number; // Default 10
+
+  // Risk Presets
+  riskPreset: "conservative" | "moderate" | "aggressive" | "custom";
+
+  // methods
+  applyRiskPreset(preset: string): void;
+  calculateRiskScore(): number; // 1-10 scale
+
+  // Virtuals
+  // riskScore: number; --- IGNORE ---
+
+  // Advanced Settings
+  correlationRiskEnabled: boolean; // Prevent similar stocks
+  sectorConcentrationLimit: number; // Max % in one sector
+
+  // Risk Alerts
+  alertsEnabled: boolean;
+  notificationChannels: ("email" | "sms" | "push")[];
+
+  // Timestamps
+  lastUpdated: Date;
+  createdAt: Date;
 }
 
-const riskSettingsSchema = new mongoose.Schema(
+const riskSettingsSchema = new Schema<IRiskSettings>(
   {
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'User ID is required'],
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
       unique: true,
+      index: true,
     },
-    stopLoss: {
+
+    stopLossPercentage: {
       type: Number,
-      required: [true, 'Stop loss percentage is required'],
-      min: [0.1, 'Stop loss must be at least 0.1%'],
-      max: [50, 'Stop loss cannot exceed 50%'],
-      default: 5,
+      required: true,
+      min: [0.5, "Stop loss must be at least 0.5%"],
+      max: [50, "Stop loss cannot exceed 50%"],
+      default: 5.0,
     },
-    takeProfit: {
+
+    autoStopLossEnabled: {
+      type: Boolean,
+      default: true,
+    },
+
+    trailingStopEnabled: {
+      type: Boolean,
+      default: false,
+    },
+
+    trailingStopPercentage: {
       type: Number,
-      required: [true, 'Take profit percentage is required'],
-      min: [0.1, 'Take profit must be at least 0.1%'],
-      max: [1000, 'Take profit cannot exceed 1000%'],
-      default: 10,
+      min: [1, "Trailing stop must be at least 1%"],
+      max: [30, "Trailing stop cannot exceed 30%"],
+      default: 5.0,
     },
-    maxDrawdown: {
+
+    takeProfitPercentage: {
       type: Number,
-      required: [true, 'Max drawdown percentage is required'],
-      min: [1, 'Max drawdown must be at least 1%'],
-      max: [95, 'Max drawdown cannot exceed 95%'],
-      default: 20,
+      required: true,
+      min: [1, "Take profit must be at least 1%"],
+      max: [100, "Take profit cannot exceed 100%"],
+      default: 10.0,
     },
-    capitalAllocation: {
+
+    autoTakeProfitEnabled: {
+      type: Boolean,
+      default: true,
+    },
+
+    maxDrawdownPercentage: {
       type: Number,
-      required: [true, 'Capital allocation percentage is required'],
-      min: [1, 'Must allocate at least 1% of capital per trade'],
-      max: [100, 'Cannot allocate more than 100% of capital per trade'],
-      default: 25,
+      required: true,
+      min: [5, "Max drawdown must be at least 5%"],
+      max: [80, "Max drawdown cannot exceed 80%"],
+      default: 20.0,
     },
-    maxOpenPositions: {
-      type: Number,
-      required: [true, 'Max open positions is required'],
-      min: [1, 'Must allow at least 1 open position'],
-      max: [50, 'Cannot have more than 50 open positions'],
-      default: 10,
-    },
-    riskPerTrade: {
-      type: Number,
-      required: [true, 'Risk per trade percentage is required'],
-      min: [0.1, 'Risk per trade must be at least 0.1%'],
-      max: [25, 'Risk per trade cannot exceed 25%'],
-      default: 2,
-    },
+
     dailyLossLimit: {
       type: Number,
-      min: [0.1, 'Daily loss limit must be at least 0.1%'],
-      max: [50, 'Daily loss limit cannot exceed 50%'],
+      min: [0, "Daily loss limit cannot be negative"],
+      validate: {
+        validator: function (value: number) {
+          return !value || value >= 100; // If set, must be at least $100
+        },
+        message: "Daily loss limit must be at least $100 if specified",
+      },
+    },
+
+    capitalAllocationPercentage: {
+      type: Number,
+      required: true,
+      min: [1, "Capital allocation must be at least 1%"],
+      max: [100, "Capital allocation cannot exceed 100%"],
+      default: 25.0,
+    },
+
+    positionSizingEnabled: {
+      type: Boolean,
+      default: true,
+    },
+
+    maxPositionsAllowed: {
+      type: Number,
+      min: [1, "Must allow at least 1 position"],
+      max: [50, "Cannot exceed 50 positions"],
       default: 10,
     },
-    tradeFrequencyLimit: {
+
+    riskPreset: {
+      type: String,
+      enum: ["conservative", "moderate", "aggressive", "custom"],
+      default: "moderate",
+    },
+
+    correlationRiskEnabled: {
+      type: Boolean,
+      default: false,
+    },
+
+    sectorConcentrationLimit: {
       type: Number,
-      min: [1, 'Must allow at least 1 trade per day'],
-      max: [1000, 'Cannot exceed 1000 trades per day'],
-      default: 100,
+      min: [10, "Sector limit must be at least 10%"],
+      max: [100, "Sector limit cannot exceed 100%"],
+      default: 40.0,
     },
-    enableAutoStopLoss: {
+
+    alertsEnabled: {
       type: Boolean,
       default: true,
     },
-    enableAutoTakeProfit: {
-      type: Boolean,
-      default: true,
+
+    notificationChannels: [
+      {
+        type: String,
+        enum: ["email", "sms", "push"],
+      },
+    ],
+
+    lastUpdated: {
+      type: Date,
+      default: Date.now,
     },
   },
   {
@@ -91,30 +172,61 @@ const riskSettingsSchema = new mongoose.Schema(
   }
 );
 
-// Validation method
-riskSettingsSchema.methods.validateRiskParams = function (): boolean {
-  // Stop loss should be less than take profit for reasonable risk/reward
-  if (this.stopLoss >= this.takeProfit) {
-    return false;
+// Apply risk preset configurations
+riskSettingsSchema.methods.applyRiskPreset = function (preset: string) {
+  const presets = {
+    conservative: {
+      stopLossPercentage: 2.0,
+      takeProfitPercentage: 5.0,
+      maxDrawdownPercentage: 10.0,
+      capitalAllocationPercentage: 10.0,
+      maxPositionsAllowed: 15,
+    },
+    moderate: {
+      stopLossPercentage: 5.0,
+      takeProfitPercentage: 10.0,
+      maxDrawdownPercentage: 20.0,
+      capitalAllocationPercentage: 25.0,
+      maxPositionsAllowed: 10,
+    },
+    aggressive: {
+      stopLossPercentage: 10.0,
+      takeProfitPercentage: 20.0,
+      maxDrawdownPercentage: 35.0,
+      capitalAllocationPercentage: 40.0,
+      maxPositionsAllowed: 8,
+    },
+  };
+
+  const config = presets[preset as keyof typeof presets];
+  if (config) {
+    Object.assign(this, config);
+    this.riskPreset = preset;
+    this.lastUpdated = new Date();
   }
-  
-  // Capital allocation and risk per trade should be reasonable together
-  if (this.capitalAllocation < this.riskPerTrade) {
-    return false;
-  }
-  
-  return true;
 };
 
-// Pre-save validation
-riskSettingsSchema.pre('save', function (next) {
-  if (!(this as any).validateRiskParams()) {
-    return next(new Error('Invalid risk parameter combination'));
-  }
+// Calculate risk score (1-10)
+riskSettingsSchema.methods.calculateRiskScore = function (): number {
+  const stopRisk = (this.stopLossPercentage / 20) * 3; // Max 3 points
+  const profitRisk = (this.takeProfitPercentage / 50) * 2; // Max 2 points
+  const drawdownRisk = (this.maxDrawdownPercentage / 80) * 3; // Max 3 points
+  const allocationRisk = (this.capitalAllocationPercentage / 100) * 2; // Max 2 points
+
+  return Math.min(
+    10,
+    Math.round(stopRisk + profitRisk + drawdownRisk + allocationRisk)
+  );
+};
+
+// Auto-update lastUpdated on save
+riskSettingsSchema.pre("save", function (next) {
+  this.lastUpdated = new Date();
   next();
 });
 
-// Indexes
 riskSettingsSchema.index({ userId: 1 }, { unique: true });
 
-export const RiskSettings = mongoose.models.RiskSettings || mongoose.model<IRiskSettings>('RiskSettings', riskSettingsSchema);
+export const RiskSettings =
+  mongoose.models.RiskSettings ||
+  mongoose.model<IRiskSettings>("RiskSettings", riskSettingsSchema);
