@@ -16,5 +16,8 @@
   "license": "ISC",
   "dependencies": {
     "yahoo-finance2": "^2.13.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
   }
 }
