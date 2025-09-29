@@ -1,31 +1,27 @@
 import { API_CONFIG } from "./config";
+import axios from "axios";
 
 // Auth service functions
 export const authService = {
   async login(email: string, password: string) {
-    const response = await fetch(`${API_CONFIG.AUTH_SERVER}/api/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const response = await axios.post(
+        `${API_CONFIG.AUTH_SERVER}/api/auth/login`,
+        { email, password },
+        { withCredentials: true }
+      );
+      const result = response.data;
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || "Login failed");
+      // Store auth data
+      if (typeof window !== "undefined" && result.accessToken) {
+        localStorage.setItem("access_token", result.accessToken);
+        localStorage.setItem("user", JSON.stringify(result.user));
+      }
+
+      return result;
+    } catch (error: any) {
+      throw new Error(error?.response?.data || "Login failed");
     }
-
-    const result = await response.json();
-
-    // Store auth data
-    if (typeof window !== "undefined" && result.accessToken) {
-      localStorage.setItem("access_token", result.accessToken);
-      localStorage.setItem("user", JSON.stringify(result.user));
-    }
-
-    return result;
   },
 
   async register(
@@ -35,49 +31,44 @@ export const authService = {
     lastName: string,
     photoUrl?: string
   ) {
-    const response = await fetch(
-      `${API_CONFIG.AUTH_SERVER}/api/auth/register`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
+    try {
+      const response = await axios.post(
+        `${API_CONFIG.AUTH_SERVER}/api/auth/register`,
+        {
           firstName,
           lastName,
           email,
           password,
-          photo: photoUrl, // optional
-        }),
+          photo: photoUrl,
+        },
+        { withCredentials: true }
+      );
+      const result = response.data;
+
+      // Store auth data
+      if (typeof window !== "undefined" && result.accessToken) {
+        localStorage.setItem("access_token", result.accessToken);
+        localStorage.setItem("user", JSON.stringify(result.user));
       }
-    );
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || "Registration failed");
+      return result;
+    } catch (error: any) {
+      throw new Error(error?.response?.data || "Registration failed");
     }
-
-    const result = await response.json();
-
-    // Store auth data
-    if (typeof window !== "undefined" && result.accessToken) {
-      localStorage.setItem("access_token", result.accessToken);
-      localStorage.setItem("user", JSON.stringify(result.user));
-    }
-
-    return result;
   },
 
   async logout() {
     try {
-      await fetch(`${API_CONFIG.AUTH_SERVER}/api/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          Authorization: `Bearer ${this.getToken()}`,
-        },
-      });
+      await axios.post(
+        `${API_CONFIG.AUTH_SERVER}/api/auth/logout`,
+        {},
+        {
+          withCredentials: true,
+          headers: {
+            Authorization: `Bearer ${this.getToken()}`,
+          },
+        }
+      );
     } catch (error) {
       console.error("Logout error:", error);
     }
@@ -90,7 +81,7 @@ export const authService = {
   },
 
   async validateToken(token: string) {
-    const response = await fetch(
+    const response = await axios.get(
       `${API_CONFIG.AUTH_SERVER}/api/auth/validate`,
       {
         headers: {
@@ -98,26 +89,21 @@ export const authService = {
         },
       }
     );
-    return response.json();
+    return response.data;
   },
 
   async refreshToken() {
     try {
-      const response = await fetch(
+      const response = await axios.post(
         `${API_CONFIG.AUTH_SERVER}/api/auth/refresh`,
-        {
-          method: "POST",
-          credentials: "include",
-        }
+        {},
+        { withCredentials: true }
       );
-
-      if (response.ok) {
-        const result = await response.json();
-        if (typeof window !== "undefined") {
-          localStorage.setItem("access_token", result.accessToken);
-        }
-        return result;
+      const result = response.data;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("access_token", result.accessToken);
       }
+      return result;
     } catch (error) {
       console.error("Token refresh failed:", error);
     }
@@ -151,26 +137,12 @@ export const authService = {
 
   async googleLogin(credentialResponse: { credential: string }) {
     try {
-      const response = await fetch(
+      const response = await axios.post(
         `${API_CONFIG.AUTH_SERVER}/api/auth/google-login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            credential: credentialResponse.credential,
-          }),
-        }
+        { credential: credentialResponse.credential },
+        { withCredentials: true }
       );
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Google Login failed, Please try again");
-      }
-
-      const result = await response.json();
+      const result = response.data;
 
       if (typeof window !== "undefined" && result.accessToken) {
         localStorage.setItem("access_token", result.accessToken);
@@ -181,13 +153,14 @@ export const authService = {
         isNewUser: result.isNewUser || !result.user?.isEmailVerified,
         user: result.user,
       };
-    } catch (error) {
+    } catch (error: any) {
       const message =
-        error instanceof Error
+        error?.response?.data ||
+        (error instanceof Error
           ? error.message
           : typeof error === "string"
           ? error
-          : "Google Login failed, Please try again";
+          : "Google Login failed, Please try again");
       throw new Error(message);
     }
   },
@@ -196,23 +169,25 @@ export const authService = {
 // Market data service functions
 export const marketService = {
   async getQuote(symbol: string) {
-    const response = await fetch(
-      `${API_CONFIG.MARKET_SERVER}/api/market/quote/${symbol}`
-    );
-    if (!response.ok) {
+    try {
+      const response = await axios.get(
+        `${API_CONFIG.MARKET_SERVER}/api/market/quote/${symbol}`
+      );
+      return response.data;
+    } catch {
       throw new Error(`Failed to fetch quote for ${symbol}`);
     }
-    return response.json();
   },
 
   async searchSymbols(query: string) {
-    const response = await fetch(
-      `${API_CONFIG.MARKET_SERVER}/api/market/search?q=${encodeURIComponent(query)}`
-    );
-    if (!response.ok) {
+    try {
+      const response = await axios.get(
+        `${API_CONFIG.MARKET_SERVER}/api/market/search?q=${encodeURIComponent(query)}`
+      );
+      return response.data;
+    } catch {
       throw new Error(`Search failed for query: ${query}`);
     }
-    return response.json();
   },
 
   async getHistoricalData(
@@ -220,52 +195,49 @@ export const marketService = {
     period: string = "1y",
     interval: string = "1d"
   ) {
-    const response = await fetch(
-      `${API_CONFIG.MARKET_SERVER}/api/market/historical/${symbol}?period=${period}&interval=${interval}`
-    );
-    if (!response.ok) {
+    try {
+      const response = await axios.get(
+        `${API_CONFIG.MARKET_SERVER}/api/market/historical/${symbol}?period=${period}&interval=${interval}`
+      );
+      const json = response.data;
+      return json && json.data ? json.data : json;
+    } catch {
       throw new Error(`Failed to fetch historical data for ${symbol}`);
     }
-    const json = await response.json();
-    // API returns an envelope { success, data, message }, unwrap if present
-    return json && json.data ? json.data : json;
   },
 
   async getTrendingStocks() {
-    const response = await fetch(
-      `${API_CONFIG.MARKET_SERVER}/api/market/trending`
-    );
-    if (!response.ok) {
+    try {
+      const response = await axios.get(
+        `${API_CONFIG.MARKET_SERVER}/api/market/trending`
+      );
+      return response.data;
+    } catch {
       throw new Error("Failed to fetch trending stocks");
     }
-    return response.json();
   },
 
   async getMarketSummary() {
-    const response = await fetch(
-      `${API_CONFIG.MARKET_SERVER}/api/market/summary`
-    );
-    if (!response.ok) {
+    try {
+      const response = await axios.get(
+        `${API_CONFIG.MARKET_SERVER}/api/market/summary`
+      );
+      return response.data;
+    } catch {
       throw new Error("Failed to fetch market summary");
     }
-    return response.json();
   },
 
   async getMultipleQuotes(symbols: string[]) {
-    const response = await fetch(
-      `${API_CONFIG.MARKET_SERVER}/api/market/quotes`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ symbols }),
-      }
-    );
-    if (!response.ok) {
+    try {
+      const response = await axios.post(
+        `${API_CONFIG.MARKET_SERVER}/api/market/quotes`,
+        { symbols }
+      );
+      return response.data;
+    } catch {
       throw new Error("Failed to fetch multiple quotes");
     }
-    return response.json();
   },
 
   // Cache for frequently accessed data
@@ -291,50 +263,51 @@ export const marketService = {
 
 // Calculation service functions
 export const calcService = {
-  async getRiskSettings(userId: string, token: string) {
-    const response = await fetch(
-      `${API_CONFIG.CALC_SERVER}/api/risk-settings/${userId}`,
+  async getRiskSettings( token: string) {
+    const response = await axios.get(
+      `${API_CONFIG.CALC_SERVER}/api/risk-settings/`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       }
     );
-    return response.json();
+    return response.data;
   },
 
-  async updateRiskSettings(userId: string, settings: any, token: string) {
-    const response = await fetch(
-      `${API_CONFIG.CALC_SERVER}/api/risk-settings/${userId}`,
+  async updateRiskSettings(settings: any, token: string) {
+    const response = await axios.post(
+      `${API_CONFIG.CALC_SERVER}/api/risk-settings/`,
+      settings,
       {
-        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(settings),
       }
     );
-    return response.json();
+    return response.data;
   },
 
   async executeTrade(tradeData: any, token: string) {
-    const response = await fetch(`${API_CONFIG.CALC_SERVER}/api/trades`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(tradeData),
-    });
-    return response.json();
+    const response = await axios.post(
+      `${API_CONFIG.CALC_SERVER}/api/trades`,
+      tradeData,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return response.data;
   },
 };
 
 // API service functions
 export const apiService = {
   async getPortfolio(userId: string, token: string) {
-    const response = await fetch(
+    const response = await axios.get(
       `${API_CONFIG.API_SERVER}/api/portfolio/${userId}`,
       {
         headers: {
@@ -342,11 +315,11 @@ export const apiService = {
         },
       }
     );
-    return response.json();
+    return response.data;
   },
 
   async getTradeHistory(userId: string, token: string) {
-    const response = await fetch(
+    const response = await axios.get(
       `${API_CONFIG.API_SERVER}/api/trades/history/${userId}`,
       {
         headers: {
@@ -354,6 +327,6 @@ export const apiService = {
         },
       }
     );
-    return response.json();
+    return response.data;
   },
 };
