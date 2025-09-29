@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import { User } from "../packages/models/user";
 import { ErrorHandling } from "../middleware/errorHandler";
+import { authClient } from "@/authService.client";
 
 declare global {
   namespace Express {
@@ -17,6 +16,7 @@ declare global {
     }
   }
 }
+
 interface JWTPayload {
   id: string;
   email: string;
@@ -49,45 +49,18 @@ export const protectRoute = async (
       return next(new ErrorHandling("Not authorized, no token", 401));
     }
 
-    // Verify token
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET_ACCESS!
-    ) as JWTPayload;
+    const validation = await authClient.validateToken(token);
 
-    // Find user
-    const user = await User.findById(decoded.id)
-      .select("firstName lastName email role isEmailVerified")
-      .lean<{
-        _id: string;
-        email: string;
-        firstName: string;
-        lastName: string;
-        role: "user" | "admin" | "trader" | "premium";
-        isEmailVerified: boolean;
-      }>();
-
-    if (!user) {
-      return next(new ErrorHandling("Not authorized, user not found", 401));
+    if (!validation.valid || !validation.user) {
+      return next(new ErrorHandling(validation.error || "Not authorized, invalid token", 401));
     }
 
     // Attach user to request
-    req.user = {
-      _id: decoded.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      isEmailVerified: user.isEmailVerified,
-    };
+    req.user = validation.user;
 
     next();
   } catch (err: any) {
-    if (err.name === "JsonWebTokenError") {
-      return next(new ErrorHandling("Not authorized, invalid token", 401));
-    } else if (err.name === "TokenExpiredError") {
-      return next(new ErrorHandling("Not authorized, token expired", 401));
-    }
+    console.error('Auth middleware error:', err);
     return next(new ErrorHandling("Not authorized", 401));
   }
 };

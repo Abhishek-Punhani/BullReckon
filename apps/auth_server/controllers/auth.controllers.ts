@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { User } from "../../../packages/models";
 import bcrypt from "bcryptjs";
 import { generateTokens } from "../../../shared/tokens";
 import { ErrorHandling } from "../../../middleware/errorHandler";
@@ -11,6 +10,7 @@ import {
 import { AuthenticatedRequest } from "../../../types/auth";
 import { OAuth2Client } from "google-auth-library";
 import { Types } from "mongoose";
+import { User } from "@repo/models";
 
 export const registerUser = async (
   req: Request,
@@ -439,3 +439,5 @@ export const googleAuth = async (
     return next(new ErrorHandling("Authentication failed", 401));
   }
 };
+
+

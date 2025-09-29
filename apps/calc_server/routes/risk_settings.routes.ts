@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { protectRoute } from '../../../middleware/authMiddleware';
+import { protectRoute } from "../../../middleware/authMiddleware";
 import { riskController } from "../controllers/risk_settings.contoller";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(protectRoute);
 
@@ -17,5 +17,6 @@ router.post("/calculate-position-size", riskController.calculatePositionSize);
 router.post("/preset/:preset", riskController.applyRiskPreset);
 
 router.post("/monitor-positions", riskController.monitorPositions);
+router.get("/:userId", riskController.getRiskSettingsByUserId);
 
 export { router as riskRoutes };

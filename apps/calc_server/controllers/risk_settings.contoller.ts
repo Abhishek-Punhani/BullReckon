@@ -138,12 +138,16 @@ export const riskController = {
         return res.status(401).json({ error: "User not authenticated" });
       }
 
-      if (!["conservative", "moderate", "aggressive"].includes(preset)) {
+      if (!["conservative", "moderate", "aggressive"].includes(preset as string)) {
         return res.status(400).json({ error: "Invalid risk preset" });
       }
 
       const settings = await riskService.getRiskSettings(userId);
-      settings.riskPreset = preset as "conservative" | "moderate" | "aggressive" | "custom";
+      settings.riskPreset = preset as
+        | "conservative"
+        | "moderate"
+        | "aggressive"
+        | "custom";
       await settings.save();
 
       res.json({
@@ -178,6 +182,31 @@ export const riskController = {
       console.error("Monitor positions error:", error);
       res.status(500).json({
         error: "Failed to monitor positions",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  },
+  // GET /api/risk/:userId
+  getRiskSettingsByUserId: async (req: Request, res: Response) => {
+    try {
+      const userId = req.params.userId;
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const settings = await riskService.getRiskSettings(userId);
+      if (!settings) {
+        return res.status(404).json({ error: "Risk settings not found" });
+      }
+
+      res.json({
+        success: true,
+        data: settings,
+      });
+    } catch (error) {
+      console.error("Get risk settings by user ID error:", error);
+      res.status(500).json({
+        error: "Failed to retrieve risk settings",
         details: error instanceof Error ? error.message : "Unknown error",
       });
     }

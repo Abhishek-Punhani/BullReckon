@@ -11,7 +11,7 @@ import {
   verifyEmail,
 } from "../controllers/auth.controllers";
 
-const authRoutes = Router();
+const authRoutes: Router = Router();
 
 authRoutes.post("/register", registerUser);
 authRoutes.post("/login", loginUser);
@@ -23,5 +23,6 @@ authRoutes.post("/request-activation-mail", requestActivationEmail);
 authRoutes.post("/change-password", requestPasswordEmail);
 authRoutes.post("/verify-email/:token", verifyEmail);
 authRoutes.post("/google-login", googleAuth);
+
 
 export { authRoutes };

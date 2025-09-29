@@ -7,6 +7,5 @@ export { Backtest } from './backtest';
 // Type exports
 export type { IUser } from './user';
 export type { IPortfolio } from './portfolio';
-export type { ITrade } from './trade';
 export type { IRiskSettings } from './risk_settings';
 export type { IBacktest } from './backtest';

@@ -61,7 +61,7 @@ export class RiskManagementService {
 
   // Get or create risk settings for user
   async getRiskSettings(userId: string): Promise<IRiskSettings> {
-    let settings = await RiskSettings.findOne({ userId });
+    let settings = await (RiskSettings as any).findOne({ userId });
 
     if (!settings) {
       settings = new RiskSettings({

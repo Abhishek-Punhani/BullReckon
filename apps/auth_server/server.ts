@@ -1,7 +1,9 @@
+import { protectRoute } from "middleware/authMiddleware";
 import { BaseApp } from "../../shared/baseApp";
 import { DatabaseManager } from "../../shared/dbManager";
 import { authConfig } from "./config";
 import { authRoutes } from "./routes/auth.routes";
+import { internalRoutes } from "./routes/internal.routes";
 
 // Initialize database
 const db = DatabaseManager.getInstance(authConfig);
@@ -20,6 +22,7 @@ const app = new BaseApp({
 
 // Setup routes
 app.addRoutes("/api/auth", authRoutes);
+app.addRoutes("/api/internal", internalRoutes);
 app.initializeErrorHandling();
 // Start the service
 async function start() {
