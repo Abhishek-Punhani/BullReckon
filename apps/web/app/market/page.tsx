@@ -5,6 +5,7 @@ import { marketService } from "../../lib/services";
 import type { StockHistoricalData } from "../../lib/types/market";
 import SymbolSearch from "../../components/SymbolSearch";
 import Navigation from "@/components/Navigation";
+import TradeModal from "@/components/TradeModal";
 import { Button } from "../../components/ui/button";
 import { Card, CardHeader, CardContent } from "../../components/ui/card";
 import { TrendingUp, TrendingDown } from "lucide-react";
@@ -128,6 +129,9 @@ export default function MarketPage() {
                   ) : (
                     <div className="text-sm text-muted-foreground">--</div>
                   )}
+                </div>
+                <div>
+                  <TradeModal symbol={symbol} />
                 </div>
               </div>
             </CardHeader>
