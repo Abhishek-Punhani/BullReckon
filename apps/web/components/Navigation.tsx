@@ -3,17 +3,16 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import {
-  Menu,
-  TrendingUp,
+import { 
+  Menu, 
+  TrendingUp, 
   BarChart3,
-  Wallet,
-  History,
-  Shield,
-  Bot,
-  FlaskConical,
-  Trophy,
-  Blocks,
+  History, 
+  Shield, 
+  Bot, 
+  FlaskConical, 
+  Trophy, 
+  Blocks, 
   Brain,
   LogOut,
 } from "lucide-react";
@@ -32,7 +31,6 @@ const Navigation = () => {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
     { href: "/market", label: "Market", icon: TrendingUp },
-    { href: "/trade", label: "Trade", icon: Wallet },
     { href: "/history", label: "History", icon: History },
     { href: "/risk", label: "Risk", icon: Shield },
     { href: "/strategy", label: "Strategy", icon: Bot },
