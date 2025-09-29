@@ -1,7 +1,23 @@
 import { Queue, Worker, Job, QueueEvents } from "bullmq";
 import IORedis from "ioredis";
 import { processPendingOrder } from "../apps/calc_server/workers/pendingOrders";
-
+declare global {
+  var queueManager:
+    | {
+        addPendingOrderJob: (params: {
+          tradeId: string;
+          userId: string;
+          symbol: string;
+          action: string;
+          quantity: number;
+          orderType: string;
+          limitPrice?: number;
+          stopPrice?: number;
+          triggerPrice: number;
+        }) => void;
+      }
+    | undefined;
+}
 export interface PendingOrderJobData {
   tradeId: string;
   userId: string;

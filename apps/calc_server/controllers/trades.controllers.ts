@@ -28,7 +28,7 @@ export const trade = async (
     const currentPrice = await fetchLivePrice(symbol);
 
     // Find or create portfolio
-    let portfolio = await Portfolio.findOne({
+    let portfolio = await (Portfolio as any).findOne({
       userId: new mongoose.Types.ObjectId(userId),
     });
     if (!portfolio) {
@@ -79,7 +79,9 @@ export const trade = async (
         portfolio.cash -= tradeValue;
         portfolio.addPosition(symbol, quantity, executionPrice);
       } else if (action === "SELL") {
-        const position = portfolio.positions.find((p) => p.symbol === symbol);
+        const position = portfolio.positions.find(
+          (p: any) => p.symbol === symbol
+        );
         if (!position || position.quantity < quantity) {
           return res.status(400).json({ error: "Insufficient holdings" });
         }

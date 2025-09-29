@@ -285,7 +285,7 @@ export const verifyEmail = async (
   next: NextFunction
 ) => {
   try {
-    const { token } = req.query;
+    const { token } = req.body;
     if (!token) {
       return next(new ErrorHandling("Activation token is required", 400));
     }
@@ -293,7 +293,7 @@ export const verifyEmail = async (
     let decoded: any;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET_EMAIL!);
-    } catch (err) {
+    } catch (err: any) {
       if (err.name === "TokenExpiredError") {
         return next(new ErrorHandling("Activation token has expired", 400));
       }
@@ -439,5 +439,3 @@ export const googleAuth = async (
     return next(new ErrorHandling("Authentication failed", 401));
   }
 };
-
-

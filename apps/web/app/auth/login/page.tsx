@@ -34,7 +34,7 @@ const LoginPage = () => {
       // Try to authenticate with BullReckon auth server
       const result = await authService.login(email, password);
 
-      if (result.success) {
+      if (result.status === "success") {
         localStorage.setItem("access_token", result.token);
         localStorage.setItem("user", JSON.stringify(result.user));
         toast({
@@ -142,13 +142,8 @@ const LoginPage = () => {
                   Sign up
                 </Link>
               </p>
+              <br />
               <GoogleAuthButton />
-            </div>
-
-            <div className="mt-4 p-3 bg-muted/50 rounded-lg text-xs space-y-1">
-              <p className="font-medium">Demo Credentials:</p>
-              <p>Email: trader@example.com</p>
-              <p>Password: password123</p>
             </div>
           </CardContent>
         </Card>

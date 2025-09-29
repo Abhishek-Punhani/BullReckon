@@ -43,21 +43,19 @@ const RegisterPage = () => {
         ]);
         photoUrl = uploaded[0]?.file?.secure_url || null;
       }
-      const res = await authService.register(
+      const result = await authService.register(
         email,
         password,
         firstName,
         lastName,
         photoUrl || undefined
       );
-      const result = await res.json();
 
-      if (res.ok && result.status === "success") {
+      if (result.status === "success") {
         toast({
           title: "Registration successful!",
           description: "Please check your email to verify your account.",
         });
-        router.push("/auth/post-register-mail-confirmation");
       } else {
         throw new Error(result.message || "Registration failed");
       }
@@ -68,8 +66,10 @@ const RegisterPage = () => {
         description: error.message || "An error occurred.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
+      router.push("/auth/post-register-mail-confirmation");
     }
-    setIsLoading(false);
   };
 
   return (
@@ -230,6 +230,7 @@ const RegisterPage = () => {
                   Sign in
                 </Link>
               </p>
+              <br />
               <GoogleAuthButton />
             </div>
           </CardContent>
