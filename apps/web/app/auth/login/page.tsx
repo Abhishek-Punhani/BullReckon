@@ -6,11 +6,18 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { mockUsers } from "@/lib/mockData";
 import { authService } from "@/lib/services";
 import { Lock, Mail, TrendingUp } from "lucide-react";
+import GoogleAuthButton from "@/components/GoogleAuthBtn";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -26,10 +33,10 @@ const LoginPage = () => {
     try {
       // Try to authenticate with BullReckon auth server
       const result = await authService.login(email, password);
-      
+
       if (result.success) {
-        localStorage.setItem("trading_token", result.token);
-        localStorage.setItem("trading_user", JSON.stringify(result.user));
+        localStorage.setItem("access_token", result.token);
+        localStorage.setItem("user", JSON.stringify(result.user));
         toast({
           title: "Welcome back!",
           description: "You have successfully logged in.",
@@ -40,11 +47,13 @@ const LoginPage = () => {
       }
     } catch (error) {
       // Fallback to mock users for demo
-      const user = mockUsers.find(u => u.email === email && u.password === password);
-      
+      const user = mockUsers.find(
+        (u) => u.email === email && u.password === password
+      );
+
       if (user) {
-        localStorage.setItem("trading_token", "mock_jwt_token");
-        localStorage.setItem("trading_user", JSON.stringify(user));
+        localStorage.setItem("access_token", "mock_jwt_token");
+        localStorage.setItem("user", JSON.stringify(user));
         toast({
           title: "Welcome back!",
           description: "You have successfully logged in (demo mode).",
@@ -58,7 +67,7 @@ const LoginPage = () => {
         });
       }
     }
-    
+
     setIsLoading(false);
   };
 
@@ -101,7 +110,7 @@ const LoginPage = () => {
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
@@ -126,10 +135,14 @@ const LoginPage = () => {
             <div className="mt-6 text-center text-sm">
               <p className="text-muted-foreground">
                 Don&apos;t have an account?{" "}
-                <Link href="/register" className="text-primary hover:underline">
+                <Link
+                  href="/auth/register"
+                  className="text-primary hover:underline"
+                >
                   Sign up
                 </Link>
               </p>
+              <GoogleAuthButton />
             </div>
 
             <div className="mt-4 p-3 bg-muted/50 rounded-lg text-xs space-y-1">

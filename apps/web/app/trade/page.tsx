@@ -87,7 +87,7 @@ const TradingPage = () => {
   useEffect(() => {
     // Check authentication
     if (!authService.isAuthenticated()) {
-      router.push("/login");
+      router.push("/auth/login");
       return;
     }
 

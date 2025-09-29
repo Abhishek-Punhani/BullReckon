@@ -11,12 +11,12 @@ export default function Home() {
 
   useEffect(() => {
     // Check if user is authenticated
-    const token = localStorage.getItem("trading_token");
+    const token = localStorage.getItem("access_token");
     if (token) {
       setIsAuthenticated(true);
       router.push("/dashboard");
     } else {
-      router.push("/login");
+      router.push("/auth/login");
     }
     setIsLoading(false);
   }, [router]);

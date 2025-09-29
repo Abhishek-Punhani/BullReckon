@@ -3,19 +3,19 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { 
-  Menu, 
-  TrendingUp, 
-  BarChart3, 
-  Wallet, 
-  History, 
-  Shield, 
-  Bot, 
-  FlaskConical, 
-  Trophy, 
-  Blocks, 
+import {
+  Menu,
+  TrendingUp,
+  BarChart3,
+  Wallet,
+  History,
+  Shield,
+  Bot,
+  FlaskConical,
+  Trophy,
+  Blocks,
   Brain,
-  LogOut 
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,8 +25,8 @@ const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = () => {
-    localStorage.removeItem("trading_token");
-    router.push("/login");
+    localStorage.removeItem("access_token");
+    router.push("/auth/login");
   };
 
   const navItems = [
@@ -50,14 +50,18 @@ const Navigation = () => {
         </h1>
         <p className="text-sm text-muted-foreground mt-1">Trading Platform</p>
       </div>
-      
+
       <nav className="flex-1 px-4 space-y-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
-          
+
           return (
-            <Link key={item.href} href={item.href} onClick={() => setIsOpen(false)}>
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setIsOpen(false)}
+            >
               <div
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
@@ -75,8 +79,8 @@ const Navigation = () => {
       </nav>
 
       <div className="p-4 border-t border-border">
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           onClick={handleLogout}
           className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
         >

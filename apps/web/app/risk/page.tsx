@@ -32,7 +32,7 @@ const RiskPage = () => {
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
-      router.push("/login");
+      router.push("/auth/login");
       return;
     }
     loadRiskSettings();
@@ -44,7 +44,7 @@ const RiskPage = () => {
       const user = authService.getUser();
       const token = authService.getToken();
       if (!user || !token) return;
-      const data = await calcService.getRiskSettings(user.id, token);
+      const data = await calcService.getRiskSettings(user._id, token);
       setSettings(data);
     } catch (error) {
       setSettings(null);
@@ -69,7 +69,7 @@ const RiskPage = () => {
       const user = authService.getUser();
       const token = authService.getToken();
       if (!user || !token || !settings) return;
-      await calcService.updateRiskSettings(user.id, settings, token);
+      await calcService.updateRiskSettings(user._id, settings, token);
       refreshSettings();
     } catch (error) {
       // handle error

@@ -21,8 +21,8 @@ export const authService = {
 
     // Store auth data
     if (typeof window !== "undefined" && result.accessToken) {
-      localStorage.setItem("trading_token", result.accessToken);
-      localStorage.setItem("trading_user", JSON.stringify(result.user));
+      localStorage.setItem("access_token", result.accessToken);
+      localStorage.setItem("user", JSON.stringify(result.user));
     }
 
     return result;
@@ -31,8 +31,9 @@ export const authService = {
   async register(
     email: string,
     password: string,
-    firstName?: string,
-    lastName?: string
+    firstName: string,
+    lastName: string,
+    photoUrl?: string
   ) {
     const response = await fetch(
       `${API_CONFIG.AUTH_SERVER}/api/auth/register`,
@@ -42,7 +43,13 @@ export const authService = {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({ email, password, firstName, lastName }),
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          password,
+          photo: photoUrl, // optional
+        }),
       }
     );
 
@@ -55,8 +62,8 @@ export const authService = {
 
     // Store auth data
     if (typeof window !== "undefined" && result.accessToken) {
-      localStorage.setItem("trading_token", result.accessToken);
-      localStorage.setItem("trading_user", JSON.stringify(result.user));
+      localStorage.setItem("access_token", result.accessToken);
+      localStorage.setItem("user", JSON.stringify(result.user));
     }
 
     return result;
@@ -77,8 +84,8 @@ export const authService = {
 
     // Clear stored data
     if (typeof window !== "undefined") {
-      localStorage.removeItem("trading_token");
-      localStorage.removeItem("trading_user");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
     }
   },
 
@@ -107,7 +114,7 @@ export const authService = {
       if (response.ok) {
         const result = await response.json();
         if (typeof window !== "undefined") {
-          localStorage.setItem("trading_token", result.accessToken);
+          localStorage.setItem("access_token", result.accessToken);
         }
         return result;
       }
@@ -119,14 +126,14 @@ export const authService = {
 
   getToken(): string | null {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("trading_token");
+      return localStorage.getItem("access_token");
     }
     return null;
   },
 
   getUser() {
     if (typeof window !== "undefined") {
-      const userStr = localStorage.getItem("trading_user");
+      const userStr = localStorage.getItem("user");
       if (userStr) {
         try {
           return JSON.parse(userStr);
@@ -140,6 +147,49 @@ export const authService = {
 
   isAuthenticated(): boolean {
     return !!this.getToken();
+  },
+
+  async googleLogin(credentialResponse: { credential: string }) {
+    try {
+      const response = await fetch(
+        `${API_CONFIG.AUTH_SERVER}/api/auth/google-login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            credential: credentialResponse.credential,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || "Google Login failed, Please try again");
+      }
+
+      const result = await response.json();
+
+      if (typeof window !== "undefined" && result.accessToken) {
+        localStorage.setItem("access_token", result.accessToken);
+        localStorage.setItem("user", JSON.stringify(result.user));
+      }
+
+      return {
+        isNewUser: result.isNewUser || !result.user?.isEmailVerified,
+        user: result.user,
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+          ? error
+          : "Google Login failed, Please try again";
+      throw new Error(message);
+    }
   },
 };
 

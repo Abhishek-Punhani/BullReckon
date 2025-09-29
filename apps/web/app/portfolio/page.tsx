@@ -45,7 +45,7 @@ const PortfolioPage = () => {
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
-      router.push("/login");
+      router.push("auth/login");
       return;
     }
     loadPortfolio();

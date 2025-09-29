@@ -3,6 +3,7 @@
 import "./globals.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 export default function RootLayout({
   children,
@@ -15,7 +16,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-background font-mono">
         <QueryClientProvider client={queryClient}>
-          {children}
+          <GoogleOAuthProvider
+            clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID as string}
+          >
+            {children}
+          </GoogleOAuthProvider>
         </QueryClientProvider>
       </body>
     </html>
