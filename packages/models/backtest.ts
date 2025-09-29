@@ -116,7 +116,7 @@ const backtestSchema = new mongoose.Schema(
       required: [true, "End date is required"],
       validate: {
         validator: function (date: Date) {
-          return date > this.startDate && date <= new Date();
+          return date > (this as any).startDate && date <= new Date();
         },
         message: "End date must be after start date and not in the future",
       },
