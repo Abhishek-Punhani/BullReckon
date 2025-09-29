@@ -36,15 +36,31 @@ export class QueueManager {
 
   private constructor() {
     if (process.env.DISABLE_REDIS_QUEUES !== "true") {
-      this.redisConnection = new IORedis({
-        host: process.env.REDIS_HOST || "localhost",
-        port: Number(process.env.REDIS_PORT) || 6379,
-        password: process.env.REDIS_PASSWORD || undefined,
-        enableReadyCheck: false,
-        maxRetriesPerRequest: null,
-      });
+      try {
+        this.redisConnection = new IORedis({
+          host: process.env.REDIS_HOST || "localhost",
+          port: Number(process.env.REDIS_PORT) || 6379,
+          password: process.env.REDIS_PASSWORD || undefined,
+          enableReadyCheck: false,
+          maxRetriesPerRequest: null,
+          lazyConnect: true, // Don't connect immediately
+        });
+
+        // Suppress connection errors when Redis is disabled
+        this.redisConnection.on("error", (err: any) => {
+          if (process.env.DISABLE_REDIS_QUEUES === "true") {
+            // Silently ignore errors when Redis is disabled
+            return;
+          }
+          console.error("Redis connection error:", err);
+        });
+      } catch (error) {
+        console.log("⚠️ Redis connection failed - running in fallback mode");
+        this.redisConnection = null;
+      }
     } else {
       console.log("⚠️ Redis queues disabled - running in fallback mode");
+      this.redisConnection = null;
     }
   }
 
@@ -314,4 +330,5 @@ export class QueueManager {
   }
 }
 
-export default QueueManager.getInstance();
+// Export the class, not an instance
+export default QueueManager;
