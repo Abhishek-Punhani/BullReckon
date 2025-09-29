@@ -28,7 +28,7 @@ export interface StockHistoricalData {
 }
 
 class MarketService {
-  private cache: Map<string, { data: any; timestamp: number }> = new Map();
+  private cache: Map<string, { data: any; expiresAt: number }> = new Map();
   private readonly CACHE_DURATION = 60 * 1000; // 1 minute in milliseconds
 
   /**
@@ -91,27 +91,15 @@ class MarketService {
       | "ytd"
       | "max" = "1mo"
   ): Promise<StockHistoricalData> {
-    try {
-      const cacheKey = `historical_${symbol.toUpperCase()}_${period}`;
-      const cached = this.getCachedData(cacheKey);
+    const cacheKey = `historical_${symbol.toUpperCase()}_${period}`;
+    const cached = this.getCachedData(cacheKey);
 
-      if (cached) {
-        return cached;
-      }
+    if (cached) {
+      return cached;
+    }
 
-      const result = await yahooFinance.historical(symbol, {
-        period1: this.getPeriodStartDate(period),
-        period2: new Date(),
-        interval: "1d",
-      });
-
-      if (!result || result.length === 0) {
-        throw new ErrorHandling(
-          `No historical data found for '${symbol}'`,
-          404
-        );
-      }
-
+    // Helper to convert raw yahoo result to our shape
+    const normalizeResult = (result: any[]): StockHistoricalData => {
       const historicalData: StockHistoricalData = {
         symbol: symbol.toUpperCase(),
         period,
@@ -129,25 +117,76 @@ class MarketService {
               new Date(a.date).getTime() - new Date(b.date).getTime()
           ),
       };
-
-      // Cache historical data for longer (5 minutes)
-      this.setCachedData(cacheKey, historicalData, 5 * 60 * 1000);
       return historicalData;
-    } catch (error: any) {
-      if (error instanceof ErrorHandling) {
-        throw error;
+    };
+
+    // Try multiple strategies: direct Yahoo fetch and symbol normalization (USDT->-USD).
+    // Note: synthetic fallback removed — service will return an error if provider has no data.
+    try {
+      let result: any = null;
+
+      // Primary attempt using the provided symbol
+      try {
+        result = await yahooFinance.historical(symbol, {
+          period1: this.getPeriodStartDate(period),
+          period2: new Date(),
+          interval: "1d",
+        });
+      } catch (yErr) {
+        console.warn(
+          `Primary yahoo.historical lookup failed for ${symbol}: ${yErr}`
+        );
       }
-      console.error(`Error fetching historical data for ${symbol}:`, error);
+
+      // If no usable result, try common normalization for crypto pairs (USDT -> -USD)
+      if (!result || (Array.isArray(result) && result.length === 0)) {
+        try {
+          const up = String(symbol).toUpperCase();
+          if (up.endsWith("USDT")) {
+            const alt = up.replace(/USDT$/i, "-USD");
+            console.info(`Trying alternate symbol for Yahoo: ${alt}`);
+            result = await yahooFinance.historical(alt, {
+              period1: this.getPeriodStartDate(period),
+              period2: new Date(),
+              interval: "1d",
+            });
+          }
+        } catch (altErr) {
+          console.warn(
+            `Alternate yahoo.historical lookup failed for ${symbol}: ${altErr}`
+          );
+        }
+      }
+
+      // Some Yahoo responses can be nested or empty; normalize to an array if possible
+      const resultArray = Array.isArray(result) ? result : result?.prices || [];
+
+      if (resultArray && resultArray.length > 0) {
+        const historicalData = normalizeResult(resultArray);
+        // Cache historical data for longer (5 minutes)
+        this.setCachedData(cacheKey, historicalData, 5 * 60 * 1000);
+        return historicalData;
+      }
+
+      // Yahoo returned no usable data — per request, do NOT synthesize data; return explicit error.
+      console.warn(
+        `No historical data from Yahoo for ${symbol} (period=${period})`
+      );
       throw new ErrorHandling(
-        `Failed to fetch historical data for ${symbol}`,
-        500
+        `No historical data available from provider for ${symbol}`,
+        502
+      );
+    } catch (error: any) {
+      console.error(`Error fetching historical data for ${symbol}:`, error);
+      // Bubble up a provider error rather than synthesizing data
+      if (error instanceof ErrorHandling) throw error;
+      throw new ErrorHandling(
+        `Failed to fetch historical data for ${symbol}: ${error?.message || String(error)}`,
+        502
       );
     }
   }
 
-  /**
-   * Search for stocks by query
-   */
   async searchStocks(
     query: string
   ): Promise<Array<{ symbol: string; name: string; type: string }>> {
@@ -205,19 +244,18 @@ class MarketService {
    */
   private getCachedData(key: string): any | null {
     const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-      return cached.data;
-    }
-    if (cached) {
-      this.cache.delete(key); // Remove expired cache
-    }
+    if (!cached) return null;
+    if (cached.expiresAt > Date.now()) return cached.data;
+    // expired
+    this.cache.delete(key);
     return null;
   }
 
   private setCachedData(key: string, data: any, duration?: number): void {
+    const ttl = typeof duration === "number" ? duration : this.CACHE_DURATION;
     this.cache.set(key, {
       data,
-      timestamp: Date.now(),
+      expiresAt: Date.now() + ttl,
     });
   }
 

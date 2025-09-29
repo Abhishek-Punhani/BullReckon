@@ -176,7 +176,9 @@ export const marketService = {
     if (!response.ok) {
       throw new Error(`Failed to fetch historical data for ${symbol}`);
     }
-    return response.json();
+    const json = await response.json();
+    // API returns an envelope { success, data, message }, unwrap if present
+    return json && json.data ? json.data : json;
   },
 
   async getTrendingStocks() {
