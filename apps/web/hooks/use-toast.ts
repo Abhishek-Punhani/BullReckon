@@ -2,8 +2,9 @@ import * as React from "react";
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
-const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+// Allow a few toasts and remove them after a short delay
+const TOAST_LIMIT = 3;
+const TOAST_REMOVE_DELAY = 5000; // 5 seconds
 
 type ToasterToast = ToastProps & {
   id: string;
@@ -79,7 +80,9 @@ export const reducer = (state: State, action: Action): State => {
     case "UPDATE_TOAST":
       return {
         ...state,
-        toasts: state.toasts.map((t) => (t.id === action.toast.id ? { ...t, ...action.toast } : t)),
+        toasts: state.toasts.map((t) =>
+          t.id === action.toast.id ? { ...t, ...action.toast } : t
+        ),
       };
 
     case "DISMISS_TOAST": {
@@ -103,22 +106,35 @@ export const reducer = (state: State, action: Action): State => {
                 ...t,
                 open: false,
               }
-            : t,
+            : t
         ),
       };
     }
     case "REMOVE_TOAST":
       if (action.toastId === undefined) {
+        // clear all timeouts
+        toastTimeouts.forEach((timeout) => clearTimeout(timeout));
+        toastTimeouts.clear();
         return {
           ...state,
           toasts: [],
         };
       }
+
+      // Clear specific timeout if present
+      const existingTimeout = toastTimeouts.get(action.toastId);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        toastTimeouts.delete(action.toastId);
+      }
+
       return {
         ...state,
         toasts: state.toasts.filter((t) => t.id !== action.toastId),
       };
   }
+  // default: return state unchanged
+  return state;
 };
 
 const listeners: Array<(state: State) => void> = [];
@@ -166,6 +182,8 @@ function toast({ ...props }: Toast) {
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState);
 
+  // Register a single listener for this component instance.
+  // Use an empty dependency array so we don't re-register on state changes
   React.useEffect(() => {
     listeners.push(setState);
     return () => {
@@ -174,7 +192,7 @@ function useToast() {
         listeners.splice(index, 1);
       }
     };
-  }, [state]);
+  }, []);
 
   return {
     ...state,
