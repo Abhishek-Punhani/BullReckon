@@ -18,7 +18,7 @@ import {
   TrendingDown,
   RefreshCw,
 } from "lucide-react";
-import { apiService, authService } from "@/lib/services";
+import { apiService, authService } from "@/services";
 import Navigation from "@/components/Navigation";
 
 interface Position {

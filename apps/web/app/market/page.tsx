@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import MarketChart from "../../components/MarketCharts";
-import { marketService } from "../../lib/services";
 import type { StockHistoricalData } from "../../lib/types/market";
 import SymbolSearch from "../../components/SymbolSearch";
 import Navigation from "@/components/Navigation";
@@ -9,6 +8,7 @@ import TradeModal from "@/components/TradeModal";
 import { Button } from "../../components/ui/button";
 import { Card, CardHeader, CardContent } from "../../components/ui/card";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { marketService } from "@/services";
 
 const PERIODS = [
   { value: "1mo", label: "1M" },

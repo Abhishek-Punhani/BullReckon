@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { TrendingUp, Mail, Lock, User, Image as ImageIcon } from "lucide-react";
 import { uploadFiles } from "@/lib/upload";
 import Image from "next/image";
-import { authService } from "@/lib/services";
+import { authService } from "@/services";
 import GoogleAuthButton from "@/components/GoogleAuthBtn";
 
 const RegisterPage = () => {

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { mockUsers } from "@/lib/mockData";
-import { authService } from "@/lib/services";
+import { authService } from "@/services";
 import { Lock, Mail, TrendingUp } from "lucide-react";
 import GoogleAuthButton from "@/components/GoogleAuthBtn";
 

@@ -25,7 +25,7 @@ import {
   Save,
   TrendingUp,
 } from "lucide-react";
-import { calcService, authService } from "@/lib/services";
+import { calcService, authService } from "@/services";
 import Navigation from "@/components/Navigation";
 
 interface RiskSettings {

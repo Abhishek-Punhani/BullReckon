@@ -1,5 +1,5 @@
 import { toast } from "@/hooks/use-toast";
-import { authService } from "@/lib/services";
+import { authService } from "@/services";
 import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
