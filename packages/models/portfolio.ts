@@ -50,7 +50,6 @@ const positionSchema = new mongoose.Schema({
     uppercase: true,
     validate: {
       validator: function (symbol: string) {
-        // Basic symbol validation (3-12 chars, letters/numbers only)
         return /^[A-Z0-9]{3,12}$/.test(symbol);
       },
       message: "Symbol must be 3-12 uppercase letters/numbers",
@@ -62,7 +61,6 @@ const positionSchema = new mongoose.Schema({
     min: [0.00000001, "Quantity must be positive"],
     validate: {
       validator: function (qty: number) {
-        // Allow up to 8 decimal places
         return Number(qty.toFixed(8)) === qty;
       },
       message: "Quantity cannot have more than 8 decimal places",
@@ -228,25 +226,35 @@ portfolioSchema.methods.refreshMarketValues = async function (
 
   this.unrealizedPnL = totalUnrealizedPnL;
   this.totalEquity = this.cash + totalPositionValue;
-  this.totalReturn = ((this.totalEquity - 100000) / 100000) * 100; // Assuming 100k initial capital
+  this.totalReturn = ((this.totalEquity - 100000) / 100000) * 100;
 };
 
-// Create snapshot DTO with market data
+// Create snapshot DTO with market data - FIXED VERSION
 portfolioSchema.methods.toSnapshotDTO = function (
   prices: Record<string, number>
 ): IPortfolioSnapshot {
   const decoratedPositions: IPositionWithMarketData[] = this.positions.map(
-    (position: IPosition) => {
-      const currentPrice = prices[position.symbol] ?? position.avgBuyPrice;
-      const currentValue = position.quantity * currentPrice;
-      const unrealizedPnL = currentValue - position.totalInvested;
+    (position: any) => {
+      // Extract clean position data from Mongoose document
+      const cleanPosition = {
+        symbol: position.symbol || position._doc?.symbol,
+        quantity: position.quantity || position._doc?.quantity,
+        avgBuyPrice: position.avgBuyPrice || position._doc?.avgBuyPrice,
+        totalInvested: position.totalInvested || position._doc?.totalInvested,
+        lastUpdated: position.lastUpdated || position._doc?.lastUpdated,
+      };
+
+      const currentPrice =
+        prices[cleanPosition.symbol] ?? cleanPosition.avgBuyPrice;
+      const currentValue = cleanPosition.quantity * currentPrice;
+      const unrealizedPnL = currentValue - cleanPosition.totalInvested;
       const unrealizedPnLPercentage =
-        position.totalInvested > 0
-          ? (unrealizedPnL / position.totalInvested) * 100
+        cleanPosition.totalInvested > 0
+          ? (unrealizedPnL / cleanPosition.totalInvested) * 100
           : 0;
 
       return {
-        ...position,
+        ...cleanPosition,
         currentPrice,
         currentValue,
         unrealizedPnL,
@@ -255,13 +263,14 @@ portfolioSchema.methods.toSnapshotDTO = function (
     }
   );
 
-  const totalInvested = this.positions.reduce(
-    (sum: number, position: IPosition) => sum + position.totalInvested,
+  const totalInvested = decoratedPositions.reduce(
+    (sum: number, position: IPositionWithMarketData) =>
+      sum + position.totalInvested,
     0
   );
 
   return {
-    userId: this.userId,
+    userId: this.userId?.toString() || this.userId,
     cash: this.cash,
     totalEquity: this.totalEquity,
     realizedPnL: this.realizedPnL,
@@ -276,7 +285,6 @@ portfolioSchema.methods.toSnapshotDTO = function (
 // Indexes
 portfolioSchema.index({ userId: 1 }, { unique: true });
 portfolioSchema.index({ "positions.symbol": 1 });
-
 export const Portfolio: mongoose.Model<IPortfolio> =
   (mongoose.models.Portfolio as mongoose.Model<IPortfolio>) ||
   mongoose.model<IPortfolio>("Portfolio", portfolioSchema);
