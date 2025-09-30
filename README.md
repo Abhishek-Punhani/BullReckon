@@ -161,7 +161,9 @@ pnpm run lint
 pnpm -C apps/web run build
 pnpm -C apps/web run start
 ```
-
+## Initial Progress Vedio 
+- Since the initial progress is made majorly in backend services frontend progress is not that much \
+[Frontend Demo Till Now](https://drive.google.com/file/d/1lekm_c6IZvpCATRel7cfC7EXiMOaTlyz/view?usp=sharing)
 ## Local DB and queues
 
 - MongoDB: If you run `auth_server` or `calc_server` and they rely on MongoDB, make sure a local MongoDB is running and set `DB_URL` appropriately in the respective `.env`.
