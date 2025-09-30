@@ -69,6 +69,16 @@ const tradeSchema = new mongoose.Schema(
       },
       default: "manual",
     },
+    averageHoldingPeriod: {
+      type: Number,
+      min: [0, "Average holding period cannot be negative"],
+      default: 0, // in days
+    },
+    maxDrawdownDuringHold: {
+      type: Number,
+      min: [0, "Max drawdown cannot be negative"],
+      default: 0, // in percentage
+    },
     strategyId: {
       type: String,
       validate: {

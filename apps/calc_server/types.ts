@@ -26,6 +26,8 @@ export interface ITrade extends Document {
   strategyId?: string;
   realizedPnL?: number;
   executedAt: Date;
+  averageHoldingPeriod?: number;
+  maxDrawdownDuringHold?: number;
   marketData: {
     open: number;
     high: number;
