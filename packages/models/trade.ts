@@ -49,7 +49,7 @@ const tradeSchema = new mongoose.Schema(
       min: [0, "Fees cannot be negative"],
       validate: {
         validator: function (fees: number) {
-          const tradeValue = this.quantity * this.price;
+          const tradeValue = this.quantity * this.triggerPrice;
           return fees <= tradeValue * 0.1; // Max 10% fees
         },
         message: "Fees cannot exceed 10% of trade value",

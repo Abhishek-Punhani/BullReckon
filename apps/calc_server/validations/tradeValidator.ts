@@ -2,12 +2,10 @@ import { Request } from "express";
 import { TradeValidationResult } from "../types";
 
 export const validateTradeInput = (req: Request): TradeValidationResult => {
-  const { userId, symbol, action, quantity, source, limitPrice, stopPrice } =
-    req.body;
+  const { symbol, action, quantity, source, limitPrice, stopPrice } = req.body;
 
   const errors: string[] = [];
 
-  if (!userId) errors.push("User ID is required");
   if (!symbol) errors.push("Symbol is required");
   if (!["BUY", "SELL"].includes(action))
     errors.push("Action must be BUY or SELL");

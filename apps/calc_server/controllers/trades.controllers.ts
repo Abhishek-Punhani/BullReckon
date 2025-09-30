@@ -12,7 +12,6 @@ export const trade = async (
   next: NextFunction
 ) => {
   try {
-    // Validate input
     const validation = validateTradeInput(req);
     if (!validation.valid) {
       const errorMsg =
@@ -21,10 +20,13 @@ export const trade = async (
           : "Validation error in trades";
       return next(new ErrorHandling(errorMsg, 400));
     }
+    if (!req.user || !req.user._id) {
+      return next(new ErrorHandling("User not authenticated", 401));
+    }
 
-    const { userId, symbol, action, quantity, source, limitPrice, stopPrice } =
+    const { symbol, action, quantity, source, limitPrice, stopPrice } =
       req.body;
-
+    const userId = req.user._id;
     const currentPrice = await fetchLivePrice(symbol);
 
     // Find or create portfolio
@@ -34,7 +36,7 @@ export const trade = async (
     if (!portfolio) {
       portfolio = new Portfolio({ userId, cash: 100000, positions: [] });
     }
-
+    console.log("Current Price:", currentPrice);
     // Check execution condition
     const { execute, executionPrice, status } = executeOrder({
       source,
@@ -120,4 +122,3 @@ export const trade = async (
     next(err);
   }
 };
-

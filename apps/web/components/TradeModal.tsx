@@ -54,38 +54,29 @@ export default function TradeModal({ symbol }: Props) {
       });
       return;
     }
-    if (!price) {
-      toast({
-        title: "Price unavailable",
-        description: "Cannot get current market price",
-      });
-      return;
-    }
+    // if (!price) {
+    //   toast({
+    //     title: "Price unavailable",
+    //     description: "Cannot get current market price",
+    //   });
+    //   return;
+    // }
 
     setLoading(true);
     try {
       const token = authService.getToken();
       const trade = {
         symbol,
-        side,
+        action: side,
         quantity,
-        price,
-        type: "MARKET",
-        executedAt: new Date().toISOString(),
+        source: "market",
       };
 
       // Try to call calcService.executeTrade if backend supports it
       if (token) {
         await calcService.executeTrade(trade, token);
       } else {
-        // Fallback: store in localStorage ledger
-        const key = "mock_trades";
-        const existing =
-          typeof window !== "undefined"
-            ? JSON.parse(localStorage.getItem(key) || "[]")
-            : [];
-        existing.push(trade);
-        localStorage.setItem(key, JSON.stringify(existing));
+        throw new Error("User not authenticated");
       }
 
       toast({
