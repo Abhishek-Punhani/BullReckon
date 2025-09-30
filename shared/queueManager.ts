@@ -346,5 +346,4 @@ export class QueueManager {
   }
 }
 
-// Export the class, not an instance
 export default QueueManager;
