@@ -45,7 +45,7 @@ export const registerUser = async (
     if (photo) userData.photo = photo;
 
     const user = await User.create(userData);
-    await sendActivationEmail(user._id, user.email);
+    await sendActivationEmail(user._id.toString(), user.email);
 
     const { accessToken, refreshToken } = await generateTokens(user._id);
     try {
@@ -237,7 +237,7 @@ export const requestActivationEmail = async (
       return next(new ErrorHandling("Email is already verified", 400));
     }
 
-    await sendActivationEmail(user._id, user.email);
+    await sendActivationEmail(user._id.toString(), user.email);
 
     return res.status(200).json({
       status: "success",
@@ -268,7 +268,7 @@ export const requestPasswordEmail = async (
       user.authMethod = "both"; // Enable password authentication
       await user.save();
     }
-    await sendPasswordResetEmail(user._id, user.email, type);
+    await sendPasswordResetEmail(user._id.toString(), user.email, type);
 
     return res.status(200).json({
       status: "success",
@@ -335,7 +335,7 @@ export const changePassword = async (
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET_EMAIL!);
   } catch (err) {
-    if (err.name === "TokenExpiredError") {
+    if (typeof err === "object" && err !== null && "name" in err && (err as any).name === "TokenExpiredError") {
       return next(new ErrorHandling("Activation token has expired", 400));
     }
     return next(new ErrorHandling("Activation token is incorrect", 400));
@@ -348,7 +348,7 @@ export const changePassword = async (
 
   // Check if user can change password
   if (!user.hasPasswordAuth()) {
-    user.AuthMethod = "both"; // Enable password authentication
+    user.authMethod = "both"; // Enable password authentication
   }
 
   user.password = newPassword;

@@ -180,4 +180,6 @@ portfolioSchema.methods.removePosition = function (symbol: string, quantity: num
 portfolioSchema.index({ userId: 1 }, { unique: true });
 portfolioSchema.index({ 'positions.symbol': 1 });
 
-export const Portfolio = mongoose.models.Portfolio || mongoose.model<IPortfolio>('Portfolio', portfolioSchema);
+export const Portfolio: mongoose.Model<IPortfolio> =
+  (mongoose.models.Portfolio as mongoose.Model<IPortfolio>) ||
+  mongoose.model<IPortfolio>('Portfolio', portfolioSchema);

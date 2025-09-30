@@ -226,7 +226,6 @@ riskSettingsSchema.pre("save", function (next) {
 });
 
 riskSettingsSchema.index({ userId: 1 }, { unique: true });
-
-export const RiskSettings =
-  mongoose.models.RiskSettings ||
+export const RiskSettings: mongoose.Model<IRiskSettings> =
+  (mongoose.models.RiskSettings as mongoose.Model<IRiskSettings>) ||
   mongoose.model<IRiskSettings>("RiskSettings", riskSettingsSchema);

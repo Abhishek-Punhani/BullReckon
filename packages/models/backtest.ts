@@ -231,6 +231,6 @@ backtestSchema.index({ userId: 1, createdAt: -1 });
 backtestSchema.index({ status: 1 });
 backtestSchema.index({ symbol: 1, startDate: 1, endDate: 1 });
 
-export const Backtest =
-  mongoose.models.Backtest ||
+export const Backtest: mongoose.Model<IBacktest> =
+  (mongoose.models.Backtest as mongoose.Model<IBacktest>) ||
   mongoose.model<IBacktest>("Backtest", backtestSchema);

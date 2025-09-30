@@ -1,13 +1,14 @@
-import { Request, Response, NextFunction } from "express";
+import { Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import { Portfolio, Trade } from "../../../packages/models";
 import { validateTradeInput } from "../validations/tradeValidator";
 import { executeOrder } from "../utils/orderExecutor";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import { fetchLivePrice } from "../utils/fetchPrice";
+import { AuthenticatedRequest } from "types/auth";
 
 export const trade = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) => {
@@ -20,9 +21,6 @@ export const trade = async (
           : "Validation error in trades";
       return next(new ErrorHandling(errorMsg, 400));
     }
-    if (!req.user || !req.user._id) {
-      return next(new ErrorHandling("User not authenticated", 401));
-    }
 
     const { symbol, action, quantity, source, limitPrice, stopPrice } =
       req.body;
@@ -30,7 +28,7 @@ export const trade = async (
     const currentPrice = await fetchLivePrice(symbol);
 
     // Find or create portfolio
-    let portfolio = await (Portfolio as any).findOne({
+    let portfolio = await Portfolio.findOne({
       userId: new mongoose.Types.ObjectId(userId),
     });
     if (!portfolio) {

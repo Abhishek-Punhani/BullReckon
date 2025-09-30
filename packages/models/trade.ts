@@ -48,7 +48,7 @@ const tradeSchema = new mongoose.Schema(
       default: 0.1,
       min: [0, "Fees cannot be negative"],
       validate: {
-        validator: function (fees: number) {
+        validator: function (this: ITrade, fees: number) {
           const tradeValue = this.quantity * this.triggerPrice;
           return fees <= tradeValue * 0.1; // Max 10% fees
         },
@@ -91,14 +91,14 @@ const tradeSchema = new mongoose.Schema(
     },
     limitPrice: {
       type: Number,
-      required: function () {
-        return this.orderType === "limit";
+      required: function (this: ITrade) {
+        return this.source === "limit";
       },
     },
     stopPrice: {
       type: Number,
-      required: function () {
-        return ["stop_loss", "take_profit"].includes(this.orderType);
+      required: function (this: ITrade) {
+        return ["stop_loss", "take_profit"].includes(this.source);
       },
     },
     status: {
@@ -109,7 +109,7 @@ const tradeSchema = new mongoose.Schema(
     realizedPnL: {
       type: Number,
       validate: {
-        validator: function (pnl: number) {
+        validator: function (this: ITrade, pnl: number) {
           if (pnl === undefined || pnl === null) return true;
           return this.action === "SELL"; // Only SELL trades can have realized PnL
         },
@@ -203,5 +203,6 @@ tradeSchema.index({ userId: 1, executedAt: -1 });
 tradeSchema.index({ symbol: 1, executedAt: -1 });
 tradeSchema.index({ source: 1 });
 
-export const Trade =
-  mongoose.models.Trade || mongoose.model<ITrade>("Trade", tradeSchema);
+export const Trade: mongoose.Model<ITrade> =
+  (mongoose.models.Trade as mongoose.Model<ITrade>) ||
+  mongoose.model<ITrade>("Trade", tradeSchema);

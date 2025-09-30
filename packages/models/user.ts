@@ -3,6 +3,7 @@ import validator from "validator";
 import bcrypt from "bcryptjs";
 
 export interface IUser extends Document {
+  _id: mongoose.Types.ObjectId;
   firstName: string;
   lastName: string;
   email: string;
@@ -147,5 +148,6 @@ userSchema.methods.hasPasswordAuth = function (): boolean {
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
 
-export const User =
-  mongoose.models.User || mongoose.model<IUser>("User", userSchema);
+export const User: mongoose.Model<IUser> =
+  (mongoose.models.User as mongoose.Model<IUser>) ||
+  mongoose.model<IUser>("User", userSchema);
