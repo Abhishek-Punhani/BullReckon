@@ -2,7 +2,7 @@ import { Job } from "bullmq";
 import { PendingOrderJobData } from "../../../shared/queueManager";
 import { Trade } from "../../../packages/models/trade";
 import { Portfolio } from "../../../packages/models/portfolio";
-import { fetchLivePrice } from "../controllers/trades.controllers";
+import { fetchLivePrice } from "../utils/fetchPrice";
 
 export async function processPendingOrder(job: Job<PendingOrderJobData>) {
   const { tradeId, userId, symbol, action, orderType, limitPrice, stopPrice } =
@@ -19,7 +19,6 @@ export async function processPendingOrder(job: Job<PendingOrderJobData>) {
       return { success: false, reason: "Trade not pending" };
     }
 
-    // Get current market price (mock for now)
     const currentPrice = await fetchLivePrice(symbol);
 
     let shouldExecute = false;
@@ -69,8 +68,6 @@ export async function processPendingOrder(job: Job<PendingOrderJobData>) {
     throw error;
   }
 }
-
-
 
 async function executeTrade(trade: any, price: number): Promise<void> {
   // Update trade status

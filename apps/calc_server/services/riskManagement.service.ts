@@ -4,7 +4,7 @@ import {
   RiskSettings,
 } from "../../../packages/models/risk_settings";
 import { Trade } from "../../../packages/models/trade";
-import { fetchLivePrice } from "../controllers/trades.controllers";
+import { fetchLivePrice } from "../utils/fetchPrice";
 
 export interface RiskCalculation {
   currentDrawdown: number;

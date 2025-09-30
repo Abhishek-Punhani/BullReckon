@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { internalAuth } from "../../../middleware/internalAuthMiddleware";
 import {
   getStockQuote,
   getHistoricalData,
@@ -8,7 +9,7 @@ import {
   clearCache,
 } from "../controllers/market.controllers";
 
-const marketRoutes = Router();
+const marketRoutes: Router = Router();
 
 // Stock quote routes
 marketRoutes.get("/quote/:symbol", getStockQuote);
@@ -21,5 +22,8 @@ marketRoutes.get("/search", searchStocks);
 // Service management routes
 marketRoutes.get("/stats", getMarketStats);
 marketRoutes.delete("/cache", clearCache);
+
+// internal routes
+marketRoutes.get("/internal/quote/:symbol", internalAuth, getStockQuote);
 
 export { marketRoutes };

@@ -4,6 +4,7 @@ import { Portfolio, Trade } from "../../../packages/models";
 import { validateTradeInput } from "../validations/tradeValidator";
 import { executeOrder } from "../utils/orderExecutor";
 import { ErrorHandling } from "../../../middleware/errorHandler";
+import { fetchLivePrice } from "../utils/fetchPrice";
 
 export const trade = async (
   req: Request,
@@ -24,7 +25,6 @@ export const trade = async (
     const { userId, symbol, action, quantity, source, limitPrice, stopPrice } =
       req.body;
 
-    // Fetch latest market price (replace with live market feed API)
     const currentPrice = await fetchLivePrice(symbol);
 
     // Find or create portfolio
@@ -121,8 +121,3 @@ export const trade = async (
   }
 };
 
-// Mock market price fetcher
-export async function fetchLivePrice(symbol: string): Promise<number> {
-  // TODO: replace with real market API
-  return 100 + Math.random() * 10;
-}
