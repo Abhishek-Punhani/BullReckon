@@ -1,6 +1,7 @@
 import { BaseApp } from "../../shared/baseApp";
 import { DatabaseManager } from "../../shared/dbManager";
 import { calcConfig } from "./config";
+import portfolioRoutes from "./routes/portfolio.routes";
 import { riskRoutes } from "./routes/risk_settings.routes";
 import { tradeRoutes } from "./routes/trades.routes";
 
@@ -20,31 +21,10 @@ const app = new BaseApp({
 // Setup routes
 app.addRoutes("/api/trades", tradeRoutes);
 app.addRoutes("/api/risk-settings", riskRoutes);
+app.addRoutes("/api/portfolio", portfolioRoutes);
 app.initializeErrorHandling();
-// Start the service
-async function start() {
-  try {
-    await db.connect();
-    await app.listen(calcConfig.PORT);
-    console.log("🧮 Calc Service started successfully");
-  } catch (error) {
-    console.error("💥 Failed to start Calc Service:", error);
-    process.exit(1);
-  }
-}
 
-// Graceful shutdown
-async function shutdownHandler() {
-  console.log("🛑 Shutting down Calc Service...");
-  if (app.queueManager) {
-    await app.queueManager.shutdown();
-  }
-  await app.close();
-  await db.disconnect();
-  process.exit(0);
-}
+app.start(db, calcConfig.PORT);
 
-start();
-
-process.on("SIGTERM", shutdownHandler);
-process.on("SIGINT", shutdownHandler);
+process.on("SIGTERM", () => app.shutdown(db));
+process.on("SIGINT", () => app.shutdown(db));

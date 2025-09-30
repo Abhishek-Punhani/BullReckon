@@ -18,6 +18,7 @@ import { QueueManager } from "./queueManager";
 import { errorHandler } from "../middleware/errorHandler";
 import { BaseConfig } from "../types/config";
 import webSocketService from "./webSocketServer";
+import { DatabaseManager } from "./dbManager";
 
 export interface AppOptions {
   serviceName: string;
@@ -248,5 +249,26 @@ export class BaseApp {
         });
       });
     }
+  }
+
+  public async start(db: DatabaseManager, port: number) {
+    try {
+      await db.connect();
+      await this.listen(port);
+      console.log(`🚀 ${this.serviceName} started successfully`);
+    } catch (error) {
+      console.error(`💥 Failed to start ${this.serviceName}:`, error);
+      process.exit(1);
+    }
+  }
+
+  public async shutdown(db: DatabaseManager) {
+    console.log(`🛑 Shutting down ${this.serviceName}...`);
+    if (this.queueManager) {
+      await this.queueManager.shutdown();
+    }
+    await this.close();
+    await db.disconnect();
+    process.exit(0);
   }
 }

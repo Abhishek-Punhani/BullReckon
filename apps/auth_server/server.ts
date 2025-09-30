@@ -1,4 +1,3 @@
-import { protectRoute } from "middleware/authMiddleware";
 import { BaseApp } from "../../shared/baseApp";
 import { DatabaseManager } from "../../shared/dbManager";
 import { authConfig } from "./config";
@@ -24,27 +23,8 @@ const app = new BaseApp({
 app.addRoutes("/api/auth", authRoutes);
 app.addRoutes("/api/internal", internalRoutes);
 app.initializeErrorHandling();
-// Start the service
-async function start() {
-  try {
-    await db.connect();
-    await app.listen(authConfig.PORT);
-    console.log("🔐 Auth Service started successfully");
-  } catch (error) {
-    console.error("💥 Failed to start Auth Service:", error);
-    process.exit(1);
-  }
-}
 
-// Graceful shutdown
-async function shutdownHandler() {
-  console.log("🛑 Shutting down Auth Service...");
-  await app.close();
-  await db.disconnect();
-  process.exit(0);
-}
+app.start(db, authConfig.PORT);
 
-start();
-
-process.on("SIGTERM", shutdownHandler);
-process.on("SIGINT", shutdownHandler);
+process.on("SIGTERM", () => app.shutdown(db));
+process.on("SIGINT", () => app.shutdown(db));
