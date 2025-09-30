@@ -312,101 +312,247 @@ export const portfolioController = {
     }
   },
   /**
-     * Get user's current positions only
-     * GET /api/portfolio/:userId/positions
-     */
-    getPositions: async (
-        req: AuthenticatedRequest,
-        res: Response,
-        next: NextFunction
-    ) => {
-        try {
-            const userId = req.params.userId || req.user?.userId;
+   * Get user's current positions with pagination and filters
+   * GET /api/portfolio/:userId/positions?page=1&limit=10&search=AAPL&profitability=profitable&sortBy=unrealizedPnL&sortOrder=desc
+   */
+  getPositions: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const userId = req.params.userId || req.user?.userId;
 
-            if (!userId) {
-                return next(new ErrorHandling("User ID is required", 400));
-            }
+      if (!userId) {
+        return next(new ErrorHandling("User ID is required", 400));
+      }
 
-            // Get portfolio from database
-            let portfolio = await Portfolio.findOne({ userId });
+      // Get query parameters
+      const {
+        page = 1,
+        limit = 20,
+        search,
+        profitability = "all", // all, profitable, losing
+        sortBy = "currentValue", // symbol, quantity, avgBuyPrice, currentPrice, totalInvested, currentValue, unrealizedPnL, unrealizedPnLPercentage
+        sortOrder = "desc", // asc, desc
+        minInvestment,
+        maxInvestment,
+        minPnL,
+        maxPnL,
+      } = req.query;
 
-            if (!portfolio) {
-                return res.status(200).json({
-                    success: true,
-                    data: {
-                        positions: [],
-                        summary: {
-                            totalPositions: 0,
-                            totalInvested: 0,
-                            totalCurrentValue: 0,
-                            totalUnrealizedPnL: 0,
-                            profitablePositions: 0,
-                            losingPositions: 0,
-                        }
-                    },
-                    message: "No positions found",
-                });
-            }
+      // Get portfolio from database
+      let portfolio = await Portfolio.findOne({ userId });
 
-            // Extract symbols and fetch current prices
-            const symbols = portfolio.positions.map((pos) => pos.symbol);
-            const currentPrices = await fetchMultiplePrices(symbols);
+      if (!portfolio) {
+        return res.status(200).json({
+          success: true,
+          data: {
+            positions: [],
+            pagination: {
+              currentPage: parseInt(page as string),
+              totalPages: 0,
+              totalCount: 0,
+              limit: parseInt(limit as string),
+              hasNext: false,
+              hasPrev: false,
+            },
+            summary: {
+              totalPositions: 0,
+              totalInvested: 0,
+              totalCurrentValue: 0,
+              totalUnrealizedPnL: 0,
+              profitablePositions: 0,
+              losingPositions: 0,
+              winRate: 0,
+              averageReturn: 0,
+            },
+          },
+          message: "No positions found",
+        });
+      }
 
-            // Refresh market values
-            await portfolio.refreshMarketValues(currentPrices);
-            await portfolio.save();
+      // Extract symbols and fetch current prices
+      const symbols = portfolio.positions.map((pos) => pos.symbol);
+      const currentPrices = await fetchMultiplePrices(symbols);
 
-            // Create clean positions with current market data
-            const cleanPositions = portfolio.positions.map((position: any) => {
-                const clean = position._doc || position;
-                const currentPrice = currentPrices[clean.symbol] ?? clean.avgBuyPrice;
-                const currentValue = clean.quantity * currentPrice;
-                const unrealizedPnL = currentValue - clean.totalInvested;
-                const unrealizedPnLPercentage = clean.totalInvested > 0 
-                    ? (unrealizedPnL / clean.totalInvested) * 100 
-                    : 0;
+      // Refresh market values
+      await portfolio.refreshMarketValues(currentPrices);
+      await portfolio.save();
 
-                return {
-                    symbol: clean.symbol,
-                    quantity: clean.quantity,
-                    avgBuyPrice: clean.avgBuyPrice,
-                    totalInvested: clean.totalInvested,
-                    lastUpdated: clean.lastUpdated,
-                    currentPrice,
-                    currentValue,
-                    unrealizedPnL,
-                    unrealizedPnLPercentage,
-                };
-            });
+      // Create clean positions with current market data
+      let cleanPositions = portfolio.positions.map((position: any) => {
+        const clean = position._doc || position;
+        const currentPrice = currentPrices[clean.symbol] ?? clean.avgBuyPrice;
+        const currentValue = clean.quantity * currentPrice;
+        const unrealizedPnL = currentValue - clean.totalInvested;
+        const unrealizedPnLPercentage =
+          clean.totalInvested > 0
+            ? (unrealizedPnL / clean.totalInvested) * 100
+            : 0;
 
-            // Calculate summary statistics
-            const totalPositions = cleanPositions.length;
-            const totalInvested = cleanPositions.reduce((sum, pos) => sum + pos.totalInvested, 0);
-            const totalCurrentValue = cleanPositions.reduce((sum, pos) => sum + pos.currentValue, 0);
-            const totalUnrealizedPnL = cleanPositions.reduce((sum, pos) => sum + pos.unrealizedPnL, 0);
-            const profitablePositions = cleanPositions.filter(pos => pos.unrealizedPnL > 0).length;
-            const losingPositions = cleanPositions.filter(pos => pos.unrealizedPnL < 0).length;
+        return {
+          symbol: clean.symbol,
+          quantity: clean.quantity,
+          avgBuyPrice: clean.avgBuyPrice,
+          totalInvested: clean.totalInvested,
+          lastUpdated: clean.lastUpdated,
+          currentPrice,
+          currentValue,
+          unrealizedPnL,
+          unrealizedPnLPercentage,
+        };
+      });
 
-            res.status(200).json({
-                success: true,
-                data: {
-                    positions: cleanPositions,
-                    summary: {
-                        totalPositions,
-                        totalInvested,
-                        totalCurrentValue,
-                        totalUnrealizedPnL,
-                        profitablePositions,
-                        losingPositions,
-                        winRate: totalPositions > 0 ? (profitablePositions / totalPositions) * 100 : 0,
-                        averageReturn: totalInvested > 0 ? (totalUnrealizedPnL / totalInvested) * 100 : 0,
-                    }
-                },
-                message: "Positions retrieved successfully",
-            });
-        } catch (error) {
-            next(error);
+      // Apply filters
+      if (search) {
+        cleanPositions = cleanPositions.filter((pos) =>
+          pos.symbol.toLowerCase().includes(search.toString().toLowerCase())
+        );
+      }
+
+      if (profitability !== "all") {
+        cleanPositions = cleanPositions.filter((pos) => {
+          if (profitability === "profitable") return pos.unrealizedPnL > 0;
+          if (profitability === "losing") return pos.unrealizedPnL < 0;
+          return true;
+        });
+      }
+
+      if (minInvestment) {
+        cleanPositions = cleanPositions.filter(
+          (pos) => pos.totalInvested >= parseFloat(minInvestment as string)
+        );
+      }
+
+      if (maxInvestment) {
+        cleanPositions = cleanPositions.filter(
+          (pos) => pos.totalInvested <= parseFloat(maxInvestment as string)
+        );
+      }
+
+      if (minPnL) {
+        cleanPositions = cleanPositions.filter(
+          (pos) => pos.unrealizedPnL >= parseFloat(minPnL as string)
+        );
+      }
+
+      if (maxPnL) {
+        cleanPositions = cleanPositions.filter(
+          (pos) => pos.unrealizedPnL <= parseFloat(maxPnL as string)
+        );
+      }
+
+      // Apply sorting
+      cleanPositions.sort((a, b) => {
+        let aValue: any, bValue: any;
+
+        switch (sortBy) {
+          case "symbol":
+            aValue = a.symbol;
+            bValue = b.symbol;
+            return sortOrder === "asc"
+              ? aValue.localeCompare(bValue)
+              : bValue.localeCompare(aValue);
+          case "quantity":
+            aValue = a.quantity;
+            bValue = b.quantity;
+            break;
+          case "avgBuyPrice":
+            aValue = a.avgBuyPrice;
+            bValue = b.avgBuyPrice;
+            break;
+          case "currentPrice":
+            aValue = a.currentPrice;
+            bValue = b.currentPrice;
+            break;
+          case "totalInvested":
+            aValue = a.totalInvested;
+            bValue = b.totalInvested;
+            break;
+          case "currentValue":
+            aValue = a.currentValue;
+            bValue = b.currentValue;
+            break;
+          case "unrealizedPnL":
+            aValue = a.unrealizedPnL;
+            bValue = b.unrealizedPnL;
+            break;
+          case "unrealizedPnLPercentage":
+            aValue = a.unrealizedPnLPercentage;
+            bValue = b.unrealizedPnLPercentage;
+            break;
+          default:
+            aValue = a.currentValue;
+            bValue = b.currentValue;
         }
-    },
 
+        return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
+      });
+
+      // Calculate summary statistics for all filtered positions
+      const totalPositions = cleanPositions.length;
+      const totalInvested = cleanPositions.reduce(
+        (sum, pos) => sum + pos.totalInvested,
+        0
+      );
+      const totalCurrentValue = cleanPositions.reduce(
+        (sum, pos) => sum + pos.currentValue,
+        0
+      );
+      const totalUnrealizedPnL = cleanPositions.reduce(
+        (sum, pos) => sum + pos.unrealizedPnL,
+        0
+      );
+      const profitablePositions = cleanPositions.filter(
+        (pos) => pos.unrealizedPnL > 0
+      ).length;
+      const losingPositions = cleanPositions.filter(
+        (pos) => pos.unrealizedPnL < 0
+      ).length;
+
+      // Apply pagination
+      const pageNum = parseInt(page as string);
+      const limitNum = parseInt(limit as string);
+      const totalCount = cleanPositions.length;
+      const totalPages = Math.ceil(totalCount / limitNum);
+      const skip = (pageNum - 1) * limitNum;
+
+      const paginatedPositions = cleanPositions.slice(skip, skip + limitNum);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          positions: paginatedPositions,
+          pagination: {
+            currentPage: pageNum,
+            totalPages,
+            totalCount,
+            limit: limitNum,
+            hasNext: pageNum < totalPages,
+            hasPrev: pageNum > 1,
+          },
+          summary: {
+            totalPositions,
+            totalInvested,
+            totalCurrentValue,
+            totalUnrealizedPnL,
+            profitablePositions,
+            losingPositions,
+            winRate:
+              totalPositions > 0
+                ? (profitablePositions / totalPositions) * 100
+                : 0,
+            averageReturn:
+              totalInvested > 0
+                ? (totalUnrealizedPnL / totalInvested) * 100
+                : 0,
+          },
+        },
+        message: "Positions retrieved successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
 };
