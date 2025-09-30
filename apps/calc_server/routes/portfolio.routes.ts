@@ -26,5 +26,10 @@ portfolioRoutes.post(
   protectRoute,
   portfolioController.updatePosition
 );
+portfolioRoutes.get(
+  "/:userId/positions",
+  protectRoute,
+  portfolioController.getPositions
+); 
 
 export default portfolioRoutes;

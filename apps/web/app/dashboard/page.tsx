@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,11 +37,8 @@ import Navigation from "@/components/Navigation";
 import {
   portfolioService,
   type DashboardData,
-  type Portfolio,
-  type RecentTrade,
-  type RiskSettings,
-  type PerformanceDataPoint,
 } from "@/services/portfolioService";
+import { useRouter } from "next/navigation";
 
 const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(
@@ -52,7 +48,7 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-
+  const router = useRouter();
   useEffect(() => {
     const userData = localStorage.getItem("user");
     if (userData) {
@@ -737,7 +733,11 @@ const DashboardPage = () => {
                         </div>
                       </div>
                     ))}
-                    <Button variant="outline" className="w-full">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => router.push("/history")}
+                    >
                       View All Trades
                     </Button>
                   </div>

@@ -32,6 +32,7 @@ const Navigation = () => {
     { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
     { href: "/market", label: "Market", icon: TrendingUp },
     { href: "/history", label: "History", icon: History },
+    {href: "/portfolio", label: "Portfolio", icon: Bot },
     { href: "/risk", label: "Risk", icon: Shield },
     { href: "/strategy", label: "Strategy", icon: Bot },
     { href: "/backtest", label: "Backtest", icon: FlaskConical },
