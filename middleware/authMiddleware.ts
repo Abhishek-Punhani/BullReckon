@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { ErrorHandling } from "../middleware/errorHandler";
-import { authClient } from "@/authService.client";
+import { authClient } from "../shared/authService.client";
 
 declare global {
   namespace Express {
@@ -52,7 +52,12 @@ export const protectRoute = async (
     const validation = await authClient.validateToken(token);
 
     if (!validation.valid || !validation.user) {
-      return next(new ErrorHandling(validation.error || "Not authorized, invalid token", 401));
+      return next(
+        new ErrorHandling(
+          validation.error || "Not authorized, invalid token",
+          401
+        )
+      );
     }
 
     // Attach user to request
@@ -60,7 +65,7 @@ export const protectRoute = async (
 
     next();
   } catch (err: any) {
-    console.error('Auth middleware error:', err);
+    console.error("Auth middleware error:", err);
     return next(new ErrorHandling("Not authorized", 401));
   }
 };

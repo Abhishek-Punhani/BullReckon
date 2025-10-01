@@ -11,6 +11,15 @@ import {
 
 const marketRoutes: Router = Router();
 
+// Health check route
+marketRoutes.get("/health", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    timestamp: new Date().toISOString(),
+    service: "Market Server"
+  });
+});
+
 // Stock quote routes
 marketRoutes.get("/quote/:symbol", getStockQuote);
 marketRoutes.get("/historical/:symbol", getHistoricalData);
