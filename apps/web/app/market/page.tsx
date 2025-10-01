@@ -1,10 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import MarketChart from "../../components/MarketCharts";
-import TradingTools from "../../components/TradingTools";
 import type { StockHistoricalData, StockQuote } from "../../lib/types/market";
 import SymbolSearch from "../../components/SymbolSearch";
 import Navigation from "@/components/Navigation";
+import StockDetails from "@/components/StockDetails";
 import { Button } from "../../components/ui/button";
 import {
   Card,
@@ -81,26 +81,22 @@ export default function MarketPage() {
 
       try {
         const quotesData = await marketService.getBatchQuotes(symbols);
-
+        
         // Only create stats for successfully fetched quotes
         const statsData = quotesData
           .map((quote, index) => {
-            if (!quote || !quote.data) return null;
-
-            const data = quote.data;
+            if (!quote) return null;
+            
             return {
               symbol: indices[index].value,
               name: indices[index].label,
-              price: data.price ?? 0,
-              change: data.changePercent ?? 0,
+              price: quote.data?.price ?? quote.currentPrice ?? quote.close ?? 0,
+              change: quote.data?.changePercent ?? quote.regularMarketChangePercent ?? 0,
               icon: indices[index].icon,
             };
           })
-          .filter(
-            (item): item is NonNullable<typeof item> =>
-              item !== null && item.price > 0
-          ); // Remove null entries and zero prices
-
+          .filter((item): item is NonNullable<typeof item> => item !== null); // Remove null entries
+          
         setGlobalStats(statsData);
       } catch (error) {
         console.error("Failed to fetch global stats:", error);
@@ -123,9 +119,9 @@ export default function MarketPage() {
           marketService.getHistoricalData(symbol, period, "1d"),
           marketService.getQuote(symbol),
         ]);
-
+        
         if (cancelled) return;
-
+        
         // Handle historical data
         if (data.status === "fulfilled") {
           setHistorical(data.value);
@@ -133,18 +129,15 @@ export default function MarketPage() {
           console.error("Failed to fetch historical data:", data.reason);
           setHistorical(null);
         }
-
+        
         // Handle quote data
         if (quoteData.status === "fulfilled" && quoteData.value) {
           setQuote(quoteData.value);
         } else {
-          console.error(
-            "Failed to fetch quote data:",
-            quoteData.status === "rejected" ? quoteData.reason : "No data"
-          );
+          console.error("Failed to fetch quote data:", quoteData.status === "rejected" ? quoteData.reason : "No data");
           setQuote(null);
         }
-
+        
         // Set error only if both requests failed
         if (data.status === "rejected" && quoteData.status === "rejected") {
           setError(`Failed to load market data for ${symbol}`);
@@ -153,6 +146,7 @@ export default function MarketPage() {
         } else if (quoteData.status === "rejected") {
           setError(`Failed to load current quote for ${symbol}`);
         }
+        
       } catch (err: any) {
         console.error(err);
         setError(err?.message || "Failed to load market data");
@@ -179,25 +173,21 @@ export default function MarketPage() {
 
       try {
         const quotesData = await marketService.getBatchQuotes(symbols);
-
+        
         // Only create asset data for successfully fetched quotes
         const assetData = quotesData
           .map((quote, index) => {
-            if (!quote || !quote.data) return null;
-
-            const data = quote.data;
+            if (!quote) return null;
+            
             return {
               symbol: assets[index].value,
-              name: data.name || assets[index].label,
-              price: data.price ?? 0,
-              change: data.changePercent ?? 0,
+              name: quote.data?.name || quote.longName || assets[index].label,
+              price: quote.data?.price ?? quote.currentPrice ?? quote.close ?? 0,
+              change: quote.data?.changePercent ?? quote.regularMarketChangePercent ?? 0,
             };
           })
-          .filter(
-            (item): item is NonNullable<typeof item> =>
-              item !== null && item.price > 0
-          ); // Remove null entries and zero prices
-
+          .filter((item): item is NonNullable<typeof item> => item !== null);
+          
         setAssetList(assetData);
       } catch (error) {
         console.error(`Failed to fetch ${selectedCategory} assets:`, error);
@@ -273,129 +263,82 @@ export default function MarketPage() {
                 ))}
           </div>
 
-          <div className="space-y-6">
-            {/* Main Chart Section - Full Width */}
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-2xl">
-                      {quote?.data?.name || marketService.getSymbolName(symbol)}{" "}
-                      ({symbol})
-                    </CardTitle>
-                    <CardDescription>
-                      {quote?.data?.price
-                        ? `$${quote.data.price.toFixed(2)} ${
-                            quote.data.change >= 0 ? "+" : ""
-                          }${quote.data.change?.toFixed(2)} (${quote.data.changePercent?.toFixed(2)}%)`
-                        : "Loading price..."}
-                    </CardDescription>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {PERIODS.map((p) => (
-                      <Button
-                        key={p.value}
-                        variant={period === p.value ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setPeriod(p.value)}
-                      >
-                        {p.label}
-                      </Button>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Asset List */}
+            <div className="lg:col-span-1">
+              <Card>
+                <Tabs
+                  defaultValue="stocks"
+                  className="w-full"
+                  onValueChange={(v) => setSelectedCategory(v as Category)}
+                  suppressHydrationWarning
+                >
+                  <TabsList className="grid w-full grid-cols-4">
+                    {Object.keys(MARKET_CATEGORIES).map((cat) => (
+                      <TabsTrigger key={cat} value={cat} className="capitalize">
+                        {cat}
+                      </TabsTrigger>
                     ))}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="h-[500px] flex items-center justify-center">
-                    <div>Loading chart data...</div>
-                  </div>
-                ) : error ? (
-                  <div className="h-[500px] flex items-center justify-center">
-                    <div className="text-destructive">{error}</div>
-                  </div>
-                ) : (
-                  <div className="w-full" style={{ height: "500px" }}>
-                    <MarketChart
-                      key={`chart-${symbol}-${period}`}
-                      historical={historical}
-                      height={500}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Bottom Section: Stock List and Trading Tools */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Asset List */}
-              <div className="lg:col-span-2">
-                <Card>
-                  <Tabs
-                    defaultValue="stocks"
-                    className="w-full"
-                    onValueChange={(v) => setSelectedCategory(v as Category)}
-                    suppressHydrationWarning
-                  >
-                    <TabsList className="grid w-full grid-cols-4">
-                      {Object.keys(MARKET_CATEGORIES).map((cat) => (
-                        <TabsTrigger
-                          key={cat}
-                          value={cat}
-                          className="capitalize"
-                        >
-                          {cat}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                    <TabsContent value={selectedCategory} className="mt-0">
-                      <div className="space-y-2 p-4 max-h-[400px] overflow-y-auto">
-                        {isClient &&
-                          assetList.map((asset) => (
-                            <div
-                              key={asset.symbol}
-                              className={`flex items-center justify-between p-3 rounded-lg hover:bg-muted cursor-pointer transition-colors ${
-                                symbol === asset.symbol ? "bg-muted border" : ""
-                              }`}
-                              onClick={() => setSymbol(asset.symbol)}
-                              suppressHydrationWarning
-                            >
-                              <div>
-                                <p className="font-semibold">{asset.symbol}</p>
-                                <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                                  {asset.name}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-semibold">
-                                  ${asset.price.toFixed(2)}
-                                </p>
-                                <p
-                                  className={`text-sm ${
-                                    asset.change >= 0
-                                      ? "text-success"
-                                      : "text-destructive"
-                                  }`}
-                                >
-                                  {asset.change > 0 ? "+" : ""}
-                                  {asset.change.toFixed(2)}%
-                                </p>
-                              </div>
+                  </TabsList>
+                  <TabsContent value={selectedCategory} className="mt-0">
+                    <div className="space-y-2 p-4 max-h-[600px] overflow-y-auto">
+                      {isClient &&
+                        assetList.map((asset) => (
+                          <div
+                            key={asset.symbol}
+                            className="flex items-center justify-between p-2 rounded-lg hover:bg-muted cursor-pointer"
+                            onClick={() => setSymbol(asset.symbol)}
+                            suppressHydrationWarning
+                          >
+                            <div>
+                              <p className="font-semibold">{asset.symbol}</p>
+                              <p className="text-xs text-muted-foreground truncate max-w-[150px]">
+                                {asset.name}
+                              </p>
                             </div>
-                          ))}
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                </Card>
-              </div>
+                            <div className="text-right">
+                              <p className="font-semibold">
+                                ${asset.price.toFixed(2)}
+                              </p>
+                              <p
+                                className={`text-sm ${
+                                  asset.change >= 0
+                                    ? "text-success"
+                                    : "text-destructive"
+                                }`}
+                              >
+                                {asset.change.toFixed(2)}%
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </Card>
+            </div>
 
-              {/* Trading Tools */}
-              <div className="lg:col-span-1">
-                <TradingTools
-                  symbol={symbol}
-                  price={quote?.data?.price ?? null}
-                />
-              </div>
+            {/* Main Content */}
+            <div className="lg:col-span-2">
+              {!isClient ? (
+                <div className="mb-4">Loading market interface...</div>
+              ) : (
+                <>
+                  {loading && (
+                    <div className="mb-4">Loading market data...</div>
+                  )}
+                  {error && (
+                    <div className="mb-4 text-destructive">{error}</div>
+                  )}
+                  {!loading && !error && (
+                    <StockDetails
+                      symbol={symbol}
+                      quote={quote}
+                      historical={historical}
+                    />
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>
