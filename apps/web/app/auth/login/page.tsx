@@ -35,11 +35,7 @@ const LoginPage = () => {
       const result = await authService.login(email, password);
 
       if (result.status === "success") {
-        // Use the same key that portfolio service expects
-        localStorage.setItem(
-          "access_token",
-          result.accessToken || result.token
-        );
+        localStorage.setItem("access_token", result.token);
         localStorage.setItem("user", JSON.stringify(result.user));
         toast({
           title: "Welcome back!",
