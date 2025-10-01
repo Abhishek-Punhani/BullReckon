@@ -13,9 +13,15 @@ export async function processPendingOrder(job: Job<PendingOrderJobData>) {
 
     // Find the pending trade
     const trade = await Trade.findById(tradeId);
-    if (!trade || trade.status !== "pending") {
-      console.log(`⚠️ Trade ${tradeId} not found or not pending`);
-      await job.remove();
+    if (!trade) {
+      console.log(`⚠️ Trade ${tradeId} not found`);
+      return { success: false, reason: "Trade not found" };
+    }
+
+    if (trade.status !== "pending") {
+      console.log(
+        `⚠️ Trade ${tradeId} is no longer pending (status: ${trade.status})`
+      );
       return { success: false, reason: "Trade not pending" };
     }
 
@@ -39,14 +45,14 @@ export async function processPendingOrder(job: Job<PendingOrderJobData>) {
       case "stop_loss":
         if (action === "SELL" && currentPrice <= stopPrice!) {
           shouldExecute = true;
-          executionPrice = stopPrice!;
+          executionPrice = currentPrice; // Execute at market price when triggered
         }
         break;
 
       case "take_profit":
         if (action === "SELL" && currentPrice >= stopPrice!) {
           shouldExecute = true;
-          executionPrice = stopPrice!;
+          executionPrice = currentPrice; // Execute at market price when triggered
         }
         break;
     }
@@ -59,7 +65,6 @@ export async function processPendingOrder(job: Job<PendingOrderJobData>) {
     } else {
       // Re-queue for later processing
       console.log(`⏸️ Order ${tradeId} conditions not met, re-queuing`);
-      // Re-add the job to the queue with a delay for later processing
       await job.moveToDelayed(Date.now() + 60 * 1000);
       return { success: false, reason: "Conditions not met, re-queued" };
     }
@@ -77,16 +82,35 @@ async function executeTrade(trade: any, price: number): Promise<void> {
 
   // Update portfolio
   const portfolio = await Portfolio.findOne({ userId: trade.userId });
-  if (portfolio) {
-    if (trade.action === "BUY") {
-      portfolio.cash -= price * trade.quantity + trade.fees;
-      portfolio.addPosition(trade.symbol, trade.quantity, price);
-    } else {
-      portfolio.cash += price * trade.quantity - trade.fees;
-      portfolio.removePosition(trade.symbol, trade.quantity);
-    }
-    await portfolio.save();
+  if (!portfolio) {
+    throw new Error("Portfolio not found");
   }
 
+  if (trade.action === "BUY") {
+    const totalCost = price * trade.quantity + trade.fees;
+    if (portfolio.cash < totalCost) {
+      trade.status = "cancelled";
+      trade.errorMessage = "Insufficient cash";
+      await trade.save();
+      throw new Error("Insufficient cash");
+    }
+    portfolio.cash -= totalCost;
+    portfolio.addPosition(trade.symbol, trade.quantity, price);
+  } else if (trade.action === "SELL") {
+    const position = portfolio.positions.find(
+      (p: any) => p.symbol === trade.symbol
+    );
+    if (!position || position.quantity < trade.quantity) {
+      trade.status = "cancelled";
+      trade.errorMessage = "Insufficient holdings";
+      await trade.save();
+      throw new Error("Insufficient holdings");
+    }
+    const proceeds = price * trade.quantity - trade.fees;
+    portfolio.cash += proceeds;
+    portfolio.removePosition(trade.symbol, trade.quantity);
+  }
+
+  await portfolio.save();
   await trade.save();
 }

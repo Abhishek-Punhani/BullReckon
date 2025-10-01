@@ -13,42 +13,61 @@ interface OrderDetails {
 export const tradeService = {
   async placeOrder(orderDetails: OrderDetails) {
     try {
-      // Get the auth token from localStorage or authService
-      const token = localStorage.getItem("token") || "";
+      const token = await authService.getToken();
 
       if (!token) {
         throw new Error("Authentication required to place orders");
       }
 
-      // Convert the order details to the format expected by the calc service
-      const tradeData = {
+      const tradeData: {
+        symbol: string;
+        quantity: number;
+        action: string;
+        source: string;
+        limitPrice?: number;
+        stopPrice?: number;
+      } = {
         symbol: orderDetails.symbol,
-        qty: orderDetails.quantity,
-        side: orderDetails.action.toLowerCase(),
-        order_type: orderDetails.source,
-        limit_price: orderDetails.limitPrice,
-        stop_price: orderDetails.stopPrice,
+        quantity: orderDetails.quantity,
+        action: orderDetails.action.toUpperCase(), // Backend expects uppercase BUY/SELL
+        source: orderDetails.source,
       };
 
-      // Execute the trade using the calc service
+      // Only include limitPrice if source is 'limit' and it's defined
+      if (
+        orderDetails.source === "limit" &&
+        orderDetails.limitPrice !== undefined
+      ) {
+        tradeData.limitPrice = orderDetails.limitPrice;
+      }
+
+      // Only include stopPrice if source is 'stop_loss' or 'take_profit' and it's defined
+      if (
+        (orderDetails.source === "stop_loss" ||
+          orderDetails.source === "take_profit") &&
+        orderDetails.stopPrice !== undefined
+      ) {
+        tradeData.stopPrice = orderDetails.stopPrice;
+      }
+
       const result = await calcService.executeTrade(tradeData, token);
       return result;
-    } catch (error: any) {
+    } catch (error) {
       console.error("Trade execution failed:", error);
-      throw new Error(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to place order"
-      );
+      const errorMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to place order";
+      throw new Error(errorMessage);
     }
   },
 
-  async getTradeHistory(token: string) {
+  async getTradeHistory() {
     try {
       // This could be extended to fetch trade history from the calc service
       // For now, we'll just return an empty array
       return [];
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to fetch trade history:", error);
       throw new Error("Failed to fetch trade history");
     }

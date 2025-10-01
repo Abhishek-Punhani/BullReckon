@@ -14,14 +14,6 @@ import {
   CardDescription,
 } from "../../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  TrendingUp,
-  TrendingDown,
-  Globe,
-  DollarSign,
-  Bitcoin,
-  Gem,
-} from "lucide-react";
 import { marketService } from "@/services";
 
 const PERIODS = [

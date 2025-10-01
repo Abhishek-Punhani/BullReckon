@@ -5,10 +5,8 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,26 +52,109 @@ export default function TradingTools({ symbol, price }: TradingToolsProps) {
       return;
     }
 
+    // Validate quantity
+    if (quantity <= 0) {
+      toast({
+        title: "Error",
+        description: "Quantity must be greater than 0.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate limit price for limit orders
+    if (orderType === "limit" && (!limitPrice || limitPrice <= 0)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid limit price.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate stop price for stop orders
+    if (orderType === "stop" && (!stopPrice || stopPrice <= 0)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid stop price.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Map frontend order type to backend source
+    let source = "market";
+    if (orderType === "limit") {
+      source = "limit";
+    } else if (orderType === "stop") {
+      source = "stop_loss";
+    }
+
     const orderDetails = {
       symbol,
       quantity: quantity,
-      action: activeTab.toUpperCase(),
-      source: orderType === "stop" ? "stop_loss" : orderType,
+      action: activeTab,
+      source: source,
       limitPrice: orderType === "limit" ? limitPrice : undefined,
       stopPrice: orderType === "stop" ? stopPrice : undefined,
     };
 
     try {
+      // Place the main order
       const result = await tradeService.placeOrder(orderDetails);
+
+      // Only place stop loss and take profit for BUY orders that were executed
+      if (activeTab === "buy" && orderType === "market") {
+        // If buy order with stop loss, place stop loss order
+        if (stopLoss > 0) {
+          const stopLossPrice = Number(
+            (price * (1 - stopLoss / 100)).toFixed(2)
+          );
+          try {
+            await tradeService.placeOrder({
+              symbol,
+              quantity: quantity,
+              action: "sell",
+              source: "stop_loss",
+              stopPrice: stopLossPrice,
+            });
+          } catch (slError) {
+            console.error("Failed to place stop loss order:", slError);
+            // Don't fail the main order if stop loss fails
+          }
+        }
+
+        // If buy order with take profit, place take profit order
+        if (takeProfit > 0) {
+          const takeProfitPrice = Number(
+            (price * (1 + takeProfit / 100)).toFixed(2)
+          );
+          try {
+            await tradeService.placeOrder({
+              symbol,
+              quantity: quantity,
+              action: "sell",
+              source: "take_profit",
+              stopPrice: takeProfitPrice, // Note: take_profit uses stopPrice, not limitPrice
+            });
+          } catch (tpError) {
+            console.error("Failed to place take profit order:", tpError);
+            // Don't fail the main order if take profit fails
+          }
+        }
+      }
+
       toast({
         title: "Order Placed",
         description: `Successfully placed ${activeTab} order for ${quantity} of ${symbol}.`,
       });
       console.log("Order result:", result);
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Could not place order.";
       toast({
         title: "Order Failed",
-        description: error.message || "Could not place order.",
+        description: errorMessage,
         variant: "destructive",
       });
     }

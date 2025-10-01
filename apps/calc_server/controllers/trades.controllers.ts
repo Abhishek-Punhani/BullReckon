@@ -55,9 +55,13 @@ export const trade = async (
       fees: tradeValue * 0.001,
       total: tradeValue,
       source,
-      strategyId: typeof limitPrice !== "undefined" ? limitPrice : undefined,
-      limitPrice: typeof limitPrice !== "undefined" ? limitPrice : undefined,
-      stopPrice: typeof stopPrice !== "undefined" ? stopPrice : undefined,
+      limitPrice:
+        source === "limit" && limitPrice !== undefined ? limitPrice : undefined,
+      stopPrice:
+        (source === "stop_loss" || source === "take_profit") &&
+        stopPrice !== undefined
+          ? stopPrice
+          : undefined,
       status,
       executedAt: execute ? new Date() : null,
       // Snapshot of market data at order time
@@ -83,30 +87,50 @@ export const trade = async (
           (p: any) => p.symbol === symbol
         );
         if (!position || position.quantity < quantity) {
-          return res.status(400).json({ error: "Insufficient holdings" });
+          return res.status(400).json({
+            error: "Insufficient holdings",
+            message: `You don't have enough ${symbol} to sell. Available: ${position?.quantity || 0}, Requested: ${quantity}`,
+          });
         }
         portfolio.cash += tradeValue;
         portfolio.removePosition(symbol, quantity);
       }
       await portfolio.save();
     } else {
+      // For pending orders, validate holdings for SELL orders
+      if (action === "SELL") {
+        const position = portfolio.positions.find(
+          (p: any) => p.symbol === symbol
+        );
+        if (!position || position.quantity < quantity) {
+          return res.status(400).json({
+            error: "Insufficient holdings",
+            message: `Cannot place pending sell order. You don't have enough ${symbol}. Available: ${position?.quantity || 0}, Requested: ${quantity}`,
+          });
+        }
+      }
+
       tempTrade.status = "pending";
-      global.queueManager?.addPendingOrderJob({
-        tradeId: tempTrade._id.toString(),
-        userId,
-        symbol,
-        action,
-        quantity,
-        orderType:
-          source === "limit"
-            ? "limit"
-            : source === "stop_loss"
-              ? "stop_loss"
-              : "take_profit",
-        limitPrice,
-        stopPrice,
-        triggerPrice: currentPrice,
-      });
+
+      // Add to queue if available
+      if (global.queueManager?.addPendingOrderJob) {
+        await global.queueManager.addPendingOrderJob({
+          tradeId: tempTrade._id.toString(),
+          userId,
+          symbol,
+          action,
+          quantity,
+          orderType:
+            source === "limit"
+              ? "limit"
+              : source === "stop_loss"
+                ? "stop_loss"
+                : "take_profit",
+          limitPrice,
+          stopPrice,
+          triggerPrice: currentPrice,
+        });
+      }
     }
 
     await tempTrade.save();

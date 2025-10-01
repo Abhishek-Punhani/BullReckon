@@ -7,7 +7,7 @@ export const validateTradeInput = (req: Request): TradeValidationResult => {
   const errors: string[] = [];
 
   if (!symbol) errors.push("Symbol is required");
-  if (!["BUY", "SELL"].includes(action))
+  if (!["BUY", "SELL"].includes(action.toUpperCase()))
     errors.push("Action must be BUY or SELL");
   if (!quantity || quantity <= 0)
     errors.push("Quantity must be a positive number");
