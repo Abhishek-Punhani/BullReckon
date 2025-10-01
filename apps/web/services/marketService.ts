@@ -7,9 +7,35 @@ export const marketService = {
       const response = await axios.get(
         `${API_CONFIG.MARKET_SERVER}/api/market/quote/${symbol}`
       );
-      return response.data;
-    } catch {
-      throw new Error(`Failed to fetch quote for ${symbol}`);
+
+      // Check if the response contains valid data
+      const quote = response.data;
+      if (quote?.data?.price === 0 && quote?.data?.change === 0) {
+        console.warn(
+          `Symbol ${symbol} returned zero price - likely no data available`
+        );
+        return null;
+      }
+
+      return quote;
+    } catch (error: any) {
+      console.error(`Failed to fetch quote for ${symbol}:`, error);
+
+      // Return null for failed requests so other symbols can still load
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        console.warn(
+          `Symbol ${symbol} not supported by data provider or not found`
+        );
+        return null;
+      }
+
+      // For network errors, also return null to allow graceful degradation
+      if (error.code === "NETWORK_ERROR" || error.message === "Network Error") {
+        console.warn(`Network error for ${symbol}, skipping`);
+        return null;
+      }
+
+      throw error;
     }
   },
 
@@ -72,6 +98,47 @@ export const marketService = {
     } catch {
       throw new Error("Failed to fetch multiple quotes");
     }
+  },
+
+  // Efficient batch fetching method
+  async getBatchQuotes(symbols: string[]) {
+    try {
+      // Try batch API first
+      const batchData = await this.getMultipleQuotes(symbols);
+      if (Array.isArray(batchData)) {
+        return batchData;
+      }
+    } catch (error) {
+      console.warn("Batch API failed, falling back to individual requests");
+    }
+
+    // Fallback to individual requests with concurrency limit
+    const results = [];
+    const BATCH_SIZE = 5; // Limit concurrent requests
+
+    for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
+      const batch = symbols.slice(i, i + BATCH_SIZE);
+      const batchPromises = batch.map(async (symbol) => {
+        try {
+          const result = await this.getQuote(symbol);
+          return result;
+        } catch (error) {
+          console.warn(`Failed to get quote for ${symbol}, skipping`);
+          return null;
+        }
+      });
+      const batchResults = await Promise.allSettled(batchPromises);
+
+      results.push(
+        ...batchResults
+          .filter(
+            (result) => result.status === "fulfilled" && result.value !== null
+          )
+          .map((result) => (result as PromiseFulfilledResult<any>).value)
+      );
+    }
+
+    return results;
   },
 
   // Cache for frequently accessed data
