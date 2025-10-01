@@ -6,8 +6,22 @@ import type { StockHistoricalData, StockQuote } from "../../lib/types/market";
 import SymbolSearch from "../../components/SymbolSearch";
 import Navigation from "@/components/Navigation";
 import { Button } from "../../components/ui/button";
-import { Card, CardHeader, CardContent } from "../../components/ui/card";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardTitle,
+  CardDescription,
+} from "../../components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  TrendingUp,
+  TrendingDown,
+  Globe,
+  DollarSign,
+  Bitcoin,
+  Gem,
+} from "lucide-react";
 import { marketService } from "@/services";
 
 const PERIODS = [
@@ -20,13 +34,46 @@ const PERIODS = [
   { value: "max", label: "Max" },
 ];
 
+// Define market categories locally
+const MARKET_CATEGORIES = {
+  stocks: [
+    { value: "AAPL", label: "Apple Inc.", icon: "🍎" },
+    { value: "MSFT", label: "Microsoft", icon: "🪟" },
+    { value: "GOOGL", label: "Google", icon: "🔍" },
+    { value: "TSLA", label: "Tesla Inc.", icon: "🚗" },
+    { value: "AMZN", label: "Amazon", icon: "📦" },
+    { value: "META", label: "Meta", icon: "👥" },
+  ],
+  crypto: [
+    { value: "BTCUSDT", label: "Bitcoin", icon: "₿" },
+    { value: "ETHUSDT", label: "Ethereum", icon: "Ξ" },
+    { value: "ADAUSDT", label: "Cardano", icon: "🔷" },
+    { value: "DOTUSDT", label: "Polkadot", icon: "🔴" },
+  ],
+  indices: [
+    { value: "^GSPC", label: "S&P 500", icon: "📈" },
+    { value: "^DJI", label: "Dow Jones", icon: "📊" },
+    { value: "^IXIC", label: "NASDAQ", icon: "💻" },
+    { value: "^RUT", label: "Russell 2000", icon: "📉" },
+  ],
+  commodities: [
+    { value: "GC=F", label: "Gold", icon: "🥇" },
+    { value: "SI=F", label: "Silver", icon: "🥈" },
+    { value: "CL=F", label: "Oil", icon: "🛢️" },
+    { value: "NG=F", label: "Natural Gas", icon: "⛽" },
+  ],
+};
+
+type Category = keyof typeof MARKET_CATEGORIES;
+
 export default function MarketPage() {
-  // start with a sensible default symbol; user can change via the search
+  const [isClient, setIsClient] = useState(false);
   const [symbol, setSymbol] = useState<string>("AAPL");
   const [period, setPeriod] = useState<string>("1y");
   const [historical, setHistorical] = useState<StockHistoricalData | null>(
     null
   );
+  const [quote, setQuote] = useState<StockQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category>("stocks");
@@ -143,12 +190,14 @@ export default function MarketPage() {
     };
   }, [symbol, period]);
 
-  // Poll latest quote every 5s
   useEffect(() => {
-    let mounted = true;
-    let timer: NodeJS.Timeout | null = null;
+    const fetchCategoryAssets = async () => {
+      if (!isClient) return; // Don't fetch on server side
 
-    const fetchQuote = async () => {
+      setAssetsLoading(true);
+      const assets = MARKET_CATEGORIES[selectedCategory];
+      const symbols = assets.map((asset) => asset.value);
+
       try {
         const quotesData = await marketService.getBatchQuotes(symbols);
 
@@ -175,44 +224,75 @@ export default function MarketPage() {
         console.error(`Failed to fetch ${selectedCategory} assets:`, error);
         setAssetList([]);
       } finally {
-        timer = setTimeout(fetchQuote, 5000);
+        setAssetsLoading(false);
       }
     };
 
-    fetchQuote();
-    return () => {
-      mounted = false;
-      if (timer) clearTimeout(timer);
-    };
-  }, [symbol]);
-
-  const isPositive = (livePrice ?? 0) >= 0;
+    fetchCategoryAssets();
+  }, [selectedCategory, isClient]);
 
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
       <main className="lg:pl-64">
-        <div className="p-6">
-          <h2 className="text-2xl font-semibold mb-4">Market</h2>
+        <div className="p-6 space-y-6">
+          {/* Hero Section */}
+          <div className="bg-card border rounded-lg p-8 text-center trading-gradient">
+            <h1 className="text-4xl font-bold">Explore the Market</h1>
+            <p className="text-muted-foreground mt-2">
+              Find your next investment opportunity with real-time data and
+              insights.
+            </p>
+            <div className="mt-6 max-w-md mx-auto">
+              <SymbolSearch onSelect={(sym) => setSymbol(sym)} />
+            </div>
+          </div>
 
-          <Card className="mb-4">
-            <CardHeader className="flex items-center gap-4">
-              <div className="w-60">
-                <SymbolSearch onSelect={(sym) => setSymbol(sym)} />
-              </div>
-
-              <div className="flex items-center gap-2">
-                {PERIODS.map((p) => (
-                  <Button
-                    key={p.value}
-                    size="sm"
-                    variant={period === p.value ? "default" : "ghost"}
-                    onClick={() => setPeriod(p.value)}
-                  >
-                    {p.label}
-                  </Button>
+          {/* Global Stats */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {statsLoading
+              ? // Loading skeleton
+                Array.from({ length: 4 }).map((_, index) => (
+                  <Card key={index}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Loading...
+                      </CardTitle>
+                      <span className="text-2xl">📊</span>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">Loading...</div>
+                      <p className="text-xs text-muted-foreground">
+                        Please wait...
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))
+              : globalStats.map((stat) => (
+                  <Card key={stat.symbol}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        {stat.name}
+                      </CardTitle>
+                      <span className="text-2xl">{stat.icon}</span>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {stat.price > 0 ? `$${stat.price.toFixed(2)}` : "N/A"}
+                      </div>
+                      <p
+                        className={`text-xs ${
+                          stat.change >= 0 ? "text-success" : "text-destructive"
+                        }`}
+                      >
+                        {stat.change !== 0
+                          ? `${stat.change > 0 ? "+" : ""}${stat.change.toFixed(2)}%`
+                          : "N/A"}
+                      </p>
+                    </CardContent>
+                  </Card>
                 ))}
-              </div>
+          </div>
 
           <div className="space-y-6">
             {/* Main Chart Section - Full Width */}
@@ -221,8 +301,7 @@ export default function MarketPage() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <CardTitle className="text-2xl">
-                      {quote?.data?.name || marketService.getSymbolName(symbol)}{" "}
-                      ({symbol})
+                      {quote?.data?.name || symbol} ({symbol})
                     </CardTitle>
                     <CardDescription>
                       {quote?.data?.price
