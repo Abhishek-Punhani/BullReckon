@@ -12,3 +12,21 @@ export interface StockHistoricalData {
   period: string;
   data: Candle[];
 }
+
+export interface StockQuote {
+  success: boolean;
+  data: {
+    symbol: string;
+    price: number;
+    change: number;
+    changePercent: number;
+    dayHigh: number;
+    dayLow: number;
+    volume: number;
+    marketCap?: number;
+    pe?: number;
+    name?: string;
+    timestamp: string;
+  };
+  message?: string;
+}
