@@ -88,7 +88,7 @@ export const mockUsers: User[] = [
     total_equity: 112500,
   },
   {
-    id: "2", 
+    id: "2",
     email: "demo@trading.com",
     password: "demo123",
     balance: 50000,
@@ -97,15 +97,27 @@ export const mockUsers: User[] = [
 ];
 
 // Mock Market Data
-export const generateMockOHLCData = (symbol: string, days: number = 30): OHLCData[] => {
+export const generateMockOHLCData = (
+  symbol: string,
+  days: number = 30
+): OHLCData[] => {
   const data: OHLCData[] = [];
-  const basePrice = symbol === "BTCUSDT" ? 50000 : symbol === "ETHUSDT" ? 1800 : symbol === "AAPL" ? 150 : 200;
+  const basePrice =
+    symbol === "BTCUSDT"
+      ? 50000
+      : symbol === "ETHUSDT"
+        ? 1800
+        : symbol === "AAPL"
+          ? 150
+          : 200;
   let currentPrice = basePrice;
-  
+
   // Generate data from oldest to newest (ascending time order)
   for (let i = days; i >= 0; i--) {
-    const timestamp = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString();
-    
+    const timestamp = new Date(
+      Date.now() - i * 24 * 60 * 60 * 1000
+    ).toISOString();
+
     // Random price movement
     const change = (Math.random() - 0.5) * 0.1; // ±5% daily volatility
     const open = currentPrice;
@@ -113,7 +125,7 @@ export const generateMockOHLCData = (symbol: string, days: number = 30): OHLCDat
     const high = Math.max(open, close) * (1 + Math.random() * 0.02);
     const low = Math.min(open, close) * (1 - Math.random() * 0.02);
     const volume = Math.floor(Math.random() * 1000) + 100;
-    
+
     data.push({
       timestamp,
       open: Number(open.toFixed(2)),
@@ -122,10 +134,10 @@ export const generateMockOHLCData = (symbol: string, days: number = 30): OHLCDat
       close: Number(close.toFixed(2)),
       volume,
     });
-    
+
     currentPrice = close;
   }
-  
+
   // Data is already in ascending chronological order, no need to reverse
   return data;
 };
@@ -143,7 +155,7 @@ export const mockPortfolio: Portfolio = {
       unrealized_pnl_percentage: 1.5,
     },
     {
-      symbol: "ETHUSDT", 
+      symbol: "ETHUSDT",
       quantity: 10,
       avg_buy_price: 1800,
       current_price: 1900,
@@ -178,7 +190,7 @@ export const mockTradeHistory: TradeHistory[] = [
   },
   {
     id: "2",
-    timestamp: "2025-09-23T15:00:00Z", 
+    timestamp: "2025-09-23T15:00:00Z",
     symbol: "BTCUSDT",
     action: "BUY",
     quantity: 0.5,
@@ -200,7 +212,7 @@ export const mockTradeHistory: TradeHistory[] = [
     id: "4",
     timestamp: "2025-09-21T16:45:00Z",
     symbol: "AAPL",
-    action: "BUY", 
+    action: "BUY",
     quantity: 50,
     price: 150,
     fees: 7.5,
@@ -233,7 +245,7 @@ export const mockCompetitions: Competition[] = [
     participants: 891,
     prize_pool: 25000,
     start_date: "2025-10-01T00:00:00Z",
-    end_date: "2025-10-07T23:59:59Z", 
+    end_date: "2025-10-07T23:59:59Z",
     status: "upcoming",
   },
 ];
@@ -265,7 +277,7 @@ export const mockBacktestResult: BacktestResult = {
       pnl: 0,
     },
     {
-      id: "bt2", 
+      id: "bt2",
       timestamp: "2023-02-10T15:00:00Z",
       symbol: "BTCUSDT",
       action: "SELL",
@@ -296,10 +308,111 @@ export const INDICATORS = [
   { value: "volume", label: "Volume" },
 ];
 
-// API Configuration for BullReckon services
-export const API_CONFIG = {
-  AUTH_SERVER: process.env.NEXT_PUBLIC_AUTH_SERVER || 'http://localhost:3001',
-  MARKET_SERVER: process.env.NEXT_PUBLIC_MARKET_SERVER || 'http://localhost:3002', 
-  CALC_SERVER: process.env.NEXT_PUBLIC_CALC_SERVER || 'http://localhost:3003',
-  API_SERVER: process.env.NEXT_PUBLIC_API_SERVER || 'http://localhost:3004',
+// Market categories
+export interface MarketAsset {
+  value: string;
+  label: string;
+  icon: string;
+  description: string;
+}
+
+export const MARKET_CATEGORIES: Record<string, MarketAsset[]> = {
+  indices: [
+    {
+      value: "^GSPC",
+      label: "S&P 500",
+      icon: "🏛️",
+      description: "US large-cap stock market index",
+    },
+    {
+      value: "^IXIC",
+      label: "NASDAQ Composite",
+      icon: "📈",
+      description: "Technology-heavy stock market index",
+    },
+    {
+      value: "^DJI",
+      label: "Dow Jones",
+      icon: "📊",
+      description: "US blue-chip stock market index",
+    },
+    {
+      value: "^VIX",
+      label: "VIX",
+      icon: "⚡",
+      description: "Market volatility index",
+    },
+  ],
+  stocks: [
+    {
+      value: "AAPL",
+      label: "Apple Inc.",
+      icon: "🍎",
+      description: "Technology hardware and software",
+    },
+    {
+      value: "MSFT",
+      label: "Microsoft",
+      icon: "🪟",
+      description: "Cloud computing and software",
+    },
+    {
+      value: "GOOGL",
+      label: "Alphabet Inc.",
+      icon: "🔍",
+      description: "Internet services and advertising",
+    },
+    {
+      value: "AMZN",
+      label: "Amazon",
+      icon: "📦",
+      description: "E-commerce and cloud services",
+    },
+    {
+      value: "TSLA",
+      label: "Tesla",
+      icon: "🚗",
+      description: "Electric vehicles and clean energy",
+    },
+    {
+      value: "NVDA",
+      label: "NVIDIA",
+      icon: "🎮",
+      description: "Graphics processing and AI chips",
+    },
+  ],
+  crypto: [
+    {
+      value: "BTC-USD",
+      label: "Bitcoin",
+      icon: "₿",
+      description: "Digital gold and store of value",
+    },
+    {
+      value: "ETH-USD",
+      label: "Ethereum",
+      icon: "Ξ",
+      description: "Smart contracts and DeFi platform",
+    },
+  ],
+  commodities: [
+    {
+      value: "GC=F",
+      label: "Gold",
+      icon: "🥇",
+      description: "Precious metal commodity",
+    },
+    {
+      value: "SI=F",
+      label: "Silver",
+      icon: "🥈",
+      description: "Precious metal commodity",
+    },
+    {
+      value: "CL=F",
+      label: "Crude Oil",
+      icon: "🛢️",
+      description: "Energy commodity",
+    },
+  ],
 };

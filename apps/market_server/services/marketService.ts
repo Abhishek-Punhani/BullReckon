@@ -68,7 +68,22 @@ class MarketService {
       if (error instanceof ErrorHandling) {
         throw error;
       }
-      console.error(`Error fetching quote for ${symbol}:`, error);
+      
+      // Log the specific error for debugging
+      console.error(`Yahoo Finance error for ${symbol}:`, {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      
+      // For validation errors, return a more specific error
+      if (error.name === 'FailedYahooValidationError' || 
+          error.message?.includes('validation') ||
+          error.message?.includes('schema')) {
+        throw new ErrorHandling(`Symbol '${symbol}' not supported by data provider`, 422);
+      }
+      
+      // For other errors, return a generic error
       throw new ErrorHandling(`Failed to fetch stock data for ${symbol}`, 500);
     }
   }

@@ -1,18 +1,23 @@
-import { internalApi } from "@/internalApi.client";
+import { internalApi } from "../../../shared/internalApi.client";
 
 export async function fetchLivePrice(symbol: string): Promise<number> {
   try {
+    const marketServerUrl =
+      process.env.MARKET_SERVER_URL || "http://localhost:5000";
     const res = await internalApi.get(
-      `${process.env.MARKET_SERVER_URL}/api/market/internal/quote/${symbol}`
+      `${marketServerUrl}/api/market/internal/quote/${symbol}`
     );
     return res.data?.data?.price ?? 0;
   } catch (err) {
+    console.error(`Failed to fetch price for ${symbol}:`, err);
     // fallback or throw
     return 100 + Math.random() * 10;
   }
 }
 
-export const fetchMultiplePrices = async (symbols: string[]): Promise<Record<string, number>> => {
+export const fetchMultiplePrices = async (
+  symbols: string[]
+): Promise<Record<string, number>> => {
   if (symbols.length === 0) return {};
 
   try {
@@ -22,10 +27,13 @@ export const fetchMultiplePrices = async (symbols: string[]): Promise<Record<str
     });
 
     const prices = await Promise.all(pricePromises);
-    return prices.reduce((acc, { symbol, price }) => {
-      if (price > 0) acc[symbol] = price;
-      return acc;
-    }, {} as Record<string, number>);
+    return prices.reduce(
+      (acc, { symbol, price }) => {
+        if (price > 0) acc[symbol] = price;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
   } catch (error) {
     console.warn("Failed to fetch multiple prices:", error);
     return {};

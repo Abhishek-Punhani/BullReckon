@@ -8,7 +8,31 @@ export interface Candle {
 }
 
 export interface StockHistoricalData {
-  symbol: string;
-  period: string;
-  data: Candle[];
+  success?: boolean;
+  data?: {
+    symbol: string;
+    period: string;
+    data: Candle[];
+  };
+  // For backward compatibility
+  symbol?: string;
+  period?: string;
+}
+
+export interface StockQuote {
+  success: boolean;
+  data: {
+    symbol: string;
+    price: number;
+    change: number;
+    changePercent: number;
+    dayHigh: number;
+    dayLow: number;
+    volume: number;
+    marketCap?: number;
+    pe?: number;
+    name?: string;
+    timestamp: string;
+  };
+  message?: string;
 }
