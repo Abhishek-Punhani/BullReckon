@@ -1,10 +1,11 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useCentralPrices } from "@/hooks/use-centralPrice";
 import {
   TrendingUp,
   TrendingDown,
@@ -49,6 +50,20 @@ const DashboardPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
+
+  // Extract symbols from positions for live price updates
+  const symbols = useMemo(() => {
+    return dashboardData?.portfolio?.positions?.map((pos) => pos.symbol) || [];
+  }, [dashboardData?.portfolio?.positions]);
+
+  // Subscribe to live prices using central price service
+  const { prices: livePrices, isConnected: pricesConnected } = useCentralPrices(
+    {
+      symbols,
+      enabled: symbols.length > 0,
+    }
+  );
+
   useEffect(() => {
     const userData = localStorage.getItem("user");
     if (userData) {
@@ -147,37 +162,94 @@ const DashboardPage = () => {
     }
   };
 
-  // Extract data from dashboardData
+  // Extract data from dashboardData with live price updates
   const portfolio = dashboardData?.portfolio;
   const recentTrades = dashboardData?.recentTrades || [];
   const riskSettings = dashboardData?.riskSettings;
   const performanceData = dashboardData?.performanceData || [];
 
+  // Update positions with live prices
+  const updatedPositions = useMemo(() => {
+    if (!portfolio?.positions) return [];
+
+    return portfolio.positions.map((position) => {
+      const livePrice = livePrices[position.symbol];
+      if (livePrice) {
+        const currentPrice = livePrice.price;
+        const currentValue = position.quantity * currentPrice;
+        const unrealizedPnL = currentValue - position.totalInvested;
+        const unrealizedPnLPercentage =
+          (unrealizedPnL / position.totalInvested) * 100;
+
+        return {
+          ...position,
+          currentPrice,
+          currentValue,
+          unrealizedPnL,
+          unrealizedPnLPercentage,
+        };
+      }
+      return position;
+    });
+  }, [portfolio?.positions, livePrices]);
+
+  // Recalculate portfolio totals with live prices
+  const portfolioWithLivePrices = useMemo(() => {
+    if (!portfolio) return null;
+
+    const totalPositionValue = updatedPositions.reduce(
+      (sum, pos) => sum + pos.currentValue,
+      0
+    );
+    const unrealizedPnL = updatedPositions.reduce(
+      (sum, pos) => sum + pos.unrealizedPnL,
+      0
+    );
+    const totalEquity = portfolio.cash + totalPositionValue;
+
+    return {
+      ...portfolio,
+      positions: updatedPositions,
+      totalEquity,
+      unrealizedPnL,
+      totalReturn: ((totalEquity - 100000) / 100000) * 100,
+    };
+  }, [portfolio, updatedPositions]);
+
   // Calculate metrics
-  const totalPnL = portfolio
-    ? portfolio.realizedPnL + portfolio.unrealizedPnL
+  const totalPnL = portfolioWithLivePrices
+    ? portfolioWithLivePrices.realizedPnL +
+      portfolioWithLivePrices.unrealizedPnL
     : 0;
-  const totalReturnPercentage = portfolio?.totalReturn || 0;
-  const dayChangePercentage = portfolio
-    ? (portfolio.dayChange / portfolio.totalEquity) * 100
+  const totalReturnPercentage = portfolioWithLivePrices?.totalReturn || 0;
+  const dayChangePercentage = portfolioWithLivePrices
+    ? (portfolioWithLivePrices.dayChange /
+        portfolioWithLivePrices.totalEquity) *
+      100
     : 0;
   const isProfitable = totalPnL >= 0;
-  const isDayPositive = portfolio ? portfolio.dayChange >= 0 : false;
+  const isDayPositive = portfolioWithLivePrices
+    ? portfolioWithLivePrices.dayChange >= 0
+    : false;
 
-  // Portfolio allocation data
-  const allocationData = portfolio
+  // Portfolio allocation data with live prices
+  const allocationData = portfolioWithLivePrices
     ? [
         {
           name: "Cash",
-          value: portfolio.cash,
+          value: portfolioWithLivePrices.cash,
           color: "hsl(213, 94%, 68%)",
-          percentage: (portfolio.cash / portfolio.totalEquity) * 100,
+          percentage:
+            (portfolioWithLivePrices.cash /
+              portfolioWithLivePrices.totalEquity) *
+            100,
         },
-        ...portfolio.positions.map((pos, index) => ({
+        ...portfolioWithLivePrices.positions.map((pos, index) => ({
           name: pos.symbol,
           value: pos.currentValue,
           color: `hsl(${140 + index * 50}, 70%, ${45 + index * 10}%)`,
-          percentage: (pos.currentValue / portfolio.totalEquity) * 100,
+          percentage:
+            (pos.currentValue / portfolioWithLivePrices.totalEquity) * 100,
         })),
       ]
     : [];
@@ -314,7 +386,7 @@ const DashboardPage = () => {
           </div>
 
           {/* Key Metrics */}
-          {portfolio && (
+          {portfolioWithLivePrices && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <Card className="relative overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -325,7 +397,7 @@ const DashboardPage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {formatCurrency(portfolio.totalEquity)}
+                    {formatCurrency(portfolioWithLivePrices.totalEquity)}
                   </div>
                   <div className="flex items-center gap-1 text-xs">
                     {isDayPositive ? (
@@ -338,10 +410,15 @@ const DashboardPage = () => {
                         isDayPositive ? "text-green-600" : "text-red-600"
                       }
                     >
-                      {formatCurrency(portfolio.dayChange)} (
+                      {formatCurrency(portfolioWithLivePrices.dayChange)} (
                       {formatPercentage(dayChangePercentage)}) today
                     </span>
                   </div>
+                  {pricesConnected && (
+                    <Badge variant="outline" className="mt-1 text-xs">
+                      🟢 Live
+                    </Badge>
+                  )}
                 </CardContent>
               </Card>
 
@@ -354,12 +431,14 @@ const DashboardPage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {formatCurrency(portfolio.cash)}
+                    {formatCurrency(portfolioWithLivePrices.cash)}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {((portfolio.cash / portfolio.totalEquity) * 100).toFixed(
-                      1
-                    )}
+                    {(
+                      (portfolioWithLivePrices.cash /
+                        portfolioWithLivePrices.totalEquity) *
+                      100
+                    ).toFixed(1)}
                     % of portfolio
                   </p>
                 </CardContent>
@@ -374,12 +453,12 @@ const DashboardPage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {formatCurrency(portfolio.totalInvested)}
+                    {formatCurrency(portfolioWithLivePrices.totalInvested)}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Current value:{" "}
                     {formatCurrency(
-                      portfolio.positions.reduce(
+                      portfolioWithLivePrices.positions.reduce(
                         (sum, pos) => sum + pos.currentValue,
                         0
                       )
@@ -409,22 +488,22 @@ const DashboardPage = () => {
                     <span className="text-muted-foreground">Realized:</span>
                     <span
                       className={
-                        portfolio.realizedPnL >= 0
+                        portfolioWithLivePrices.realizedPnL >= 0
                           ? "text-green-600"
                           : "text-red-600"
                       }
                     >
-                      {formatCurrency(portfolio.realizedPnL)}
+                      {formatCurrency(portfolioWithLivePrices.realizedPnL)}
                     </span>
                     <span className="text-muted-foreground">| Unrealized:</span>
                     <span
                       className={
-                        portfolio.unrealizedPnL >= 0
+                        portfolioWithLivePrices.unrealizedPnL >= 0
                           ? "text-green-600"
                           : "text-red-600"
                       }
                     >
-                      {formatCurrency(portfolio.unrealizedPnL)}
+                      {formatCurrency(portfolioWithLivePrices.unrealizedPnL)}
                     </span>
                   </div>
                 </CardContent>
@@ -606,13 +685,15 @@ const DashboardPage = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUpDown className="h-5 w-5" />
-                  Current Holdings ({portfolio?.positions.length || 0})
+                  Current Holdings (
+                  {portfolioWithLivePrices?.positions.length || 0})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {portfolio && portfolio.positions.length > 0 ? (
+                {portfolioWithLivePrices &&
+                portfolioWithLivePrices.positions.length > 0 ? (
                   <div className="space-y-4">
-                    {portfolio.positions.map((position) => (
+                    {portfolioWithLivePrices.positions.map((position) => (
                       <div
                         key={position.symbol}
                         className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors"

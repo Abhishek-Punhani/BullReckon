@@ -219,3 +219,67 @@ export const clearCache = async (
     next(error);
   }
 };
+
+/**
+ * Get live prices for long polling
+ * GET /api/market/long-poll/prices?symbols=AAPL,GOOGL&lastUpdate=1234567890
+ */
+export const getLivePrice = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { symbols, lastUpdate } = req.query;
+
+    // Validate symbols parameter
+    if (!symbols || typeof symbols !== "string") {
+      return next(
+        new ErrorHandling(
+          "Symbols parameter is required (comma-separated string)",
+          400
+        )
+      );
+    }
+
+    // Parse symbols
+    const symbolArray = symbols
+      .split(",")
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => s.length > 0);
+
+    if (symbolArray.length === 0) {
+      return next(
+        new ErrorHandling("At least one valid symbol is required", 400)
+      );
+    }
+
+    if (symbolArray.length > 50) {
+      return next(
+        new ErrorHandling("Maximum 50 symbols allowed per request", 400)
+      );
+    }
+
+    // Parse lastUpdate timestamp
+    const lastUpdateTime =
+      lastUpdate && typeof lastUpdate === "string"
+        ? parseInt(lastUpdate, 10)
+        : 0;
+
+    // Get live prices
+    const result = await marketService.getLivePrices(
+      symbolArray,
+      lastUpdateTime
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result.prices,
+      timestamp: result.timestamp,
+      hasUpdates: result.hasUpdates,
+      message: `Live prices retrieved for ${Object.keys(result.prices).length} symbols`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

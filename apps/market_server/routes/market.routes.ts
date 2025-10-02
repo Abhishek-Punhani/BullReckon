@@ -7,6 +7,7 @@ import {
   getMultipleQuotes,
   getMarketStats,
   clearCache,
+  getLivePrice,
 } from "../controllers/market.controllers";
 
 const marketRoutes: Router = Router();
@@ -25,5 +26,8 @@ marketRoutes.delete("/cache", clearCache);
 
 // internal routes
 marketRoutes.get("/internal/quote/:symbol", internalAuth, getStockQuote);
+
+// long polling route for prices
+marketRoutes.get("/long-poll/prices", getLivePrice);
 
 export { marketRoutes };

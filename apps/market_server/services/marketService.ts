@@ -29,6 +29,7 @@ export interface StockHistoricalData {
 
 class MarketService {
   private cache: Map<string, { data: any; expiresAt: number }> = new Map();
+  private priceTimestamps: Map<string, number> = new Map(); // Track when prices were actually fetched
   private readonly CACHE_DURATION = 60 * 1000; // 1 minute in milliseconds
 
   /**
@@ -63,6 +64,10 @@ class MarketService {
       };
 
       this.setCachedData(cacheKey, stockQuote);
+
+      // Track when this price was actually fetched (not from cache)
+      this.priceTimestamps.set(symbol.toUpperCase(), Date.now());
+
       return stockQuote;
     } catch (error: any) {
       if (error instanceof ErrorHandling) {
@@ -299,6 +304,81 @@ class MarketService {
       size: this.cache.size,
       keys: Array.from(this.cache.keys()),
     };
+  }
+
+  /**
+   * Get live prices for long polling
+   * Returns prices with timestamp comparison for change detection
+   */
+  async getLivePrices(
+    symbols: string[],
+    lastUpdateTime: number = 0
+  ): Promise<{
+    prices: Record<string, StockQuote>;
+    timestamp: number;
+    hasUpdates: boolean;
+  }> {
+    try {
+      const currentTime = Date.now();
+      const prices: Record<string, StockQuote> = {};
+      let hasUpdates = false;
+
+      console.log(
+        `📊 [Market Service] getLivePrices called - symbols: ${symbols.join(",")}, lastUpdateTime: ${lastUpdateTime}`
+      );
+
+      // Fetch quotes for all symbols
+      const quotePromises = symbols.map(async (symbol) => {
+        try {
+          const quote = await this.getStockQuote(symbol);
+          return { symbol: symbol.toUpperCase(), quote };
+        } catch (error) {
+          console.warn(`Failed to fetch quote for ${symbol}:`, error);
+          return null;
+        }
+      });
+
+      const results = await Promise.allSettled(quotePromises);
+
+      // Process results
+      for (const result of results) {
+        if (result.status === "fulfilled" && result.value) {
+          const { symbol, quote } = result.value;
+          prices[symbol] = quote;
+
+          // Check if this price was fetched AFTER the client's lastUpdateTime
+          const priceFetchTime = this.priceTimestamps.get(symbol) || 0;
+          console.log(
+            `📊 [Market Service] ${symbol} - priceFetchTime: ${priceFetchTime}, lastUpdateTime: ${lastUpdateTime}, hasUpdate: ${priceFetchTime > lastUpdateTime}`
+          );
+
+          if (priceFetchTime > lastUpdateTime) {
+            hasUpdates = true;
+          }
+        }
+      }
+
+      // On first call (lastUpdateTime === 0), always return updates
+      if (lastUpdateTime === 0) {
+        hasUpdates = true;
+        console.log(
+          `📊 [Market Service] First call detected, forcing hasUpdates=true`
+        );
+      }
+
+      console.log(
+        `📊 [Market Service] Returning ${Object.keys(prices).length} prices, hasUpdates: ${hasUpdates}, timestamp: ${currentTime}`
+      );
+
+      return {
+        prices,
+        timestamp: currentTime,
+        hasUpdates,
+      };
+    } catch (error: any) {
+      console.error("Error fetching live prices:", error);
+      throw new ErrorHandling("Failed to fetch live prices", 500);
+    }
   }
 }
 

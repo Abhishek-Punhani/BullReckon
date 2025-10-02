@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,6 +15,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Navigation from "@/components/Navigation";
+import { useCentralPrices } from "@/hooks/use-centralPrice";
 import {
   TrendingUpDown,
   Filter,
@@ -83,7 +85,9 @@ interface Filters {
 }
 
 const HoldingsPage = () => {
-  const [positionsData, setPositionsData] = useState<PositionsData | null>(null);
+  const [positionsData, setPositionsData] = useState<PositionsData | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -102,6 +106,82 @@ const HoldingsPage = () => {
     minPnL: "",
     maxPnL: "",
   });
+
+  // Extract symbols from positions for live price updates
+  const symbols = useMemo(() => {
+    return positionsData?.positions?.map((pos) => pos.symbol) || [];
+  }, [positionsData?.positions]);
+
+  // Subscribe to live prices using central price service
+  const { prices: livePrices, isConnected: pricesConnected } = useCentralPrices(
+    {
+      symbols,
+      enabled: symbols.length > 0,
+    }
+  );
+
+  // Update positions with live prices
+  const updatedPositions = useMemo(() => {
+    if (!positionsData?.positions) return [];
+
+    return positionsData.positions.map((position) => {
+      const livePrice = livePrices[position.symbol];
+      if (livePrice) {
+        const currentPrice = livePrice.price;
+        const currentValue = position.quantity * currentPrice;
+        const unrealizedPnL = currentValue - position.totalInvested;
+        const unrealizedPnLPercentage =
+          (unrealizedPnL / position.totalInvested) * 100;
+
+        return {
+          ...position,
+          currentPrice,
+          currentValue,
+          unrealizedPnL,
+          unrealizedPnLPercentage,
+        };
+      }
+      return position;
+    });
+  }, [positionsData?.positions, livePrices]);
+
+  // Recalculate summary with live prices
+  const updatedSummary = useMemo(() => {
+    if (!positionsData?.summary) return null;
+
+    const totalCurrentValue = updatedPositions.reduce(
+      (sum, pos) => sum + pos.currentValue,
+      0
+    );
+    const totalUnrealizedPnL = updatedPositions.reduce(
+      (sum, pos) => sum + pos.unrealizedPnL,
+      0
+    );
+    const profitablePositions = updatedPositions.filter(
+      (pos) => pos.unrealizedPnL > 0
+    ).length;
+    const losingPositions = updatedPositions.filter(
+      (pos) => pos.unrealizedPnL < 0
+    ).length;
+    const averageReturn =
+      positionsData.summary.totalInvested > 0
+        ? (totalUnrealizedPnL / positionsData.summary.totalInvested) * 100
+        : 0;
+    const winRate =
+      updatedPositions.length > 0
+        ? (profitablePositions / updatedPositions.length) * 100
+        : 0;
+
+    return {
+      ...positionsData.summary,
+      totalCurrentValue,
+      totalUnrealizedPnL,
+      profitablePositions,
+      losingPositions,
+      averageReturn,
+      winRate,
+    };
+  }, [positionsData?.summary, updatedPositions]);
 
   useEffect(() => {
     fetchPositionsData();
@@ -155,7 +235,7 @@ const HoldingsPage = () => {
   };
 
   const handleFilterChange = (key: keyof Filters, value: any) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
       [key]: value,
       page: key !== "page" ? 1 : value, // Reset to page 1 when changing filters
@@ -284,9 +364,12 @@ const HoldingsPage = () => {
     );
   }
 
-  const summary = positionsData?.summary;
+  const summary = updatedSummary || positionsData?.summary;
   const pagination = positionsData?.pagination;
-  const positions = positionsData?.positions || [];
+  const positions =
+    updatedPositions.length > 0
+      ? updatedPositions
+      : positionsData?.positions || [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -300,13 +383,21 @@ const HoldingsPage = () => {
                 Current Holdings
               </h1>
               <p className="text-muted-foreground">
-                View and analyze your current positions • {summary?.totalPositions || 0} total holdings
+                View and analyze your current positions •{" "}
+                {summary?.totalPositions || 0} total holdings
+                {pricesConnected && (
+                  <Badge variant="outline" className="ml-2">
+                    🟢 Live Prices
+                  </Badge>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Select 
-                value={filters.limit.toString()} 
-                onValueChange={(value) => handleFilterChange("limit", parseInt(value))}
+              <Select
+                value={filters.limit.toString()}
+                onValueChange={(value) =>
+                  handleFilterChange("limit", parseInt(value))
+                }
               >
                 <SelectTrigger className="w-32">
                   <SelectValue />
@@ -471,7 +562,9 @@ const HoldingsPage = () => {
                       <Input
                         placeholder="Search symbols..."
                         value={filters.search}
-                        onChange={(e) => handleFilterChange("search", e.target.value)}
+                        onChange={(e) =>
+                          handleFilterChange("search", e.target.value)
+                        }
                         className="pl-10"
                       />
                     </div>
@@ -481,7 +574,9 @@ const HoldingsPage = () => {
                     <label className="text-sm font-medium">Profitability</label>
                     <Select
                       value={filters.profitability}
-                      onValueChange={(value) => handleFilterChange("profitability", value)}
+                      onValueChange={(value) =>
+                        handleFilterChange("profitability", value)
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -498,20 +593,34 @@ const HoldingsPage = () => {
                     <label className="text-sm font-medium">Sort By</label>
                     <Select
                       value={filters.sortBy}
-                      onValueChange={(value) => handleFilterChange("sortBy", value)}
+                      onValueChange={(value) =>
+                        handleFilterChange("sortBy", value)
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="currentValue">Current Value</SelectItem>
-                        <SelectItem value="unrealizedPnL">P&L Amount</SelectItem>
-                        <SelectItem value="unrealizedPnLPercentage">P&L %</SelectItem>
-                        <SelectItem value="totalInvested">Invested Amount</SelectItem>
+                        <SelectItem value="currentValue">
+                          Current Value
+                        </SelectItem>
+                        <SelectItem value="unrealizedPnL">
+                          P&L Amount
+                        </SelectItem>
+                        <SelectItem value="unrealizedPnLPercentage">
+                          P&L %
+                        </SelectItem>
+                        <SelectItem value="totalInvested">
+                          Invested Amount
+                        </SelectItem>
                         <SelectItem value="symbol">Symbol</SelectItem>
                         <SelectItem value="quantity">Quantity</SelectItem>
-                        <SelectItem value="currentPrice">Current Price</SelectItem>
-                        <SelectItem value="avgBuyPrice">Avg Buy Price</SelectItem>
+                        <SelectItem value="currentPrice">
+                          Current Price
+                        </SelectItem>
+                        <SelectItem value="avgBuyPrice">
+                          Avg Buy Price
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -520,7 +629,9 @@ const HoldingsPage = () => {
                     <label className="text-sm font-medium">Order</label>
                     <Select
                       value={filters.sortOrder}
-                      onValueChange={(value) => handleFilterChange("sortOrder", value)}
+                      onValueChange={(value) =>
+                        handleFilterChange("sortOrder", value)
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -548,25 +659,35 @@ const HoldingsPage = () => {
                 {/* Advanced Filters */}
                 {showAdvancedFilters && (
                   <div className="border-t pt-4">
-                    <h4 className="text-sm font-medium mb-3">Advanced Filters</h4>
+                    <h4 className="text-sm font-medium mb-3">
+                      Advanced Filters
+                    </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Min Investment</label>
+                        <label className="text-sm font-medium">
+                          Min Investment
+                        </label>
                         <Input
                           placeholder="0"
                           type="number"
                           value={filters.minInvestment}
-                          onChange={(e) => handleFilterChange("minInvestment", e.target.value)}
+                          onChange={(e) =>
+                            handleFilterChange("minInvestment", e.target.value)
+                          }
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Max Investment</label>
+                        <label className="text-sm font-medium">
+                          Max Investment
+                        </label>
                         <Input
                           placeholder="No limit"
                           type="number"
                           value={filters.maxInvestment}
-                          onChange={(e) => handleFilterChange("maxInvestment", e.target.value)}
+                          onChange={(e) =>
+                            handleFilterChange("maxInvestment", e.target.value)
+                          }
                         />
                       </div>
 
@@ -576,7 +697,9 @@ const HoldingsPage = () => {
                           placeholder="No limit"
                           type="number"
                           value={filters.minPnL}
-                          onChange={(e) => handleFilterChange("minPnL", e.target.value)}
+                          onChange={(e) =>
+                            handleFilterChange("minPnL", e.target.value)
+                          }
                         />
                       </div>
 
@@ -586,7 +709,9 @@ const HoldingsPage = () => {
                           placeholder="No limit"
                           type="number"
                           value={filters.maxPnL}
-                          onChange={(e) => handleFilterChange("maxPnL", e.target.value)}
+                          onChange={(e) =>
+                            handleFilterChange("maxPnL", e.target.value)
+                          }
                         />
                       </div>
                     </div>
@@ -606,9 +731,13 @@ const HoldingsPage = () => {
                 </CardTitle>
                 {pagination && (
                   <div className="text-sm text-muted-foreground">
-                    Showing {((pagination.currentPage - 1) * pagination.limit) + 1} to{" "}
-                    {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} of{" "}
-                    {pagination.totalCount} positions
+                    Showing{" "}
+                    {(pagination.currentPage - 1) * pagination.limit + 1} to{" "}
+                    {Math.min(
+                      pagination.currentPage * pagination.limit,
+                      pagination.totalCount
+                    )}{" "}
+                    of {pagination.totalCount} positions
                   </div>
                 )}
               </div>
@@ -665,13 +794,17 @@ const HoldingsPage = () => {
                   {summary?.totalPositions === 0 ? (
                     <>
                       <TrendingUpDown className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <h3 className="text-lg font-medium mb-2">No positions yet</h3>
+                      <h3 className="text-lg font-medium mb-2">
+                        No positions yet
+                      </h3>
                       <p>Start trading to see your holdings here.</p>
                     </>
                   ) : (
                     <>
                       <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <h3 className="text-lg font-medium mb-2">No matching positions</h3>
+                      <h3 className="text-lg font-medium mb-2">
+                        No matching positions
+                      </h3>
                       <p>No positions match your current filters.</p>
                     </>
                   )}
@@ -688,38 +821,52 @@ const HoldingsPage = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleFilterChange("page", pagination.currentPage - 1)}
+                      onClick={() =>
+                        handleFilterChange("page", pagination.currentPage - 1)
+                      }
                       disabled={!pagination.hasPrev}
                       className="gap-2"
                     >
                       <ChevronLeft className="h-4 w-4" />
                       Previous
                     </Button>
-                    
+
                     {/* Page numbers */}
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                        const pageNum = Math.max(1, pagination.currentPage - 2) + i;
-                        if (pageNum > pagination.totalPages) return null;
-                        
-                        return (
-                          <Button
-                            key={pageNum}
-                            variant={pageNum === pagination.currentPage ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => handleFilterChange("page", pageNum)}
-                            className="w-8 h-8 p-0"
-                          >
-                            {pageNum}
-                          </Button>
-                        );
-                      })}
+                      {Array.from(
+                        { length: Math.min(5, pagination.totalPages) },
+                        (_, i) => {
+                          const pageNum =
+                            Math.max(1, pagination.currentPage - 2) + i;
+                          if (pageNum > pagination.totalPages) return null;
+
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={
+                                pageNum === pagination.currentPage
+                                  ? "default"
+                                  : "outline"
+                              }
+                              size="sm"
+                              onClick={() =>
+                                handleFilterChange("page", pageNum)
+                              }
+                              className="w-8 h-8 p-0"
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        }
+                      )}
                     </div>
 
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleFilterChange("page", pagination.currentPage + 1)}
+                      onClick={() =>
+                        handleFilterChange("page", pagination.currentPage + 1)
+                      }
                       disabled={!pagination.hasNext}
                       className="gap-2"
                     >

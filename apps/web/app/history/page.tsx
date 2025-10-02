@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,10 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Navigation from "@/components/Navigation";
+import { useCentralPrices } from "@/hooks/use-centralPrice";
 import {
   History as HistoryIcon,
   Filter,
-  Download,
   TrendingUp,
   TrendingDown,
   AlertCircle,
@@ -28,11 +28,6 @@ import {
   DollarSign,
   Activity,
   Target,
-  BarChart3,
-  ChevronLeft,
-  ChevronRight,
-  ArrowUpDown,
-  X,
   Clock,
   CheckCircle,
   XCircle,
@@ -165,6 +160,77 @@ const HistoryPage = () => {
 
   const [availableSymbols, setAvailableSymbols] = useState<string[]>([]);
 
+  // Extract unique symbols from trades for live price updates
+  const symbols = useMemo(() => {
+    if (!trades || trades.length === 0) return [];
+    return [...new Set(trades.map((trade) => trade.symbol))];
+  }, [trades]);
+
+  // Subscribe to live prices using central price service
+  const { prices: livePrices, isConnected: pricesConnected } = useCentralPrices(
+    {
+      symbols,
+      enabled: symbols.length > 0,
+    }
+  );
+
+  // Update trades with live prices
+  const updatedTrades = useMemo(() => {
+    if (!livePrices || Object.keys(livePrices).length === 0) {
+      return trades;
+    }
+
+    return trades.map((trade) => {
+      const livePrice = livePrices[trade.symbol];
+      if (!livePrice) return trade;
+
+      const currentPrice = livePrice.price;
+      const updatedTrade = { ...trade, currentPrice };
+
+      // Recalculate unrealized P&L for pending orders with live prices
+      if (trade.status === "pending" || trade.unrealizedPnL !== undefined) {
+        const currentValue = trade.quantity * currentPrice;
+        const unrealizedPnL =
+          trade.action === "BUY"
+            ? currentValue - trade.total
+            : trade.total - currentValue;
+        updatedTrade.unrealizedPnL = unrealizedPnL;
+      }
+
+      // Calculate trigger distance for pending orders
+      if (trade.status === "pending") {
+        const triggerPrice =
+          trade.limitPrice || trade.stopPrice || trade.triggerPrice;
+        const triggerDistance = Math.abs(currentPrice - triggerPrice);
+        const triggerDistancePercent = (triggerDistance / currentPrice) * 100;
+        updatedTrade.triggerDistance = triggerDistance;
+        updatedTrade.triggerDistancePercent = triggerDistancePercent;
+      }
+
+      return updatedTrade;
+    });
+  }, [trades, livePrices]);
+
+  // Recalculate summary statistics with live prices
+  const updatedSummary = useMemo(() => {
+    if (!livePrices || Object.keys(livePrices).length === 0) {
+      return summary;
+    }
+
+    let totalUnrealizedPnL = 0;
+
+    updatedTrades.forEach((trade) => {
+      if (trade.unrealizedPnL !== undefined) {
+        totalUnrealizedPnL += trade.unrealizedPnL;
+      }
+    });
+
+    return {
+      ...summary,
+      totalUnrealizedPnL,
+    };
+  }, [summary, updatedTrades, livePrices]);
+
   // Helper function to get status icon
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -197,6 +263,7 @@ const HistoryPage = () => {
 
   useEffect(() => {
     fetchTrades();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.currentPage, pagination.limit, filters]);
 
   const fetchTrades = async () => {
@@ -477,9 +544,9 @@ const HistoryPage = () => {
           <HistoryIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{summary.totalTrades}</div>
+          <div className="text-2xl font-bold">{updatedSummary.totalTrades}</div>
           <p className="text-xs text-muted-foreground">
-            {summary.buyTrades} buy, {summary.sellTrades} sell
+            {updatedSummary.buyTrades} buy, {updatedSummary.sellTrades} sell
           </p>
         </CardContent>
       </Card>
@@ -492,13 +559,13 @@ const HistoryPage = () => {
         </CardHeader>
         <CardContent>
           <div className="text-lg font-bold text-blue-600">
-            {summary.marketOrders}
+            {updatedSummary.marketOrders}
           </div>
           <p className="text-xs text-muted-foreground">Market orders</p>
           <div className="flex justify-between text-xs mt-1">
-            <span>Limit: {summary.limitOrders}</span>
-            <span>SL: {summary.stopLossOrders}</span>
-            <span>TP: {summary.takeProfitOrders}</span>
+            <span>Limit: {updatedSummary.limitOrders}</span>
+            <span>SL: {updatedSummary.stopLossOrders}</span>
+            <span>TP: {updatedSummary.takeProfitOrders}</span>
           </div>
         </CardContent>
       </Card>
@@ -511,15 +578,15 @@ const HistoryPage = () => {
         </CardHeader>
         <CardContent>
           <div className="text-lg font-bold text-green-600">
-            {summary.executedTrades}
+            {updatedSummary.executedTrades}
           </div>
           <p className="text-xs text-muted-foreground">Executed</p>
           <div className="flex justify-between text-xs mt-1">
             <span className="text-yellow-600">
-              Pending: {summary.pendingTrades}
+              Pending: {updatedSummary.pendingTrades}
             </span>
             <span className="text-red-600">
-              Cancelled: {summary.cancelledTrades}
+              Cancelled: {updatedSummary.cancelledTrades}
             </span>
           </div>
         </CardContent>
@@ -533,7 +600,7 @@ const HistoryPage = () => {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {formatCurrency(summary.totalVolume)}
+            {formatCurrency(updatedSummary.totalVolume)}
           </div>
           <p className="text-xs text-muted-foreground">Across all trades</p>
         </CardContent>
@@ -543,7 +610,7 @@ const HistoryPage = () => {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Realized P&L</CardTitle>
-          {summary.totalRealizedPnL >= 0 ? (
+          {updatedSummary.totalRealizedPnL >= 0 ? (
             <TrendingUp className="h-4 w-4 text-green-500" />
           ) : (
             <TrendingDown className="h-4 w-4 text-red-500" />
@@ -552,10 +619,12 @@ const HistoryPage = () => {
         <CardContent>
           <div
             className={`text-2xl font-bold ${
-              summary.totalRealizedPnL >= 0 ? "text-green-600" : "text-red-600"
+              updatedSummary.totalRealizedPnL >= 0
+                ? "text-green-600"
+                : "text-red-600"
             }`}
           >
-            {formatCurrency(summary.totalRealizedPnL)}
+            {formatCurrency(updatedSummary.totalRealizedPnL)}
           </div>
           <p className="text-xs text-muted-foreground">Closed positions</p>
         </CardContent>
@@ -564,7 +633,7 @@ const HistoryPage = () => {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Unrealized P&L</CardTitle>
-          {summary.totalUnrealizedPnL >= 0 ? (
+          {updatedSummary.totalUnrealizedPnL >= 0 ? (
             <TrendingUp className="h-4 w-4 text-green-500" />
           ) : (
             <TrendingDown className="h-4 w-4 text-red-500" />
@@ -573,12 +642,12 @@ const HistoryPage = () => {
         <CardContent>
           <div
             className={`text-2xl font-bold ${
-              summary.totalUnrealizedPnL >= 0
+              updatedSummary.totalUnrealizedPnL >= 0
                 ? "text-green-600"
                 : "text-red-600"
             }`}
           >
-            {formatCurrency(summary.totalUnrealizedPnL)}
+            {formatCurrency(updatedSummary.totalUnrealizedPnL)}
           </div>
           <p className="text-xs text-muted-foreground">Open positions</p>
         </CardContent>
@@ -591,10 +660,10 @@ const HistoryPage = () => {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {summary.winRate.toFixed(1)}%
+            {updatedSummary.winRate.toFixed(1)}%
           </div>
           <p className="text-xs text-muted-foreground">
-            {summary.profitableTrades} profitable trades
+            {updatedSummary.profitableTrades} profitable trades
           </p>
         </CardContent>
       </Card>
@@ -622,8 +691,16 @@ const HistoryPage = () => {
           <Calendar className="h-5 w-5" />
           Trade History
           <span className="text-sm font-normal text-muted-foreground">
-            ({trades.length} trades on this page)
+            ({updatedTrades.length} trades on this page)
           </span>
+          {pricesConnected && (
+            <Badge
+              variant="outline"
+              className="ml-2 bg-green-50 text-green-700 border-green-300"
+            >
+              🟢 Live Prices
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -667,7 +744,7 @@ const HistoryPage = () => {
               </tr>
             </thead>
             <tbody>
-              {trades.map((trade) => {
+              {updatedTrades.map((trade) => {
                 const pnl = trade.realizedPnL ?? trade.unrealizedPnL ?? 0;
                 const isPnLPositive = pnl >= 0;
                 const pnlType =
