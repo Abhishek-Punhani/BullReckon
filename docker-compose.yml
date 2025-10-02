@@ -1,0 +1,197 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: bullreckon-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-password}
+      MONGO_INITDB_DATABASE: bullreckon
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - bullreckon-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for Queue Management
+  redis:
+    image: redis:7-alpine
+    container_name: bullreckon-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - bullreckon-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Auth Server
+  auth-server:
+    build:
+      context: .
+      dockerfile: apps/auth_server/Dockerfile
+    container_name: bullreckon-auth
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 4000
+      DB_URL: mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/bullreckon?authSource=admin
+      SESSION_SECRET: ${SESSION_SECRET:-your-session-secret-here}
+      JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-here}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-refresh-secret-here}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      MAILING_SERVICE_CLIENT_ID: ${MAILING_SERVICE_CLIENT_ID}
+      MAILING_SERVICE_CLIENT_SECRET: ${MAILING_SERVICE_CLIENT_SECRET}
+      MAILING_SERVICE_REFRESH_TOKEN: ${MAILING_SERVICE_REFRESH_TOKEN}
+      SENDER_EMAIL_ADDRESS: ${SENDER_EMAIL_ADDRESS}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DISABLE_REDIS_QUEUES: ${DISABLE_REDIS_QUEUES:-false}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - bullreckon-network
+    volumes:
+      - ./apps/auth_server:/app/apps/auth_server
+      - ./shared:/app/shared
+      - ./types:/app/types
+      - ./middleware:/app/middleware
+      - /app/node_modules
+      - /app/apps/auth_server/node_modules
+
+  # Market Server
+  market-server:
+    build:
+      context: .
+      dockerfile: apps/market_server/Dockerfile
+    container_name: bullreckon-market
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5000
+      DB_URL: mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/bullreckon?authSource=admin
+      SESSION_SECRET: ${SESSION_SECRET:-your-session-secret-here}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-100}
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-your-internal-secret}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - bullreckon-network
+    volumes:
+      - ./apps/market_server:/app/apps/market_server
+      - ./shared:/app/shared
+      - ./types:/app/types
+      - ./middleware:/app/middleware
+      - /app/node_modules
+      - /app/apps/market_server/node_modules
+
+  # Calc Server
+  calc-server:
+    build:
+      context: .
+      dockerfile: apps/calc_server/Dockerfile
+    container_name: bullreckon-calc
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 8000
+      DB_URL: mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/bullreckon?authSource=admin
+      SESSION_SECRET: ${SESSION_SECRET:-your-session-secret-here}
+      JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-here}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+      MARKET_SERVER_URL: http://market-server:5000
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-your-internal-secret}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DISABLE_REDIS_QUEUES: ${DISABLE_REDIS_QUEUES:-false}
+      PENDING_ORDER_WORKER_CONCURRENCY: ${PENDING_ORDER_WORKER_CONCURRENCY:-5}
+      EMAIL_WORKER_CONCURRENCY: ${EMAIL_WORKER_CONCURRENCY:-10}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      market-server:
+        condition: service_started
+    networks:
+      - bullreckon-network
+    volumes:
+      - ./apps/calc_server:/app/apps/calc_server
+      - ./shared:/app/shared
+      - ./types:/app/types
+      - ./middleware:/app/middleware
+      - ./packages:/app/packages
+      - /app/node_modules
+      - /app/apps/calc_server/node_modules
+
+  # Web Frontend
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: bullreckon-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_PUBLIC_AUTH_SERVER: http://localhost:4000
+      NEXT_PUBLIC_MARKET_SERVER: http://localhost:5000
+      NEXT_PUBLIC_CALC_SERVER: http://localhost:8000
+      NEXT_PUBLIC_API_SERVER: http://localhost:3004
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+    depends_on:
+      - auth-server
+      - market-server
+      - calc-server
+    networks:
+      - bullreckon-network
+    volumes:
+      - ./apps/web:/app/apps/web
+      - ./shared:/app/shared
+      - ./types:/app/types
+      - ./packages:/app/packages
+      - /app/node_modules
+      - /app/apps/web/node_modules
+      - /app/apps/web/.next
+
+networks:
+  bullreckon-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  redis_data:
+    driver: local
