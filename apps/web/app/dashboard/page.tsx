@@ -344,10 +344,10 @@ const DashboardPage = () => {
               <h1 className="text-3xl font-bold tracking-tight">
                 Portfolio Dashboard
               </h1>
-              <p className="text-muted-foreground">
+              <div className="text-muted-foreground">
                 Welcome back, {user?.firstName || user?.name || "Trader"} • Last
                 updated: {new Date().toLocaleTimeString()}
-              </p>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <Button

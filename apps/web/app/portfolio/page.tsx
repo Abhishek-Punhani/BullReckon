@@ -382,7 +382,7 @@ const HoldingsPage = () => {
               <h1 className="text-3xl font-bold tracking-tight">
                 Current Holdings
               </h1>
-              <p className="text-muted-foreground">
+              <div className="text-muted-foreground">
                 View and analyze your current positions •{" "}
                 {summary?.totalPositions || 0} total holdings
                 {pricesConnected && (
@@ -390,7 +390,7 @@ const HoldingsPage = () => {
                     🟢 Live Prices
                   </Badge>
                 )}
-              </p>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <Select
