@@ -11,10 +11,8 @@ import {
   Shield, 
   Bot, 
   FlaskConical, 
-  Trophy, 
-  Blocks, 
-  Brain,
   LogOut,
+  Blocks,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,9 +34,7 @@ const Navigation = () => {
     { href: "/risk", label: "Risk", icon: Shield },
     { href: "/strategy", label: "Strategy", icon: Bot },
     { href: "/backtest", label: "Backtest", icon: FlaskConical },
-    { href: "/competitions", label: "Competitions", icon: Trophy },
     { href: "/no-code-builder", label: "Strategy Builder", icon: Blocks },
-    { href: "/insights", label: "AI Insights", icon: Brain },
   ];
 
   const NavContent = () => (
