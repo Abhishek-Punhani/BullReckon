@@ -140,8 +140,8 @@ export const portfolioController = {
   ) => {
     try {
       const userId = req.params.userId || req.user?.userId;
-      
-      // Extract query parameters with defaults
+
+      // Enhanced query parameters
       const {
         page = 1,
         limit = 10,
@@ -149,40 +149,53 @@ export const portfolioController = {
         action,
         status,
         profitability,
+        orderSource, // NEW: Filter by order source
         startDate,
         endDate,
-        sortBy = 'executedAt',
-        sortOrder = 'desc',
-        search
+        sortBy = "executedAt",
+        sortOrder = "desc",
+        search,
+        priceRange, // NEW: Filter by price range
+        showPending = "true", // NEW: Option to show/hide pending orders
       } = req.query;
 
       if (!userId) {
         return next(new ErrorHandling("User ID is required", 400));
       }
 
-      // Validate pagination parameters
+      // Validation
       const pageNum = Math.max(1, parseInt(page as string));
-      const limitNum = Math.min(Math.max(1, parseInt(limit as string)), 500); // Max 500 trades per request
+      const limitNum = Math.min(Math.max(1, parseInt(limit as string)), 500);
       const skip = (pageNum - 1) * limitNum;
 
-      // Build filter query
+      // Enhanced filter query
       const filter: any = { userId };
 
-      // Symbol filter (exact match or search)
-      if (symbol && symbol !== 'all') {
+      // Symbol filter
+      if (symbol && symbol !== "all") {
         filter.symbol = symbol;
       } else if (search) {
-        filter.symbol = { $regex: search, $options: 'i' };
+        filter.symbol = { $regex: search, $options: "i" };
       }
 
       // Action filter
-      if (action && action !== 'all') {
+      if (action && action !== "all") {
         filter.action = action.toString().toUpperCase();
       }
 
       // Status filter
-      if (status && status !== 'all') {
+      if (status && status !== "all") {
         filter.status = status;
+      }
+
+      // NEW: Order source filter
+      if (orderSource && orderSource !== "all") {
+        filter.source = orderSource;
+      }
+
+      // NEW: Pending orders filter
+      if (showPending === "false") {
+        filter.status = { $ne: "pending" };
       }
 
       // Date range filter
@@ -196,87 +209,189 @@ export const portfolioController = {
         }
       }
 
-      // Build sort object
-      const sortObj: any = {};
-      const validSortFields = ['executedAt', 'symbol', 'action', 'total', 'realizedPnL'];
-      const sortField = validSortFields.includes(sortBy as string) ? sortBy : 'executedAt';
-      sortObj[sortField as string] = sortOrder === 'asc' ? 1 : -1;
+      // NEW: Price range filter
+      if (priceRange) {
+        const [min, max] = priceRange.toString().split(",").map(Number);
+        if (min) filter.triggerPrice = { $gte: min };
+        if (max) filter.triggerPrice = { ...filter.triggerPrice, $lte: max };
+      }
 
-      // Get total count for pagination
+      // Enhanced sort object
+      const sortObj: any = {};
+      const validSortFields = [
+        "executedAt",
+        "symbol",
+        "action",
+        "total",
+        "realizedPnL",
+        "triggerPrice",
+        "quantity",
+        "source",
+        "status",
+      ];
+      const sortField = validSortFields.includes(sortBy as string)
+        ? sortBy
+        : "executedAt";
+      sortObj[sortField as string] = sortOrder === "asc" ? 1 : -1;
+
+      // Get total count
       const totalTrades = await Trade.countDocuments(filter);
 
-      // Fetch trades with filters, sorting, and pagination
+      // Fetch trades with enhanced projection
       const trades = (await Trade.find(filter)
         .sort(sortObj)
         .skip(skip)
         .limit(limitNum)
-        .lean()) as (ITrade & { unrealizedPnL?: number | null })[];
+        .select({
+          userId: 1,
+          symbol: 1,
+          action: 1,
+          quantity: 1,
+          triggerPrice: 1,
+          fees: 1,
+          total: 1,
+          source: 1,
+          limitPrice: 1, // Include limit price
+          stopPrice: 1, // Include stop price
+          status: 1,
+          realizedPnL: 1,
+          executedAt: 1,
+          createdAt: 1,
+          marketData: 1,
+          averageHoldingPeriod: 1,
+          maxDrawdownDuringHold: 1,
+        })
+        .lean()) as any[];
 
-      // Calculate unrealized P&L for trades
+      // Enhanced trade processing
       const symbols = [...new Set(trades.map((trade) => trade.symbol))];
-      const prices = await fetchMultiplePrices(symbols);
+      const currentPrices = await fetchMultiplePrices(symbols);
 
-      trades.forEach((trade) => {
-        const currentPrice = prices[trade.symbol];
-        if (
-          typeof trade.triggerPrice === "number" &&
-          typeof trade.quantity === "number" &&
-          typeof trade.action === "string"
-        ) {
-          if (currentPrice !== undefined) {
-            if (trade.action === "BUY") {
-              trade.unrealizedPnL =
-                (currentPrice - trade.triggerPrice) * trade.quantity;
-            } else if (trade.action === "SELL") {
-              trade.unrealizedPnL =
-                (trade.triggerPrice - currentPrice) * trade.quantity;
-            } else {
-              trade.unrealizedPnL = 0;
-            }
-          } else {
-            trade.unrealizedPnL = null;
+      const enhancedTrades = trades.map((trade) => {
+        const currentPrice = currentPrices[trade.symbol];
+
+        // Calculate unrealized P&L for open positions
+        let unrealizedPnL = null;
+        if (trade.status === "executed" && currentPrice) {
+          if (trade.action === "BUY") {
+            unrealizedPnL =
+              (currentPrice - trade.triggerPrice) * trade.quantity;
+          } else if (trade.action === "SELL") {
+            unrealizedPnL =
+              (trade.triggerPrice - currentPrice) * trade.quantity;
           }
-        } else {
-          trade.unrealizedPnL = null;
         }
+
+        // Enhanced order type description
+        let orderTypeDescription = trade.source;
+        if (trade.source === "take_profit") {
+          orderTypeDescription = `Take Profit (${trade.stopPrice ? `$${trade.stopPrice.toFixed(2)}` : "N/A"})`;
+        } else if (trade.source === "stop_loss") {
+          orderTypeDescription = `Stop Loss (${trade.stopPrice ? `$${trade.stopPrice.toFixed(2)}` : "N/A"})`;
+        } else if (trade.source === "limit") {
+          orderTypeDescription = `Limit Order (${trade.limitPrice ? `$${trade.limitPrice.toFixed(2)}` : "N/A"})`;
+        }
+
+        // Status with context
+        let statusWithContext = trade.status;
+        if (trade.status === "pending") {
+          if (trade.source === "take_profit") {
+            statusWithContext = `Pending Take Profit`;
+          } else if (trade.source === "stop_loss") {
+            statusWithContext = `Pending Stop Loss`;
+          } else if (trade.source === "limit") {
+            statusWithContext = `Pending Limit Order`;
+          }
+        }
+
+        return {
+          ...trade,
+          unrealizedPnL,
+          currentPrice,
+          orderTypeDescription,
+          statusWithContext,
+          triggerDistance:
+            trade.stopPrice || trade.limitPrice
+              ? Math.abs(
+                  (currentPrice || trade.triggerPrice) -
+                    (trade.stopPrice || trade.limitPrice || 0)
+                )
+              : null,
+          triggerDistancePercent:
+            trade.stopPrice || trade.limitPrice
+              ? (Math.abs(
+                  (currentPrice || trade.triggerPrice) -
+                    (trade.stopPrice || trade.limitPrice || 0)
+                ) /
+                  (currentPrice || trade.triggerPrice)) *
+                100
+              : null,
+        };
       });
 
-      // Apply profitability filter after calculating unrealized P&L
-      let filteredTrades = trades;
-      if (profitability && profitability !== 'all') {
-        filteredTrades = trades.filter(trade => {
+      // Apply profitability filter after P&L calculation
+      let filteredTrades = enhancedTrades;
+      if (profitability && profitability !== "all") {
+        filteredTrades = enhancedTrades.filter((trade) => {
           const pnl = trade.realizedPnL ?? trade.unrealizedPnL ?? 0;
-          if (profitability === 'profitable') return pnl > 0;
-          if (profitability === 'losing') return pnl < 0;
+          if (profitability === "profitable") return pnl > 0;
+          if (profitability === "losing") return pnl < 0;
           return true;
         });
       }
 
-      // Calculate pagination metadata
-      const totalPages = Math.ceil(totalTrades / limitNum);
-      const hasNext = pageNum < totalPages;
-      const hasPrev = pageNum > 1;
-
-      // Calculate summary statistics for filtered results
+      // Enhanced summary statistics
       const summary = {
         totalTrades: filteredTrades.length,
-        totalVolume: filteredTrades.reduce((sum, trade) => sum + (trade.total || 0), 0),
-        totalFees: filteredTrades.reduce((sum, trade) => sum + (trade.fees || 0), 0),
-        totalRealizedPnL: filteredTrades.reduce((sum, trade) => sum + (trade.realizedPnL || 0), 0),
-        totalUnrealizedPnL: filteredTrades.reduce((sum, trade) => sum + (trade.unrealizedPnL || 0), 0),
-        buyTrades: filteredTrades.filter(t => t.action === "BUY").length,
-        sellTrades: filteredTrades.filter(t => t.action === "SELL").length,
-        profitableTrades: filteredTrades.filter(t => {
+        totalVolume: filteredTrades.reduce(
+          (sum, trade) => sum + (trade.total || 0),
+          0
+        ),
+        totalFees: filteredTrades.reduce(
+          (sum, trade) => sum + (trade.fees || 0),
+          0
+        ),
+        totalRealizedPnL: filteredTrades.reduce(
+          (sum, trade) => sum + (trade.realizedPnL || 0),
+          0
+        ),
+        totalUnrealizedPnL: filteredTrades.reduce(
+          (sum, trade) => sum + (trade.unrealizedPnL || 0),
+          0
+        ),
+        buyTrades: filteredTrades.filter((t) => t.action === "BUY").length,
+        sellTrades: filteredTrades.filter((t) => t.action === "SELL").length,
+
+        // Enhanced order type breakdown
+        marketOrders: filteredTrades.filter((t) => t.source === "market")
+          .length,
+        limitOrders: filteredTrades.filter((t) => t.source === "limit").length,
+        stopLossOrders: filteredTrades.filter((t) => t.source === "stop_loss")
+          .length,
+        takeProfitOrders: filteredTrades.filter(
+          (t) => t.source === "take_profit"
+        ).length,
+
+        // Status breakdown
+        executedTrades: filteredTrades.filter((t) => t.status === "executed")
+          .length,
+        pendingTrades: filteredTrades.filter((t) => t.status === "pending")
+          .length,
+        cancelledTrades: filteredTrades.filter((t) => t.status === "cancelled")
+          .length,
+
+        profitableTrades: filteredTrades.filter((t) => {
           const pnl = t.realizedPnL ?? t.unrealizedPnL ?? 0;
           return pnl > 0;
         }).length,
-        uniqueSymbols: [...new Set(filteredTrades.map(t => t.symbol))].length,
+        uniqueSymbols: [...new Set(filteredTrades.map((t) => t.symbol))].length,
       };
 
-      // Calculate win rate
-      const winRate = filteredTrades.length > 0 
-        ? (summary.profitableTrades / filteredTrades.length) * 100 
-        : 0;
+      const totalPages = Math.ceil(totalTrades / limitNum);
+      const winRate =
+        filteredTrades.length > 0
+          ? (summary.profitableTrades / filteredTrades.length) * 100
+          : 0;
 
       res.status(200).json({
         success: true,
@@ -286,17 +401,20 @@ export const portfolioController = {
           totalPages,
           totalTrades,
           limit: limitNum,
-          hasNext,
-          hasPrev,
+          hasNext: pageNum < totalPages,
+          hasPrev: pageNum > 1,
         },
         filters: {
           symbol: symbol || null,
           action: action || null,
           status: status || null,
+          orderSource: orderSource || null,
           profitability: profitability || null,
           startDate: startDate || null,
           endDate: endDate || null,
           search: search || null,
+          priceRange: priceRange || null,
+          showPending: showPending,
           sortBy: sortField,
           sortOrder,
         },
@@ -304,7 +422,7 @@ export const portfolioController = {
           ...summary,
           winRate,
         },
-        message: "Trades retrieved successfully",
+        message: "Enhanced trades retrieved successfully",
       });
     } catch (error) {
       next(error);
