@@ -12,12 +12,6 @@ const tradeSchema = new mongoose.Schema(
       type: String,
       required: [true, "Symbol is required"],
       uppercase: true,
-      validate: {
-        validator: function (symbol: string) {
-          return /^[A-Z0-9]{3,12}$/.test(symbol);
-        },
-        message: "Symbol must be 3-12 uppercase letters/numbers",
-      },
     },
     action: {
       type: String,
