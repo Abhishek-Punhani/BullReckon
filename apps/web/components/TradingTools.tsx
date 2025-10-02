@@ -103,9 +103,9 @@ export default function TradingTools({ symbol, price }: TradingToolsProps) {
       // Place the main order
       const result = await tradeService.placeOrder(orderDetails);
 
-      // Only place stop loss and take profit for BUY orders that were executed
-      if (activeTab === "buy" && orderType === "market") {
-        // If buy order with stop loss, place stop loss order
+      // Place SL/TP only for BUY orders (to protect the long position)
+      if (activeTab === "buy") {
+        // Place Stop Loss (SL) - Sell order triggered when price falls
         if (stopLoss > 0) {
           const stopLossPrice = Number(
             (price * (1 - stopLoss / 100)).toFixed(2)
@@ -118,13 +118,19 @@ export default function TradingTools({ symbol, price }: TradingToolsProps) {
               source: "stop_loss",
               stopPrice: stopLossPrice,
             });
+            console.log(`✅ Stop Loss placed at ₹${stopLossPrice}`);
           } catch (slError) {
             console.error("Failed to place stop loss order:", slError);
             // Don't fail the main order if stop loss fails
+            toast({
+              title: "Warning",
+              description: "Main order placed but stop loss failed.",
+              variant: "default",
+            });
           }
         }
 
-        // If buy order with take profit, place take profit order
+        // Place Take Profit (TP) - Sell order triggered when price rises
         if (takeProfit > 0) {
           const takeProfitPrice = Number(
             (price * (1 + takeProfit / 100)).toFixed(2)
@@ -135,18 +141,30 @@ export default function TradingTools({ symbol, price }: TradingToolsProps) {
               quantity: quantity,
               action: "sell",
               source: "take_profit",
-              stopPrice: takeProfitPrice, // Note: take_profit uses stopPrice, not limitPrice
+              stopPrice: takeProfitPrice,
             });
+            console.log(`✅ Take Profit placed at ₹${takeProfitPrice}`);
           } catch (tpError) {
             console.error("Failed to place take profit order:", tpError);
             // Don't fail the main order if take profit fails
+            toast({
+              title: "Warning",
+              description: "Main order placed but take profit failed.",
+              variant: "default",
+            });
           }
         }
       }
 
+      // Success message with SL/TP info
+      let successMsg = `Successfully placed ${activeTab} order for ${quantity} of ${symbol}.`;
+      if (activeTab === "buy" && (stopLoss > 0 || takeProfit > 0)) {
+        successMsg += ` SL/TP orders also placed.`;
+      }
+
       toast({
         title: "Order Placed",
-        description: `Successfully placed ${activeTab} order for ${quantity} of ${symbol}.`,
+        description: successMsg,
       });
       console.log("Order result:", result);
     } catch (error) {

@@ -15,7 +15,10 @@ export default function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen bg-background font-mono">
+      <body
+        className="min-h-screen bg-background font-mono"
+        suppressHydrationWarning
+      >
         <QueryClientProvider client={queryClient}>
           <GoogleOAuthProvider
             clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID as string}

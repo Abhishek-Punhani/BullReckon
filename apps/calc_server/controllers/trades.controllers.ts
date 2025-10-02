@@ -34,7 +34,22 @@ export const trade = async (
     if (!portfolio) {
       portfolio = new Portfolio({ userId, cash: 100000, positions: [] });
     }
+
     console.log("Current Price:", currentPrice);
+
+    // CRITICAL: For ALL sell orders (immediate or pending), check holdings first
+    if (action === "SELL") {
+      const position = portfolio.positions.find(
+        (p: any) => p.symbol === symbol
+      );
+      if (!position || position.quantity < quantity) {
+        return res.status(400).json({
+          error: "Insufficient holdings",
+          message: `You don't have enough ${symbol} to sell. Available: ${position?.quantity || 0}, Requested: ${quantity}`,
+        });
+      }
+    }
+
     // Check execution condition
     const { execute, executionPrice, status } = executeOrder({
       source,

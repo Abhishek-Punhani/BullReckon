@@ -30,9 +30,11 @@ export async function processPendingOrder(job: Job<PendingOrderJobData>) {
     let shouldExecute = false;
     let executionPrice = currentPrice;
 
-    // Check execution conditions
+    // Check execution conditions based on order type
     switch (orderType) {
       case "limit":
+        // Limit Buy: Execute when price <= limit price (buy at or below)
+        // Limit Sell: Execute when price >= limit price (sell at or above)
         if (
           (action === "BUY" && currentPrice <= limitPrice!) ||
           (action === "SELL" && currentPrice >= limitPrice!)
@@ -43,6 +45,12 @@ export async function processPendingOrder(job: Job<PendingOrderJobData>) {
         break;
 
       case "stop_loss":
+        // Stop Loss Buy: Execute when price >= stop price (breakout buy)
+        if (action === "BUY" && currentPrice >= stopPrice!) {
+          shouldExecute = true;
+          executionPrice = currentPrice; // Execute at market price when triggered
+        }
+        // Stop Loss Sell: Execute when price <= stop price (stop loss sell)
         if (action === "SELL" && currentPrice <= stopPrice!) {
           shouldExecute = true;
           executionPrice = currentPrice; // Execute at market price when triggered
@@ -50,6 +58,7 @@ export async function processPendingOrder(job: Job<PendingOrderJobData>) {
         break;
 
       case "take_profit":
+        // Take Profit Sell: Execute when price >= stop price (profit target reached)
         if (action === "SELL" && currentPrice >= stopPrice!) {
           shouldExecute = true;
           executionPrice = currentPrice; // Execute at market price when triggered
