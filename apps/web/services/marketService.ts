@@ -45,13 +45,13 @@ export const marketService = {
       return response.data;
     } catch (error: any) {
       console.error(`Failed to fetch quote for ${symbol}:`, error);
-      
+
       // Return null for failed requests so other symbols can still load
       if (error.response?.status === 422) {
         console.warn(`Symbol ${symbol} not supported by data provider`);
         return null;
       }
-      
+
       throw error;
     }
   },
@@ -150,7 +150,9 @@ export const marketService = {
 
       results.push(
         ...batchResults
-          .filter((result) => result.status === "fulfilled" && result.value !== null)
+          .filter(
+            (result) => result.status === "fulfilled" && result.value !== null
+          )
           .map((result) => (result as PromiseFulfilledResult<any>).value)
       );
     }
@@ -176,5 +178,17 @@ export const marketService = {
     });
 
     return data;
+  },
+
+  async getCompanyInfo(symbol: string) {
+    try {
+      const response = await axios.get(
+        `${API_CONFIG.MARKET_SERVER}/api/market/company/${symbol}`
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error(`Failed to fetch company info for ${symbol}:`, error);
+      return null;
+    }
   },
 };

@@ -380,6 +380,46 @@ class MarketService {
       throw new ErrorHandling("Failed to fetch live prices", 500);
     }
   }
+
+  /**
+   * Get company information (using Yahoo Finance quoteSummary)
+   */
+  async getCompanyInfo(symbol: string): Promise<{
+    profile?: any;
+    financialData?: any;
+    summaryStats?: any;
+  }> {
+    try {
+      const cacheKey = `company_${symbol.toUpperCase()}`;
+      const cached = this.getCachedData(cacheKey);
+
+      if (cached) {
+        return cached;
+      }
+
+      // Fetch company information from Yahoo Finance
+      const modules = [
+        "assetProfile",
+        "financialData",
+        "defaultKeyStatistics",
+      ] as ("assetProfile" | "financialData" | "defaultKeyStatistics")[];
+      const result = await yahooFinance.quoteSummary(symbol, { modules });
+
+      const companyInfo = {
+        profile: result.assetProfile,
+        financialData: result.financialData,
+        summaryStats: result.defaultKeyStatistics,
+      };
+
+      // Cache company info for longer (30 minutes)
+      this.setCachedData(cacheKey, companyInfo, 30 * 60 * 1000);
+      return companyInfo;
+    } catch (error: any) {
+      console.error(`Error fetching company info for ${symbol}:`, error);
+      // Return empty object instead of throwing error
+      return {};
+    }
+  }
 }
 
 export const marketService = new MarketService();

@@ -221,6 +221,34 @@ export const clearCache = async (
 };
 
 /**
+ * Get company information
+ * GET /api/market/company/:symbol
+ */
+export const getCompanyInfo = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { symbol } = req.params;
+
+    if (!symbol) {
+      return next(new ErrorHandling("Stock symbol is required", 400));
+    }
+
+    const companyInfo = await marketService.getCompanyInfo(symbol);
+
+    res.status(200).json({
+      success: true,
+      data: companyInfo,
+      message: `Company information retrieved for ${symbol.toUpperCase()}`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get live prices for long polling
  * GET /api/market/long-poll/prices?symbols=AAPL,GOOGL&lastUpdate=1234567890
  */
