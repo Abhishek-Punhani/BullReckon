@@ -1,5 +1,5 @@
 import { Response, NextFunction } from "express";
-import { Portfolio, Trade, RiskSettings } from "@repo/models";
+import { Portfolio, Trade, RiskSettings } from "apps/calc_server/models";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import { AuthenticatedRequest } from "types/auth";
 import { fetchMultiplePrices } from "../utils/fetchPrice";

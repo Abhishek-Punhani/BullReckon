@@ -1,13 +1,13 @@
-import { Router } from 'express';
-import jwt from 'jsonwebtoken';
-import { User } from '../../../packages/models/user';
-import { internalAuth } from 'middleware/internalAuthMiddleware';
+import { Router } from "express";
+import jwt from "jsonwebtoken";
+import { User } from "../models/user";
+import { internalAuth } from "middleware/internalAuthMiddleware";
 
 const router: Router = Router();
 
-router.use(internalAuth)
+router.use(internalAuth);
 
-router.post('/validate-token', async (req, res) => {
+router.post("/validate-token", async (req, res) => {
   try {
     const { token } = req.body;
 
@@ -17,7 +17,7 @@ router.post('/validate-token', async (req, res) => {
       .lean();
 
     if (!user) {
-      return res.status(401).json({ error: 'User not found' });
+      return res.status(401).json({ error: "User not found" });
     }
 
     res.json({
@@ -29,27 +29,28 @@ router.post('/validate-token', async (req, res) => {
         lastName: user.lastName,
         role: user.role,
         isEmailVerified: user.isEmailVerified,
-      }
+      },
     });
   } catch (error: any) {
     res.status(401).json({
-      error: error.name === 'TokenExpiredError' ? 'Token expired' : 'Invalid token'
+      error:
+        error.name === "TokenExpiredError" ? "Token expired" : "Invalid token",
     });
   }
 });
 
-router.get('/get-user-email/:userId', async (req, res) => {
+router.get("/get-user-email/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId).select('email').lean();
+    const user = await User.findById(userId).select("email").lean();
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: "User not found" });
     }
 
     res.json({ email: user.email });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

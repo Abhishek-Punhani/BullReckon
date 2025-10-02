@@ -1,8 +1,7 @@
 import { Server as SocketIOServer, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import { BaseConfig } from "../types/config";
-import { User } from "../packages/models/user";
-
+import { User } from "../apps/auth_server/models/user";
 
 interface SocketUser {
   id: string;
@@ -17,7 +16,10 @@ class WebSocketService {
   private config?: BaseConfig;
   private connectedUsers: Map<string, Socket[]> = new Map();
 
-  public initializeWithIO(ioInstance: SocketIOServer, config?: BaseConfig): void {
+  public initializeWithIO(
+    ioInstance: SocketIOServer,
+    config?: BaseConfig
+  ): void {
     this.io = ioInstance;
     this.config = config;
     this.setupAuthentication();
@@ -42,7 +44,9 @@ class WebSocketService {
           return next(new Error("Invalid or expired token"));
         }
 
-        const user = await User.findById(decoded.id).select("_id email firstName lastName role");
+        const user = await User.findById(decoded.id).select(
+          "_id email firstName lastName role"
+        );
         if (!user) return next(new Error("User not found"));
 
         socket.data.user = {

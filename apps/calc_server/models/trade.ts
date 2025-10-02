@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { ITrade } from "../../apps/calc_server/types";
+import { ITrade } from "../types";
 
 const tradeSchema = new mongoose.Schema(
   {

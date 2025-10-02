@@ -1,9 +1,6 @@
-import { Portfolio, IPortfolio } from "../../../packages/models/portfolio";
-import {
-  IRiskSettings,
-  RiskSettings,
-} from "../../../packages/models/risk_settings";
-import { Trade } from "../../../packages/models/trade";
+import { Portfolio, IPortfolio } from "../models/portfolio";
+import { IRiskSettings, RiskSettings } from "../models/risk_settings";
+import { Trade } from "../models/trade";
 import { fetchLivePrice } from "../utils/fetchPrice";
 
 export interface RiskCalculation {

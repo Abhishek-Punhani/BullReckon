@@ -1,6 +1,6 @@
 import { Response, NextFunction } from "express";
 import mongoose from "mongoose";
-import { Portfolio, Trade, User } from "../../../packages/models";
+import { Portfolio, Trade } from "../models";
 import { validateTradeInput } from "../validations/tradeValidator";
 import { executeOrder } from "../utils/orderExecutor";
 import { ErrorHandling } from "../../../middleware/errorHandler";

@@ -1,7 +1,7 @@
 import { Job } from "bullmq";
 import { PendingOrderJobData } from "../../../shared/queueManager";
-import { Trade } from "../../../packages/models/trade";
-import { Portfolio } from "../../../packages/models/portfolio";
+import { Trade } from "../models/trade";
+import { Portfolio } from "../models/portfolio";
 import { fetchLivePrice } from "../utils/fetchPrice";
 import { sendTradeConfirmationEmail } from "@/emailUtils";
 

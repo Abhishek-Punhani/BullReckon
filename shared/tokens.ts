@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
-import { User } from "../packages/models";
+import { User } from "../apps/calc_server/models";
 
 export const generateAccessToken = (user: any) => {
   return jwt.sign(

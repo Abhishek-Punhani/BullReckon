@@ -1,4 +1,4 @@
-import { User } from "@repo/models";
+import { User } from "apps/calc_server/models";
 import axios from "axios";
 import jwt from "jsonwebtoken";
 
