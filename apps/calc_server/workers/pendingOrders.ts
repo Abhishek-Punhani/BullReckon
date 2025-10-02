@@ -3,6 +3,7 @@ import { PendingOrderJobData } from "../../../shared/queueManager";
 import { Trade } from "../../../packages/models/trade";
 import { Portfolio } from "../../../packages/models/portfolio";
 import { fetchLivePrice } from "../utils/fetchPrice";
+import { sendTradeConfirmationEmail } from "@/emailUtils";
 
 export async function processPendingOrder(job: Job<PendingOrderJobData>) {
   const { tradeId, userId, symbol, action, orderType, limitPrice, stopPrice } =
@@ -122,4 +123,15 @@ async function executeTrade(trade: any, price: number): Promise<void> {
 
   await portfolio.save();
   await trade.save();
+
+  sendTradeConfirmationEmail(
+    trade.userId.toString(),
+    trade.symbol,
+    trade.action,
+    trade.quantity,
+    price,
+    price * trade.quantity
+  ).catch((error) => {
+    console.error("Failed to send trade confirmation email:", error);
+  });
 }

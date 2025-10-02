@@ -6,7 +6,8 @@ import { ErrorHandling } from "../../../middleware/errorHandler";
 import {
   sendActivationEmail,
   sendPasswordResetEmail,
-} from "../utils/emailUtils";
+  sendWelcomeEmail,
+} from "../../../shared/emailUtils";
 import { AuthenticatedRequest } from "../../../types/auth";
 import { OAuth2Client } from "google-auth-library";
 import { Types } from "mongoose";
@@ -312,6 +313,12 @@ export const verifyEmail = async (
     user.isEmailVerified = true;
     await user.save();
 
+    // Send welcome email after successful verification (non-blocking)
+    sendWelcomeEmail(user.email, user.firstName).catch((error) => {
+      console.error("Failed to send welcome email:", error);
+      // Don't fail the verification if welcome email fails
+    });
+
     return res.status(200).json({
       status: "success",
       message: "Email verified successfully",
@@ -335,7 +342,12 @@ export const changePassword = async (
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET_EMAIL!);
   } catch (err) {
-    if (typeof err === "object" && err !== null && "name" in err && (err as any).name === "TokenExpiredError") {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "name" in err &&
+      (err as any).name === "TokenExpiredError"
+    ) {
       return next(new ErrorHandling("Activation token has expired", 400));
     }
     return next(new ErrorHandling("Activation token is incorrect", 400));
@@ -407,7 +419,9 @@ export const googleAuth = async (
     if (!user) {
       return next(new ErrorHandling("User not found after registration", 500));
     }
-
+    if (isNewUser) {
+      await sendWelcomeEmail(user.email, user.firstName);
+    }
     try {
       res.setHeader(
         "Set-Cookie",

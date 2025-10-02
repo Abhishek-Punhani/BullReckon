@@ -22,6 +22,7 @@
     "@types/mongoose": "^5.11.97",
     "@types/morgan": "^1.9.10",
     "@types/node": "^22.15.3",
+    "@types/nodemailer": "^7.0.2",
     "@types/validator": "^13.15.3",
     "mongoose": "^8.18.3",
     "prettier": "^3.6.2",

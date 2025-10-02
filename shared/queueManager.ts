@@ -1,6 +1,11 @@
 import { Queue, Worker, Job, QueueEvents } from "bullmq";
 import IORedis from "ioredis";
 import { processPendingOrder } from "../apps/calc_server/workers/pendingOrders";
+import {
+  processEmailJob,
+  EmailJobData,
+} from "../apps/auth_server/workers/emailWorker";
+
 declare global {
   var queueManager:
     | {
@@ -15,9 +20,11 @@ declare global {
           stopPrice?: number;
           triggerPrice: number;
         }) => void;
+        addEmailJob: (data: EmailJobData) => Promise<void>;
       }
     | undefined;
 }
+
 export interface PendingOrderJobData {
   tradeId: string;
   userId: string;
@@ -29,6 +36,8 @@ export interface PendingOrderJobData {
   stopPrice?: number;
   triggerPrice: number;
 }
+
+export type { EmailJobData };
 
 export class QueueManager {
   private static instance: QueueManager;
@@ -160,13 +169,23 @@ export class QueueManager {
       },
     });
 
-    // Add other queues as needed
-    this.notificationQueue = new Queue("notifications", {
+    // Email queue with retry configuration
+    this.emailQueue = new Queue<EmailJobData>("emails", {
       connection,
       prefix: queuePrefix,
+      defaultJobOptions: {
+        removeOnComplete: 200, // Keep more completed email jobs
+        removeOnFail: 100, // Keep failed email jobs for debugging
+        attempts: 5, // Retry up to 5 times for emails
+        backoff: {
+          type: "exponential",
+          delay: 3000, // Start with 3 second delay
+        },
+      },
     });
 
-    this.emailQueue = new Queue("emails", {
+    // Notification queue
+    this.notificationQueue = new Queue("notifications", {
       connection,
       prefix: queuePrefix,
     });
@@ -196,6 +215,30 @@ export class QueueManager {
         },
       }
     );
+
+    // Email worker with higher concurrency for faster processing
+    this.emailWorker = new Worker<EmailJobData>("emails", processEmailJob, {
+      connection,
+      prefix: queuePrefix,
+      concurrency: parseInt(process.env.EMAIL_WORKER_CONCURRENCY || "10"),
+      limiter: {
+        max: 30, // Max 30 emails per minute to avoid rate limits
+        duration: 60000,
+      },
+    });
+
+    // Email worker event listeners
+    this.emailWorker.on("completed", (job) => {
+      console.log(`✅ Email job ${job.id} completed successfully`);
+    });
+
+    this.emailWorker.on("failed", (job, err) => {
+      console.error(`❌ Email job ${job?.id} failed:`, err.message);
+    });
+
+    this.emailWorker.on("error", (err) => {
+      console.error("❌ Email worker error:", err);
+    });
   }
 
   private async setupQueueEvents(): Promise<void> {
@@ -269,6 +312,32 @@ export class QueueManager {
     return await this.notificationQueue.add("send-notification", data);
   }
 
+  public async addEmailJob(
+    data: EmailJobData,
+    options?: {
+      delay?: number;
+      priority?: number;
+      attempts?: number;
+    }
+  ): Promise<Job<EmailJobData> | null> {
+    if (
+      process.env.DISABLE_REDIS_QUEUES === "true" ||
+      !this.isInitialized ||
+      !this.emailQueue
+    ) {
+      console.log("📧 Processing email directly (queues disabled)");
+      await this.processEmailDirectly(data);
+      return null;
+    }
+
+    return await this.emailQueue.add("send-email", data, {
+      priority: options?.priority || 5,
+      delay: options?.delay,
+      attempts: options?.attempts || 5,
+      ...options,
+    });
+  }
+
   // Fallback processing when queues are disabled
   private async processPendingOrderDirectly(
     data: PendingOrderJobData
@@ -278,6 +347,14 @@ export class QueueManager {
       await processPendingOrder({ data } as Job<PendingOrderJobData>);
     } catch (error) {
       console.error("❌ Direct pending order processing failed:", error);
+    }
+  }
+
+  private async processEmailDirectly(data: EmailJobData): Promise<void> {
+    try {
+      await processEmailJob({ data } as Job<EmailJobData>);
+    } catch (error) {
+      console.error("❌ Direct email processing failed:", error);
     }
   }
 

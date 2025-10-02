@@ -38,4 +38,19 @@ router.post('/validate-token', async (req, res) => {
   }
 });
 
+router.get('/get-user-email/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select('email').lean();
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ email: user.email });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export { router as internalRoutes };

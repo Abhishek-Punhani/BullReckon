@@ -33,9 +33,11 @@ const userSchema = new mongoose.Schema(
     lastName: {
       type: String,
       trim: true,
-      required: [true, "Last name is required"],
       minlength: [2, "Last name must be at least 2 characters"],
       maxlength: [50, "Last name cannot exceed 50 characters"],
+      required: function (this: IUser) {
+        return !this.googleId;
+      },
     },
     email: {
       type: String,

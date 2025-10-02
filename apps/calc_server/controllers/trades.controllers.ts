@@ -1,11 +1,12 @@
 import { Response, NextFunction } from "express";
 import mongoose from "mongoose";
-import { Portfolio, Trade } from "../../../packages/models";
+import { Portfolio, Trade, User } from "../../../packages/models";
 import { validateTradeInput } from "../validations/tradeValidator";
 import { executeOrder } from "../utils/orderExecutor";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import { fetchLivePrice } from "../utils/fetchPrice";
 import { AuthenticatedRequest } from "types/auth";
+import { sendTradeConfirmationEmail } from "@/emailUtils";
 
 export const trade = async (
   req: AuthenticatedRequest,
@@ -149,6 +150,19 @@ export const trade = async (
     }
 
     await tempTrade.save();
+
+    if (execute) {
+      sendTradeConfirmationEmail(
+        userId,
+        symbol,
+        action,
+        quantity,
+        executionPrice!,
+        tradeValue
+      ).catch((error) => {
+        console.error("Failed to send trade confirmation email:", error);
+      });
+    }
 
     return res.json({
       success: true,
