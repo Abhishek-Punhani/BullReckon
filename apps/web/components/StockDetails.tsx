@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,8 +15,8 @@ import {
   TrendingDown,
   BarChart3,
 } from "lucide-react";
-import { SYMBOLS, generateMockOHLCData } from "@/lib/mockData";
 import { StockHistoricalData, StockQuote } from "@/lib/types/market";
+import { marketService } from "@/services";
 
 interface StockDetailsProps {
   symbol: string;
@@ -34,78 +34,157 @@ const StockDetails = ({
   onBack,
 }: StockDetailsProps) => {
   const [activeTab, setActiveTab] = useState("chart");
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
+  const [recentNews, setRecentNews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Find the symbol data
-  const symbolData = SYMBOLS.find((s) => s.value === symbol);
-
-  // Generate current market data
-  const data = generateMockOHLCData(symbol, 30);
-  const latest = data[data.length - 1];
-  const previous = data[data.length - 2];
-  const change = latest.close - previous.close;
-  const changePercent = (change / previous.close) * 100;
+  // Extract real market data from props
+  const currentPrice = quote?.data?.price || 0;
+  const change = quote?.data?.change || 0;
+  const changePercent = quote?.data?.changePercent || 0;
   const isPositive = change >= 0;
+  const volume = quote?.data?.volume || 0;
+  const marketCap = quote?.data?.marketCap || 0;
+  const peRatio = quote?.data?.pe || 0;
+  const dayHigh = quote?.data?.dayHigh || 0;
+  const dayLow = quote?.data?.dayLow || 0;
+  const companyName = quote?.data?.name || marketService.getSymbolName(symbol);
 
-  // Mock company details
-  const companyInfo = {
-    name: symbolData?.label || symbol,
-    sector: symbol.includes("USD") ? "Cryptocurrency" : "Technology",
-    marketCap: 2.8e12,
-    peRatio: 28.5,
-    dividend: 0.88,
-    employees: 181000,
-    founded: 1976,
-    headquarters: "Cupertino, CA",
-    description: `${symbolData?.label || symbol} is a leading technology company that designs, manufactures, and markets consumer electronics, computer software, and online services worldwide.`,
-    website: "https://www.apple.com",
-  };
+  // Calculate 52-week high/low from historical data
+  const yearlyData = historical?.data || [];
+  const yearlyHigh =
+    yearlyData.length > 0
+      ? Math.max(...yearlyData.map((d) => d.high))
+      : dayHigh * 1.15;
+  const yearlyLow =
+    yearlyData.length > 0
+      ? Math.min(...yearlyData.map((d) => d.low))
+      : dayLow * 0.85;
+
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      setLoading(true);
+      try {
+        // Try to fetch additional company info from the market service
+        let additionalInfo = null;
+        try {
+          const companyData = await marketService.getCompanyInfo(symbol);
+          if (companyData?.success && companyData?.data) {
+            additionalInfo = companyData.data;
+          }
+        } catch (error) {
+          console.log(
+            "Additional company info not available, using basic data"
+          );
+        }
+
+        // Set basic company info derived from real data
+        const info = {
+          name: companyName,
+          sector: symbol.includes("USD")
+            ? "Cryptocurrency"
+            : symbol.includes("=F")
+              ? "Commodities"
+              : symbol.startsWith("^")
+                ? "Index"
+                : "Equity",
+          marketCap: marketCap,
+          peRatio: peRatio,
+          dividend: additionalInfo?.financialData?.dividendYield?.raw || 0,
+          employees: additionalInfo?.profile?.fullTimeEmployees || null,
+          founded: additionalInfo?.profile?.founded || null,
+          headquarters:
+            additionalInfo?.profile?.city && additionalInfo?.profile?.state
+              ? `${additionalInfo.profile.city}, ${additionalInfo.profile.state}`
+              : "N/A",
+          description:
+            additionalInfo?.profile?.longBusinessSummary ||
+            `${companyName} - Real-time market data and trading information.`,
+          website: additionalInfo?.profile?.website || "N/A",
+        };
+        setCompanyInfo(info);
+
+        // Mock news data (in a real app, you'd fetch from a news API)
+        const mockNews = [
+          {
+            title: `${companyName} Reports Market Activity`,
+            time: "2 hours ago",
+            summary: "Latest market movements and trading activity analysis.",
+          },
+          {
+            title: `Market Analysis: ${symbol} Performance`,
+            time: "1 day ago",
+            summary: "Technical analysis and market sentiment overview.",
+          },
+          {
+            title: `Trading Update for ${symbol}`,
+            time: "2 days ago",
+            summary: "Recent trading patterns and volume analysis.",
+          },
+        ];
+        setRecentNews(mockNews);
+      } catch (error) {
+        console.error("Failed to fetch company data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCompanyData();
+  }, [symbol, companyName, marketCap, peRatio]);
 
   const keyStats = [
     {
       label: "Market Cap",
-      value: `$${(companyInfo.marketCap / 1e12).toFixed(2)}T`,
+      value:
+        marketCap > 0
+          ? marketCap >= 1e12
+            ? `$${(marketCap / 1e12).toFixed(2)}T`
+            : marketCap >= 1e9
+              ? `$${(marketCap / 1e9).toFixed(2)}B`
+              : marketCap >= 1e6
+                ? `$${(marketCap / 1e6).toFixed(2)}M`
+                : `$${marketCap.toLocaleString()}`
+          : "N/A",
       icon: Building2,
     },
     {
       label: "P/E Ratio",
-      value: companyInfo.peRatio.toString(),
+      value: peRatio > 0 ? peRatio.toFixed(2) : "N/A",
       icon: BarChart3,
     },
     {
       label: "Dividend Yield",
-      value: `${companyInfo.dividend}%`,
+      value:
+        companyInfo?.dividend > 0
+          ? `${(companyInfo.dividend * 100).toFixed(2)}%`
+          : "N/A",
       icon: DollarSign,
     },
     {
+      label: "Day High",
+      value: dayHigh > 0 ? `$${dayHigh.toFixed(2)}` : "N/A",
+      icon: TrendingUp,
+    },
+    {
+      label: "Day Low",
+      value: dayLow > 0 ? `$${dayLow.toFixed(2)}` : "N/A",
+      icon: TrendingDown,
+    },
+    {
       label: "52W High",
-      value: `$${(latest.close * 1.15).toFixed(2)}`,
+      value: `$${yearlyHigh.toFixed(2)}`,
       icon: TrendingUp,
     },
     {
       label: "52W Low",
-      value: `$${(latest.close * 0.85).toFixed(2)}`,
+      value: `$${yearlyLow.toFixed(2)}`,
       icon: TrendingDown,
     },
-    { label: "Volume", value: latest.volume.toLocaleString(), icon: BarChart3 },
-  ];
-
-  const recentNews = [
     {
-      title: `${companyInfo.name} Reports Strong Q4 Earnings`,
-      time: "2 hours ago",
-      summary: "Company beats analyst expectations with record revenue growth.",
-    },
-    {
-      title: `${companyInfo.name} Announces New Product Line`,
-      time: "1 day ago",
-      summary:
-        "Innovation continues with groundbreaking technology advancements.",
-    },
-    {
-      title: "Analyst Upgrades Rating to Buy",
-      time: "2 days ago",
-      summary:
-        "Major investment firm raises price target citing strong fundamentals.",
+      label: "Volume",
+      value: volume > 0 ? volume.toLocaleString() : "N/A",
+      icon: BarChart3,
     },
   ];
 
@@ -122,7 +201,7 @@ const StockDetails = ({
               </Button>
               <div className="flex items-center gap-3">
                 <div>
-                  <h1 className="text-2xl font-bold">{companyInfo.name}</h1>
+                  <h1 className="text-2xl font-bold">{companyName}</h1>
                   <p className="text-muted-foreground">{symbol}</p>
                 </div>
               </div>
@@ -130,7 +209,7 @@ const StockDetails = ({
 
             <div className="text-right">
               <div className="text-3xl font-bold font-mono">
-                ${latest.close.toLocaleString()}
+                ${currentPrice.toLocaleString()}
               </div>
               <div
                 className={`flex items-center gap-1 justify-end ${isPositive ? "text-success" : "text-destructive"}`}
@@ -174,10 +253,7 @@ const StockDetails = ({
                 />
               </div>
               <div className="lg:col-span-1">
-                <TradingTools
-                  symbol={symbol}
-                  price={quote?.data?.price}
-                />
+                <TradingTools symbol={symbol} price={quote?.data?.price} />
               </div>
             </div>
           </TabsContent>
@@ -190,47 +266,63 @@ const StockDetails = ({
                     <CardTitle>Company Overview</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p className="text-muted-foreground leading-relaxed">
-                      {companyInfo.description}
-                    </p>
-
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">
-                            Headquarters:
-                          </span>
-                          <span className="font-medium">
-                            {companyInfo.headquarters}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">
-                            Employees:
-                          </span>
-                          <span className="font-medium">
-                            {companyInfo.employees.toLocaleString()}
-                          </span>
-                        </div>
+                    {loading ? (
+                      <div className="space-y-4">
+                        <div className="h-4 bg-muted animate-pulse rounded"></div>
+                        <div className="h-4 bg-muted animate-pulse rounded w-3/4"></div>
+                        <div className="h-4 bg-muted animate-pulse rounded w-1/2"></div>
                       </div>
+                    ) : (
+                      <>
+                        <p className="text-muted-foreground leading-relaxed">
+                          {companyInfo?.description}
+                        </p>
 
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Globe className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">
-                            Founded:
-                          </span>
-                          <span className="font-medium">
-                            {companyInfo.founded}
-                          </span>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Building2 className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-muted-foreground">
+                                Headquarters:
+                              </span>
+                              <span className="font-medium">
+                                {companyInfo?.headquarters || "N/A"}
+                              </span>
+                            </div>
+                            {companyInfo?.employees && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <Users className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-muted-foreground">
+                                  Employees:
+                                </span>
+                                <span className="font-medium">
+                                  {companyInfo.employees.toLocaleString()}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            {companyInfo?.founded && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <Globe className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-muted-foreground">
+                                  Founded:
+                                </span>
+                                <span className="font-medium">
+                                  {companyInfo.founded}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 text-sm">
+                              <Badge variant="outline">
+                                {companyInfo?.sector}
+                              </Badge>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Badge variant="outline">{companyInfo.sector}</Badge>
-                        </div>
-                      </div>
-                    </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </div>

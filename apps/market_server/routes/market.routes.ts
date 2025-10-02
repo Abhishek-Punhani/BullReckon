@@ -8,6 +8,7 @@ import {
   getMarketStats,
   clearCache,
   getLivePrice,
+  getCompanyInfo,
 } from "../controllers/market.controllers";
 
 const marketRoutes: Router = Router();
@@ -15,6 +16,7 @@ const marketRoutes: Router = Router();
 // Stock quote routes
 marketRoutes.get("/quote/:symbol", getStockQuote);
 marketRoutes.get("/historical/:symbol", getHistoricalData);
+marketRoutes.get("/company/:symbol", getCompanyInfo);
 marketRoutes.post("/quotes", getMultipleQuotes);
 
 // Search routes
