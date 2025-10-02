@@ -54,4 +54,49 @@ router.get("/get-user-email/:userId", async (req, res) => {
   }
 });
 
+router.post("/store-public-key", async (req, res) => {
+  try {
+    const { email, publicKey } = req.body;
+
+    if (!email || !publicKey) {
+      return res
+        .status(400)
+        .json({ error: "Email and public key are required" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    user.apiKey = publicKey;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Public key stored successfully",
+    });
+  } catch (error) {
+    console.error("Error storing public key:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get public key for verification
+router.get("/get-public-key/:email", async (req, res) => {
+  try {
+    const { email } = req.params;
+    const user = await User.findOne({ email }).select("apiKey").lean();
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({ publicKey: user.apiKey });
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export { router as internalRoutes };

@@ -17,6 +17,7 @@ export interface IUser extends Document {
   googleId?: string;
   authMethod: "password" | "google" | "both";
   isEmailVerified?: boolean;
+  apiKey?: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
   hasPasswordAuth(): boolean;
 }
@@ -110,6 +111,9 @@ const userSchema = new mongoose.Schema(
     isEmailVerified: {
       type: Boolean,
       default: false,
+    },
+    apiKey: {
+      type: String,
     },
   },
   {
