@@ -1,20 +1,18 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import MarketChart from "../../components/MarketCharts";
-import TradingTools from "../../components/TradingTools";
 import type { StockHistoricalData, StockQuote } from "../../lib/types/market";
+import StockDetails from "@/components/StockDetails";
 import SymbolSearch from "../../components/SymbolSearch";
 import Navigation from "@/components/Navigation";
-import { Button } from "../../components/ui/button";
 import {
   Card,
   CardHeader,
   CardContent,
   CardTitle,
-  CardDescription,
 } from "../../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { marketService } from "@/services";
+import NewsFeed from "@/components/NewsFeed";
 
 const PERIODS = [
   { value: "1mo", label: "1M" },
@@ -29,18 +27,18 @@ const PERIODS = [
 // Define market categories locally
 const MARKET_CATEGORIES = {
   stocks: [
-    { value: "AAPL", label: "Apple Inc.", icon: "🍎" },
-    { value: "MSFT", label: "Microsoft", icon: "🪟" },
-    { value: "GOOGL", label: "Google", icon: "🔍" },
-    { value: "TSLA", label: "Tesla Inc.", icon: "🚗" },
-    { value: "AMZN", label: "Amazon", icon: "📦" },
-    { value: "META", label: "Meta", icon: "👥" },
+    { value: "AAPL", label: "Apple Inc."},
+    { value: "MSFT", label: "Microsoft"},
+    { value: "GOOGL", label: "Google"},
+    { value: "TSLA", label: "Tesla Inc."},
+    { value: "AMZN", label: "Amazon"},
+    { value: "META", label: "Meta"},
   ],
   crypto: [
-    { value: "BTC-USD", label: "Bitcoin", icon: "₿" },
-    { value: "ETH-USD", label: "Ethereum", icon: "Ξ" },
-    { value: "ADA-USD", label: "Cardano", icon: "🔷" },
-    { value: "DOT-USD", label: "Polkadot", icon: "🔴" },
+    { value: "BTC-USD", label: "Bitcoin"},
+    { value: "ETH-USD", label: "Ethereum"},
+    { value: "ADA-USD", label: "Cardano"},
+    { value: "DOT-USD", label: "Polkadot"},
   ],
   indices: [
     { value: "^GSPC", label: "S&P 500", icon: "📈" },
@@ -49,10 +47,10 @@ const MARKET_CATEGORIES = {
     { value: "^RUT", label: "Russell 2000", icon: "📉" },
   ],
   commodities: [
-    { value: "GC=F", label: "Gold", icon: "🥇" },
-    { value: "SI=F", label: "Silver", icon: "🥈" },
-    { value: "CL=F", label: "Oil", icon: "🛢️" },
-    { value: "NG=F", label: "Natural Gas", icon: "⛽" },
+    { value: "GC=F", label: "Gold"},
+    { value: "SI=F", label: "Silver"},
+    { value: "CL=F", label: "Oil"},
+    { value: "NG=F", label: "Natural Gas"},
   ],
 };
 
@@ -60,8 +58,8 @@ type Category = keyof typeof MARKET_CATEGORIES;
 
 export default function MarketPage() {
   const [isClient, setIsClient] = useState(false);
-  const [symbol, setSymbol] = useState<string>("AAPL");
-  const [period, setPeriod] = useState<string>("1y");
+  const [symbol, setSymbol] = useState<string>("");
+  const [period, setPeriod] = useState<string>("");
   const [historical, setHistorical] = useState<StockHistoricalData | null>(
     null
   );
@@ -128,6 +126,15 @@ export default function MarketPage() {
   }, []);
 
   useEffect(() => {
+    // Don't fetch data if symbol or period are empty
+    if (!symbol || !period) {
+      setHistorical(null);
+      setQuote(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     let cancelled = false;
     const fetchData = async () => {
       setLoading(true);
@@ -223,6 +230,30 @@ export default function MarketPage() {
     fetchCategoryAssets();
   }, [selectedCategory, isClient]);
 
+  if (
+    symbol &&
+    symbol.trim() !== "" &&
+    historical &&
+    quote &&
+    period &&
+    period.trim() !== ""
+  ) {
+    return (
+      <div className="min-h-screen bg-background">
+        <StockDetails
+          symbol={symbol}
+          historical={historical}
+          period={period}
+          quote={quote}
+          onBack={() => {
+            setSymbol("");
+            setPeriod("");
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -236,7 +267,12 @@ export default function MarketPage() {
               insights.
             </p>
             <div className="mt-6 max-w-md mx-auto">
-              <SymbolSearch onSelect={(sym) => setSymbol(sym)} />
+              <SymbolSearch
+                onSelect={(sym) => {
+                  setSymbol(sym);
+                  setPeriod("1y"); // Set default period when selecting a symbol
+                }}
+              />
             </div>
           </div>
 
@@ -287,61 +323,10 @@ export default function MarketPage() {
           </div>
 
           <div className="space-y-6">
-            {/* Main Chart Section - Full Width */}
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-2xl">
-                      {quote?.data?.name || symbol} ({symbol})
-                    </CardTitle>
-                    <CardDescription>
-                      {quote?.data?.price
-                        ? `$${quote.data.price.toFixed(2)} ${
-                            quote.data.change >= 0 ? "+" : ""
-                          }${quote.data.change?.toFixed(2)} (${quote.data.changePercent?.toFixed(2)}%)`
-                        : "Loading price..."}
-                    </CardDescription>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {PERIODS.map((p) => (
-                      <Button
-                        key={p.value}
-                        variant={period === p.value ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setPeriod(p.value)}
-                      >
-                        {p.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="h-[500px] flex items-center justify-center">
-                    <div>Loading chart data...</div>
-                  </div>
-                ) : error ? (
-                  <div className="h-[500px] flex items-center justify-center">
-                    <div className="text-destructive">{error}</div>
-                  </div>
-                ) : (
-                  <div className="w-full" style={{ height: "500px" }}>
-                    <MarketChart
-                      key={`chart-${symbol}-${period}`}
-                      historical={historical}
-                      height={500}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
             {/* Bottom Section: Stock List and Trading Tools */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="w-full">
               {/* Asset List */}
-              <div className="lg:col-span-2">
+              <div>
                 <Card>
                   <Tabs
                     defaultValue="stocks"
@@ -369,7 +354,10 @@ export default function MarketPage() {
                               className={`flex items-center justify-between p-3 rounded-lg hover:bg-muted cursor-pointer transition-colors ${
                                 symbol === asset.symbol ? "bg-muted border" : ""
                               }`}
-                              onClick={() => setSymbol(asset.symbol)}
+                              onClick={() => {
+                                setSymbol(asset.symbol);
+                                setPeriod("1y"); // Set default period when selecting a symbol
+                              }}
                               suppressHydrationWarning
                             >
                               <div>
@@ -399,14 +387,10 @@ export default function MarketPage() {
                     </TabsContent>
                   </Tabs>
                 </Card>
-              </div>
-
-              {/* Trading Tools */}
-              <div className="lg:col-span-1">
-                <TradingTools
-                  symbol={symbol}
-                  price={quote?.data?.price ?? null}
-                />
+                <div className="mt-10 text-3xl">Market News & Analysis</div>
+                <div className="mt-10">
+                  <NewsFeed />
+                </div>
               </div>
             </div>
           </div>
