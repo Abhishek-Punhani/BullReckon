@@ -8,7 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Plus, TestTube, Play, Pause, Settings, TrendingUp } from "lucide-react";
+import {
+  Bot,
+  Plus,
+  TestTube,
+  Play,
+  Pause,
+  Settings,
+  TrendingUp,
+} from "lucide-react";
 
 interface Strategy {
   id: string;
@@ -167,35 +175,41 @@ const Strategy = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Navigation />
-      <div className="flex-1">
-        {/* Header Section */}
-        <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="container max-w-7xl mx-auto px-6 py-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <TrendingUp className="h-6 w-6 text-primary" />
+    <div className="flex min-h-screen bg-background relative">
+      {/* Wrap Navigation with a higher z-index so it always stays in front */}
+      <div className="z-20">
+        <Navigation />
+      </div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Header Section with a lower z-index */}
+        <div className="border-b bg-card/50 backdrop-blur-sm relative w-full z-10">
+          <div className="container max-w-7xl mx-auto px-6 py-8">
+            <div className="flex flex-wrap items-center justify-between gap-6">
+              <div className="space-y-1 min-w-0 flex-1">
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="p-3 bg-primary/10 rounded-lg shrink-0">
+                    <TrendingUp className="h-7 w-7 text-primary" />
                   </div>
-                  <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Strategy API</h1>
-                    <p className="text-sm text-muted-foreground mt-1">
+                  <div className="min-w-0">
+                    <h1 className="text-4xl font-extrabold tracking-tight truncate">
+                      Strategy API
+                    </h1>
+                    <p className="text-base text-muted-foreground mt-2 truncate">
                       Connect and manage your algorithmic trading strategies
                     </p>
                   </div>
                 </div>
               </div>
-              <Badge variant="outline" className="text-xs px-3 py-1">
-                {strategies.filter(s => s.status === "active").length} Active
+              <Badge variant="outline" className="text-xs px-4 py-2 shrink-0 font-semibold">
+                {strategies.filter((s) => s.status === "active").length} Active
               </Badge>
             </div>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="container max-w-7xl mx-auto px-6 py-8 space-y-8">
+        <div className="container max-w-7xl mx-auto px-6 py-8 space-y-8 flex-1">
           {/* Add New Strategy Section */}
           <Card className="border-2 shadow-lg">
             <CardHeader className="border-b bg-muted/30">
@@ -208,7 +222,10 @@ const Strategy = () => {
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="strategy-name" className="text-sm font-medium">
+                    <Label
+                      htmlFor="strategy-name"
+                      className="text-sm font-medium"
+                    >
                       Strategy Name
                     </Label>
                     <Input
@@ -226,7 +243,10 @@ const Strategy = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="strategy-url" className="text-sm font-medium">
+                    <Label
+                      htmlFor="strategy-url"
+                      className="text-sm font-medium"
+                    >
                       API Endpoint URL
                     </Label>
                     <Input
@@ -234,7 +254,10 @@ const Strategy = () => {
                       placeholder="https://api.yourstrategy.com/signals"
                       value={newStrategy.url}
                       onChange={(e) =>
-                        setNewStrategy((prev) => ({ ...prev, url: e.target.value }))
+                        setNewStrategy((prev) => ({
+                          ...prev,
+                          url: e.target.value,
+                        }))
                       }
                       className="h-11"
                     />
@@ -243,7 +266,10 @@ const Strategy = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="api-key" className="text-sm font-medium">
-                    API Key <span className="text-muted-foreground font-normal">(Optional)</span>
+                    API Key{" "}
+                    <span className="text-muted-foreground font-normal">
+                      (Optional)
+                    </span>
                   </Label>
                   <Input
                     id="api-key"
@@ -262,7 +288,10 @@ const Strategy = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="description" className="text-sm font-medium">
-                    Description <span className="text-muted-foreground font-normal">(Optional)</span>
+                    Description{" "}
+                    <span className="text-muted-foreground font-normal">
+                      (Optional)
+                    </span>
                   </Label>
                   <Textarea
                     id="description"
@@ -279,8 +308,8 @@ const Strategy = () => {
                   />
                 </div>
 
-                <Button 
-                  onClick={handleAddStrategy} 
+                <Button
+                  onClick={handleAddStrategy}
                   disabled={isAddingStrategy}
                   size="lg"
                   className="w-full md:w-auto"
@@ -294,39 +323,48 @@ const Strategy = () => {
 
           {/* Active Strategies Section */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold tracking-tight">Your Strategies</h2>
-              <div className="text-sm text-muted-foreground">
-                {strategies.length} {strategies.length === 1 ? "strategy" : "strategies"}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="text-2xl font-bold tracking-tight truncate">
+                Your Strategies
+              </h2>
+              <div className="text-sm text-muted-foreground shrink-0">
+                {strategies.length}{" "}
+                {strategies.length === 1 ? "strategy" : "strategies"}
               </div>
             </div>
 
             <div className="space-y-4">
               {strategies.map((strategy) => (
-                <Card key={strategy.id} className="border-2 shadow-md hover:shadow-lg transition-all duration-200">
+                <Card
+                  key={strategy.id}
+                  className="border-2 shadow-md hover:shadow-lg transition-all duration-200"
+                >
                   <CardContent className="p-6">
                     <div className="space-y-6">
                       {/* Strategy Header */}
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 space-y-4">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-primary/10 rounded-lg">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0 space-y-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="p-2 bg-primary/10 rounded-lg shrink-0">
                               <Bot className="h-5 w-5 text-primary" />
                             </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="text-lg font-semibold">{strategy.name}</h3>
-                                <Badge 
-                                  variant="outline" 
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 min-w-0">
+                                <h3 className="text-lg font-semibold truncate">
+                                  {strategy.name}
+                                </h3>
+                                <Badge
+                                  variant="outline"
                                   className={getStatusColor(strategy.status)}
                                 >
-                                  {strategy.status.charAt(0).toUpperCase() + strategy.status.slice(1)}
+                                  {strategy.status.charAt(0).toUpperCase() +
+                                    strategy.status.slice(1)}
                                 </Badge>
                               </div>
                               <div className="space-y-1 text-sm">
                                 <p className="text-muted-foreground">
                                   <span className="font-medium">Endpoint:</span>{" "}
-                                  <code className="px-2 py-0.5 bg-muted rounded text-xs">
+                                  <code className="px-2 py-0.5 bg-muted rounded text-xs break-all">
                                     {strategy.url}
                                   </code>
                                 </p>
@@ -346,39 +384,59 @@ const Strategy = () => {
                           {strategy.last_signal && (
                             <div className="p-4 bg-muted/50 rounded-lg border">
                               <div className="flex items-center gap-2 mb-3">
-                                <div className="text-sm font-semibold">Latest Signal</div>
+                                <div className="text-sm font-semibold">
+                                  Latest Signal
+                                </div>
                                 <Badge
                                   variant="outline"
-                                  className={getActionBadgeColor(strategy.last_signal.action)}
+                                  className={getActionBadgeColor(
+                                    strategy.last_signal.action
+                                  )}
                                 >
                                   {strategy.last_signal.action}
                                 </Badge>
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div>
-                                  <div className="text-xs text-muted-foreground mb-1">Symbol</div>
-                                  <div className="font-semibold">{strategy.last_signal.symbol}</div>
+                                  <div className="text-xs text-muted-foreground mb-1">
+                                    Symbol
+                                  </div>
+                                  <div className="font-semibold">
+                                    {strategy.last_signal.symbol}
+                                  </div>
                                 </div>
                                 <div>
-                                  <div className="text-xs text-muted-foreground mb-1">Quantity</div>
-                                  <div className="font-semibold">{strategy.last_signal.quantity}</div>
+                                  <div className="text-xs text-muted-foreground mb-1">
+                                    Quantity
+                                  </div>
+                                  <div className="font-semibold">
+                                    {strategy.last_signal.quantity}
+                                  </div>
                                 </div>
                                 <div>
-                                  <div className="text-xs text-muted-foreground mb-1">Confidence</div>
+                                  <div className="text-xs text-muted-foreground mb-1">
+                                    Confidence
+                                  </div>
                                   <div className="font-semibold flex items-center gap-1">
                                     {strategy.last_signal.confidence}%
                                     <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
-                                      <div 
+                                      <div
                                         className="h-full bg-primary rounded-full"
-                                        style={{ width: `${strategy.last_signal.confidence}%` }}
+                                        style={{
+                                          width: `${strategy.last_signal.confidence}%`,
+                                        }}
                                       />
                                     </div>
                                   </div>
                                 </div>
                                 <div>
-                                  <div className="text-xs text-muted-foreground mb-1">Time</div>
+                                  <div className="text-xs text-muted-foreground mb-1">
+                                    Time
+                                  </div>
                                   <div className="font-semibold text-sm">
-                                    {new Date(strategy.last_signal.timestamp).toLocaleTimeString()}
+                                    {new Date(
+                                      strategy.last_signal.timestamp
+                                    ).toLocaleTimeString()}
                                   </div>
                                 </div>
                               </div>
@@ -387,7 +445,7 @@ const Strategy = () => {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 shrink-0">
                           <Button
                             variant="outline"
                             size="sm"
@@ -396,11 +454,17 @@ const Strategy = () => {
                             className="h-9"
                           >
                             <TestTube className="h-4 w-4 mr-1.5" />
-                            {testingStrategy === strategy.id ? "Testing..." : "Test"}
+                            {testingStrategy === strategy.id
+                              ? "Testing..."
+                              : "Test"}
                           </Button>
 
                           <Button
-                            variant={strategy.status === "active" ? "destructive" : "default"}
+                            variant={
+                              strategy.status === "active"
+                                ? "destructive"
+                                : "default"
+                            }
                             size="sm"
                             onClick={() => toggleStrategy(strategy.id)}
                             className="h-9"
@@ -418,7 +482,11 @@ const Strategy = () => {
                             )}
                           </Button>
 
-                          <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-9 w-9 p-0"
+                          >
                             <Settings className="h-4 w-4" />
                           </Button>
                         </div>
@@ -434,9 +502,12 @@ const Strategy = () => {
                     <div className="inline-flex p-4 bg-muted rounded-full mb-4">
                       <Bot className="h-8 w-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-lg font-semibold mb-2">No Strategies Yet</h3>
+                    <h3 className="text-lg font-semibold mb-2">
+                      No Strategies Yet
+                    </h3>
                     <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                      Add your first algorithmic trading strategy to start automating your trades.
+                      Add your first algorithmic trading strategy to start
+                      automating your trades.
                     </p>
                     <Button variant="outline">
                       <Plus className="h-4 w-4 mr-2" />
@@ -456,17 +527,18 @@ const Strategy = () => {
             <CardContent className="p-6">
               <div className="space-y-6">
                 <p className="text-sm text-muted-foreground">
-                  Your strategy endpoint should return JSON in the following format:
+                  Your strategy endpoint should return JSON in the following
+                  format:
                 </p>
 
                 <div className="bg-slate-950 p-6 rounded-lg border">
                   <pre className="text-sm text-slate-50 font-mono overflow-x-auto">
-{`{
-  "action": "BUY" | "SELL" | "HOLD",
-  "symbol": "BTCUSDT",
-  "quantity": 0.5,
-  "confidence": 85,
-  "reason": "Golden cross detected"
+                    {`{
+    "action": "BUY" | "SELL" | "HOLD",
+    "symbol": "BTCUSDT",
+    "quantity": 0.5,
+    "confidence": 85,
+    "reason": "Golden cross detected"
 }`}
                   </pre>
                 </div>
@@ -479,15 +551,21 @@ const Strategy = () => {
                     </h4>
                     <ul className="space-y-2 text-sm text-muted-foreground">
                       <li className="flex items-start gap-2">
-                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">action</code>
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          action
+                        </code>
                         <span>BUY, SELL, or HOLD</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">symbol</code>
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          symbol
+                        </code>
                         <span>Trading pair (e.g., BTCUSDT)</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">quantity</code>
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          quantity
+                        </code>
                         <span>Amount to trade</span>
                       </li>
                     </ul>
@@ -499,15 +577,21 @@ const Strategy = () => {
                     </h4>
                     <ul className="space-y-2 text-sm text-muted-foreground">
                       <li className="flex items-start gap-2">
-                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">confidence</code>
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          confidence
+                        </code>
                         <span>Signal strength (0-100)</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">reason</code>
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          reason
+                        </code>
                         <span>Human-readable explanation</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">price</code>
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          price
+                        </code>
                         <span>Suggested execution price</span>
                       </li>
                     </ul>
