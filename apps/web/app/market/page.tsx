@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { StockHistoricalData, StockQuote } from "../../lib/types/market";
-import StockDetails from "@/components/StockDetails";
 import SymbolSearch from "../../components/SymbolSearch";
 import Navigation from "@/components/Navigation";
 import {
@@ -14,31 +14,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { marketService } from "@/services";
 import NewsFeed from "@/components/NewsFeed";
 
-const PERIODS = [
-  { value: "1mo", label: "1M" },
-  { value: "3mo", label: "3M" },
-  { value: "6mo", label: "6M" },
-  { value: "1y", label: "1Y" },
-  { value: "ytd", label: "YTD" },
-  { value: "5y", label: "5Y" },
-  { value: "max", label: "Max" },
-];
-
 // Define market categories locally
 const MARKET_CATEGORIES = {
   stocks: [
-    { value: "AAPL", label: "Apple Inc."},
-    { value: "MSFT", label: "Microsoft"},
-    { value: "GOOGL", label: "Google"},
-    { value: "TSLA", label: "Tesla Inc."},
-    { value: "AMZN", label: "Amazon"},
-    { value: "META", label: "Meta"},
+    { value: "AAPL", label: "Apple Inc." },
+    { value: "MSFT", label: "Microsoft" },
+    { value: "GOOGL", label: "Google" },
+    { value: "TSLA", label: "Tesla Inc." },
+    { value: "AMZN", label: "Amazon" },
+    { value: "META", label: "Meta" },
   ],
   crypto: [
-    { value: "BTC-USD", label: "Bitcoin"},
-    { value: "ETH-USD", label: "Ethereum"},
-    { value: "ADA-USD", label: "Cardano"},
-    { value: "DOT-USD", label: "Polkadot"},
+    { value: "BTC-USD", label: "Bitcoin" },
+    { value: "ETH-USD", label: "Ethereum" },
+    { value: "ADA-USD", label: "Cardano" },
+    { value: "DOT-USD", label: "Polkadot" },
   ],
   indices: [
     { value: "^GSPC", label: "S&P 500", icon: "📈" },
@@ -47,25 +37,18 @@ const MARKET_CATEGORIES = {
     { value: "^RUT", label: "Russell 2000", icon: "📉" },
   ],
   commodities: [
-    { value: "GC=F", label: "Gold"},
-    { value: "SI=F", label: "Silver"},
-    { value: "CL=F", label: "Oil"},
-    { value: "NG=F", label: "Natural Gas"},
+    { value: "GC=F", label: "Gold" },
+    { value: "SI=F", label: "Silver" },
+    { value: "CL=F", label: "Oil" },
+    { value: "NG=F", label: "Natural Gas" },
   ],
 };
 
 type Category = keyof typeof MARKET_CATEGORIES;
 
 export default function MarketPage() {
+  const router = useRouter();
   const [isClient, setIsClient] = useState(false);
-  const [symbol, setSymbol] = useState<string>("");
-  const [period, setPeriod] = useState<string>("");
-  const [historical, setHistorical] = useState<StockHistoricalData | null>(
-    null
-  );
-  const [quote, setQuote] = useState<StockQuote | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category>("stocks");
   const [assetList, setAssetList] = useState<
     { symbol: string; price: number; change: number; name: string }[]
@@ -126,70 +109,6 @@ export default function MarketPage() {
   }, []);
 
   useEffect(() => {
-    // Don't fetch data if symbol or period are empty
-    if (!symbol || !period) {
-      setHistorical(null);
-      setQuote(null);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    let cancelled = false;
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [data, quoteData] = await Promise.allSettled([
-          marketService.getHistoricalData(symbol, period, "1d"),
-          marketService.getQuote(symbol),
-        ]);
-
-        if (cancelled) return;
-
-        // Handle historical data
-        if (data.status === "fulfilled") {
-          setHistorical(data.value);
-        } else {
-          console.error("Failed to fetch historical data:", data.reason);
-          setHistorical(null);
-        }
-
-        // Handle quote data
-        if (quoteData.status === "fulfilled" && quoteData.value) {
-          setQuote(quoteData.value);
-        } else {
-          console.error(
-            "Failed to fetch quote data:",
-            quoteData.status === "rejected" ? quoteData.reason : "No data"
-          );
-          setQuote(null);
-        }
-
-        // Set error only if both requests failed
-        if (data.status === "rejected" && quoteData.status === "rejected") {
-          setError(`Failed to load market data for ${symbol}`);
-        } else if (data.status === "rejected") {
-          setError(`Failed to load historical data for ${symbol}`);
-        } else if (quoteData.status === "rejected") {
-          setError(`Failed to load current quote for ${symbol}`);
-        }
-      } catch (err: any) {
-        console.error(err);
-        setError(err?.message || "Failed to load historical data");
-        setHistorical(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    fetchData();
-    return () => {
-      cancelled = true;
-    };
-  }, [symbol, period]);
-
-  useEffect(() => {
     const fetchCategoryAssets = async () => {
       if (!isClient) return; // Don't fetch on server side
 
@@ -230,29 +149,13 @@ export default function MarketPage() {
     fetchCategoryAssets();
   }, [selectedCategory, isClient]);
 
-  if (
-    symbol &&
-    symbol.trim() !== "" &&
-    historical &&
-    quote &&
-    period &&
-    period.trim() !== ""
-  ) {
-    return (
-      <div className="min-h-screen bg-background">
-        <StockDetails
-          symbol={symbol}
-          historical={historical}
-          period={period}
-          quote={quote}
-          onBack={() => {
-            setSymbol("");
-            setPeriod("");
-          }}
-        />
-      </div>
-    );
-  }
+  const handleSymbolSelect = (selectedSymbol: string) => {
+    router.push(`/market/${selectedSymbol.toUpperCase()}`);
+  };
+
+  const handleAssetClick = (assetSymbol: string) => {
+    router.push(`/market/${assetSymbol.toUpperCase()}`);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -267,12 +170,7 @@ export default function MarketPage() {
               insights.
             </p>
             <div className="mt-6 max-w-md mx-auto">
-              <SymbolSearch
-                onSelect={(sym) => {
-                  setSymbol(sym);
-                  setPeriod("1y"); // Set default period when selecting a symbol
-                }}
-              />
+              <SymbolSearch onSelect={handleSymbolSelect} />
             </div>
           </div>
 
@@ -351,13 +249,8 @@ export default function MarketPage() {
                           assetList.map((asset) => (
                             <div
                               key={asset.symbol}
-                              className={`flex items-center justify-between p-3 rounded-lg hover:bg-muted cursor-pointer transition-colors ${
-                                symbol === asset.symbol ? "bg-muted border" : ""
-                              }`}
-                              onClick={() => {
-                                setSymbol(asset.symbol);
-                                setPeriod("1y"); // Set default period when selecting a symbol
-                              }}
+                              className="flex items-center justify-between p-3 rounded-lg hover:bg-muted cursor-pointer transition-colors"
+                              onClick={() => handleAssetClick(asset.symbol)}
                               suppressHydrationWarning
                             >
                               <div>
