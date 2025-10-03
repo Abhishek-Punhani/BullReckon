@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +31,7 @@ interface StockDetailsProps {
   period?: string;
   historical?: StockHistoricalData | null;
   quote: StockQuote;
-  onBack: () => void;
+  onBack?: () => void; // Make optional since we can handle navigation internally
 }
 
 const PERIODS = [
@@ -52,6 +53,7 @@ const StockDetails = ({
   quote,
   onBack,
 }: StockDetailsProps) => {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("chart");
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [recentNews, setRecentNews] = useState<any[]>([]);
@@ -181,6 +183,14 @@ const StockDetails = ({
     fetchCompanyData();
   }, [symbol, companyName, marketCap, peRatio]);
 
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      router.push("/market");
+    }
+  };
+
   const keyStats = [
     {
       label: "Market Cap",
@@ -243,7 +253,7 @@ const StockDetails = ({
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={onBack}>
+              <Button variant="ghost" size="sm" onClick={handleBack}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Market
               </Button>

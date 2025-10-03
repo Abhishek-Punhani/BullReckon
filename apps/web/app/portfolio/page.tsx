@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -85,6 +86,7 @@ interface Filters {
 }
 
 const HoldingsPage = () => {
+  const router = useRouter();
   const [positionsData, setPositionsData] = useState<PositionsData | null>(
     null
   );
@@ -299,6 +301,10 @@ const HoldingsPage = () => {
     a.download = `holdings_${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  const handleHoldingClick = (symbol: string) => {
+    router.push(`/market/${symbol.toUpperCase()}`);
   };
 
   const formatCurrency = (amount: number) => {
@@ -728,6 +734,11 @@ const HoldingsPage = () => {
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUpDown className="h-5 w-5" />
                   Current Holdings ({positions.length})
+                  {positions.length > 0 && (
+                    <Badge variant="secondary" className="text-xs">
+                      Click to view details
+                    </Badge>
+                  )}
                 </CardTitle>
                 {pagination && (
                   <div className="text-sm text-muted-foreground">
@@ -748,10 +759,11 @@ const HoldingsPage = () => {
                   {positions.map((position) => (
                     <div
                       key={position.symbol}
-                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors"
+                      onClick={() => handleHoldingClick(position.symbol)}
+                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer group"
                     >
                       <div className="space-y-1">
-                        <div className="font-semibold text-lg">
+                        <div className="font-semibold text-lg group-hover:text-primary transition-colors">
                           {position.symbol}
                         </div>
                         <div className="text-sm text-muted-foreground">
@@ -760,6 +772,9 @@ const HoldingsPage = () => {
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Invested: {formatCurrency(position.totalInvested)}
+                        </div>
+                        <div className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                          Click to view {position.symbol} details →
                         </div>
                       </div>
 
