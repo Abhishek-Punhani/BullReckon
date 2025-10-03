@@ -1,21 +1,23 @@
 import { BaseApp } from "@/baseApp";
 import { DatabaseManager } from "@/dbManager";
 import { apiConfig } from "./apiConfig";
+import apiRoutes from "./routes/api.routes.";
 
 // Initialize database
 const db = DatabaseManager.getInstance(apiConfig);
 
-// Initialize app with calc-specific configuration
+// Initialize app with api-specific configuration
 const app = new BaseApp({
-  serviceName: "BullReckon Calc Service",
+  serviceName: "BullReckon API Service",
   config: apiConfig,
   enableSockets: false,
   enableQueues: false,
-  enableFileUpload: true,
+  enableFileUpload: false,
   enableSessions: false,
 });
 
 // Setup routes
+app.app.use("/api/keys", apiRoutes);
 
 app.initializeErrorHandling();
 
