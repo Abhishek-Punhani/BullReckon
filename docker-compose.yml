@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # MongoDB Database
@@ -18,10 +18,12 @@ services:
     networks:
       - bullreckon-network
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      test:
+        ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
   # Redis for Queue Management
   redis:
@@ -36,16 +38,18 @@ services:
     networks:
       - bullreckon-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 5s
+      timeout: 3s
       retries: 5
+      start_period: 10s
 
   # Auth Server
   auth-server:
     build:
       context: .
       dockerfile: apps/auth_server/Dockerfile
+      target: development
     container_name: bullreckon-auth
     restart: unless-stopped
     ports:
@@ -58,12 +62,12 @@ services:
       JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-here}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-refresh-secret-here}
       CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      MAILING_SERVICE_CLIENT_ID: ${MAILING_SERVICE_CLIENT_ID}
-      MAILING_SERVICE_CLIENT_SECRET: ${MAILING_SERVICE_CLIENT_SECRET}
-      MAILING_SERVICE_REFRESH_TOKEN: ${MAILING_SERVICE_REFRESH_TOKEN}
-      SENDER_EMAIL_ADDRESS: ${SENDER_EMAIL_ADDRESS}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      MAILING_SERVICE_CLIENT_ID: ${MAILING_SERVICE_CLIENT_ID:-}
+      MAILING_SERVICE_CLIENT_SECRET: ${MAILING_SERVICE_CLIENT_SECRET:-}
+      MAILING_SERVICE_REFRESH_TOKEN: ${MAILING_SERVICE_REFRESH_TOKEN:-}
+      SENDER_EMAIL_ADDRESS: ${SENDER_EMAIL_ADDRESS:-noreply@example.com}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       DISABLE_REDIS_QUEUES: ${DISABLE_REDIS_QUEUES:-false}
@@ -87,6 +91,7 @@ services:
     build:
       context: .
       dockerfile: apps/market_server/Dockerfile
+      target: development
     container_name: bullreckon-market
     restart: unless-stopped
     ports:
@@ -117,6 +122,7 @@ services:
     build:
       context: .
       dockerfile: apps/calc_server/Dockerfile
+      target: development
     container_name: bullreckon-calc
     restart: unless-stopped
     ports:
@@ -128,6 +134,7 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:-your-session-secret-here}
       JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-here}
       CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+      AUTH_SERVER_URL: http://auth-server:4000
       MARKET_SERVER_URL: http://market-server:5000
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-your-internal-secret}
       REDIS_HOST: redis
@@ -135,11 +142,17 @@ services:
       DISABLE_REDIS_QUEUES: ${DISABLE_REDIS_QUEUES:-false}
       PENDING_ORDER_WORKER_CONCURRENCY: ${PENDING_ORDER_WORKER_CONCURRENCY:-5}
       EMAIL_WORKER_CONCURRENCY: ${EMAIL_WORKER_CONCURRENCY:-10}
+      MAILING_SERVICE_CLIENT_ID: ${MAILING_SERVICE_CLIENT_ID:-}
+      MAILING_SERVICE_CLIENT_SECRET: ${MAILING_SERVICE_CLIENT_SECRET:-}
+      MAILING_SERVICE_REFRESH_TOKEN: ${MAILING_SERVICE_REFRESH_TOKEN:-}
+      SENDER_EMAIL_ADDRESS: ${SENDER_EMAIL_ADDRESS:-noreply@example.com}
     depends_on:
       mongodb:
         condition: service_healthy
       redis:
         condition: service_healthy
+      auth-server:
+        condition: service_started
       market-server:
         condition: service_started
     networks:
@@ -149,26 +162,26 @@ services:
       - ./shared:/app/shared
       - ./types:/app/types
       - ./middleware:/app/middleware
-      - ./packages:/app/packages
       - /app/node_modules
       - /app/apps/calc_server/node_modules
 
-  # Web Frontend
+  # Web Frontend (Next.js)
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      target: development
     container_name: bullreckon-web
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
+      NODE_ENV: ${NODE_ENV:-development}
       NEXT_PUBLIC_AUTH_SERVER: http://localhost:4000
       NEXT_PUBLIC_MARKET_SERVER: http://localhost:5000
       NEXT_PUBLIC_CALC_SERVER: http://localhost:8000
       NEXT_PUBLIC_API_SERVER: http://localhost:3004
-      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     depends_on:
       - auth-server
       - market-server
@@ -179,7 +192,6 @@ services:
       - ./apps/web:/app/apps/web
       - ./shared:/app/shared
       - ./types:/app/types
-      - ./packages:/app/packages
       - /app/node_modules
       - /app/apps/web/node_modules
       - /app/apps/web/.next

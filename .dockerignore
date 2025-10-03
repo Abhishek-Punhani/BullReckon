@@ -1,0 +1,76 @@
+# Root .dockerignore - applies to all builds from root context
+
+# Node modules
+node_modules
+**/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist
+build
+.next
+out
+*.tsbuildinfo
+
+# Development files
+.git
+.gitignore
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Testing
+coverage
+.nyc_output
+*.test.ts
+*.spec.ts
+**/__tests__
+**/__mocks__
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.global
+
+# Documentation
+*.md
+README*
+CHANGELOG*
+LICENSE
+docs
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+.circleci
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Logs
+logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Specific app exclusions (when building from root)
+apps/web/.next
+apps/web/out
+apps/*/dist
+apps/*/build

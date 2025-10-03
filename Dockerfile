@@ -44,13 +44,6 @@ RUN pnpm --filter=calc_server run build 2>/dev/null || echo "No build script"
 EXPOSE 8000
 CMD ["pnpm", "--filter=calc_server", "run", "dev"]
 
-# API Server Stage
-FROM base AS api-server
-WORKDIR /app
-RUN pnpm --filter=api_server run build 2>/dev/null || echo "No build script"
-EXPOSE 3004
-CMD ["pnpm", "--filter=api_server", "run", "dev"]
-
 # Web Frontend Stage
 FROM base AS web
 WORKDIR /app

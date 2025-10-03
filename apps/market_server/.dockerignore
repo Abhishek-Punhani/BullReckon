@@ -1,0 +1,24 @@
+# Market Server specific .dockerignore
+
+# Node modules
+node_modules
+npm-debug.log*
+pnpm-debug.log*
+
+# Build outputs
+dist
+*.tsbuildinfo
+
+# Testing
+*.test.ts
+*.spec.ts
+__tests__
+coverage
+
+# Development
+.env
+.env.local
+
+# Logs
+logs
+*.log
