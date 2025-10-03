@@ -1,7 +1,5 @@
 import { Server as SocketIOServer, Socket } from "socket.io";
-import jwt from "jsonwebtoken";
 import { BaseConfig } from "../types/config";
-import { User } from "../apps/auth_server/models/user";
 
 interface SocketUser {
   id: string;
@@ -22,45 +20,9 @@ class WebSocketService {
   ): void {
     this.io = ioInstance;
     this.config = config;
-    this.setupAuthentication();
     this.setupConnectionHandlers();
     this.setupErrorHandling();
     console.log("✅ WebSocketService initialized");
-  }
-
-  private setupAuthentication(): void {
-    if (!this.io) return;
-    this.io.use(async (socket, next) => {
-      try {
-        const token =
-          socket.handshake.auth.token ||
-          socket.handshake.headers.authorization?.split(" ")[1];
-        if (!token) return next(new Error("Authentication token required"));
-
-        let decoded: any;
-        try {
-          decoded = jwt.verify(token, process.env.JWT_SECRET_ACCESS!);
-        } catch (err) {
-          return next(new Error("Invalid or expired token"));
-        }
-
-        const user = await User.findById(decoded.id).select(
-          "_id email firstName lastName role"
-        );
-        if (!user) return next(new Error("User not found"));
-
-        socket.data.user = {
-          id: user._id.toString(),
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-        };
-        next();
-      } catch (err) {
-        next(new Error("Socket authentication failed"));
-      }
-    });
   }
 
   private setupConnectionHandlers(): void {

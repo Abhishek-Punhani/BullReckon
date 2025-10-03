@@ -1,63 +1,63 @@
 import { Queue, Worker, Job, QueueEvents } from "bullmq";
 import IORedis from "ioredis";
-import { processPendingOrder } from "../apps/calc_server/workers/pendingOrders";
-import {
-  processEmailJob,
-  EmailJobData,
-} from "../apps/auth_server/workers/emailWorker";
 
-declare global {
-  var queueManager:
-    | {
-        addPendingOrderJob: (params: {
-          tradeId: string;
-          userId: string;
-          symbol: string;
-          action: string;
-          quantity: number;
-          orderType: string;
-          limitPrice?: number;
-          stopPrice?: number;
-          triggerPrice: number;
-        }) => void;
-        addEmailJob: (data: EmailJobData) => Promise<void>;
-      }
-    | undefined;
+/**
+ * Queue Framework - Professional Queue Management System
+ *
+ * This is a framework that provides Redis-based queue infrastructure.
+ * Each service should register its own queues and workers independently.
+ *
+ * Features:
+ * - Centralized Redis connection management
+ * - Queue registration and lifecycle management
+ * - Worker registration with custom processors
+ * - Automatic fallback to direct processing when Redis is unavailable
+ * - Health checks and graceful shutdown
+ * - Type-safe queue and worker registration
+ *
+ * Usage:
+ * 1. Get QueueManager instance in your service
+ * 2. Register your queues with registerQueue<T>()
+ * 3. Register your workers with registerWorker<T>()
+ * 4. Add jobs using the queue instance
+ */
+
+export interface QueueOptions<T = any> {
+  defaultJobOptions?: {
+    removeOnComplete?: number | boolean;
+    removeOnFail?: number | boolean;
+    attempts?: number;
+    backoff?: {
+      type: "exponential" | "fixed";
+      delay: number;
+    };
+    priority?: number;
+    delay?: number;
+  };
 }
 
-export interface PendingOrderJobData {
-  tradeId: string;
-  userId: string;
-  symbol: string;
-  action: "BUY" | "SELL";
-  quantity: number;
-  orderType: "limit" | "stop_loss" | "take_profit";
-  limitPrice?: number;
-  stopPrice?: number;
-  triggerPrice: number;
+export interface WorkerOptions<T = any> {
+  concurrency?: number;
+  limiter?: {
+    max: number;
+    duration: number;
+  };
+  onCompleted?: (job: Job<T>, result: any) => void | Promise<void>;
+  onFailed?: (job: Job<T> | undefined, error: Error) => void | Promise<void>;
+  onError?: (error: Error) => void | Promise<void>;
 }
 
-export type { EmailJobData };
+export type JobProcessor<T = any> = (job: Job<T>) => Promise<any>;
 
 export class QueueManager {
   private static instance: QueueManager;
   private redisConnection?: IORedis | null;
   private isInitialized: boolean = false;
 
-  // Queue instances
-  private pendingOrdersQueue!: Queue<PendingOrderJobData>;
-  private notificationQueue!: Queue;
-  private emailQueue!: Queue;
-
-  // Worker instances
-  private pendingOrdersWorker!: Worker<PendingOrderJobData>;
-  private notificationWorker!: Worker;
-  private emailWorker!: Worker;
-
-  // Queue events
-  private pendingOrdersQueueEvents!: QueueEvents;
-
-  private customQueues: Record<string, Queue<any>> = {};
+  // Registry for queues and workers
+  private queues: Map<string, Queue<any>> = new Map();
+  private workers: Map<string, Worker<any>> = new Map();
+  private queueEvents: Map<string, QueueEvents> = new Map();
 
   private constructor() {
     if (process.env.DISABLE_REDIS_QUEUES !== "true") {
@@ -68,13 +68,12 @@ export class QueueManager {
           password: process.env.REDIS_PASSWORD || undefined,
           enableReadyCheck: false,
           maxRetriesPerRequest: null,
-          lazyConnect: true, // Don't connect immediately
+          lazyConnect: true,
         });
 
         // Suppress connection errors when Redis is disabled
         this.redisConnection.on("error", (err: any) => {
           if (process.env.DISABLE_REDIS_QUEUES === "true") {
-            // Silently ignore errors when Redis is disabled
             return;
           }
           console.error("Redis connection error:", err);
@@ -96,6 +95,9 @@ export class QueueManager {
     return QueueManager.instance;
   }
 
+  /**
+   * Initialize the queue manager and test Redis connection
+   */
   public async initialize(): Promise<void> {
     try {
       if (process.env.DISABLE_REDIS_QUEUES === "true") {
@@ -128,247 +130,164 @@ export class QueueManager {
         }
       }
 
-      await this.setupQueues();
-      await this.setupWorkers();
-      await this.setupQueueEvents();
       this.isInitialized = true;
       console.log("✅ Queue Manager initialized successfully");
     } catch (error) {
       console.error("❌ Failed to initialize Queue Manager:", error);
       console.log("⚠️ Falling back to direct processing");
       this.isInitialized = false;
-      // Don't throw error - allow app to continue without queues
     }
   }
 
+  /**
+   * Check if the queue manager is ready to process jobs
+   */
   public isQueueReady(): boolean {
-    return this.isInitialized;
+    return this.isInitialized && this.redisConnection !== null;
   }
 
-  private async setupQueues(): Promise<void> {
+  /**
+   * Register a new queue
+   * @param name - Unique name for the queue
+   * @param options - Queue configuration options
+   * @returns Queue instance
+   */
+  public registerQueue<T = any>(
+    name: string,
+    options: QueueOptions<T> = {}
+  ): Queue<T> {
+    if (this.queues.has(name)) {
+      return this.queues.get(name) as Queue<T>;
+    }
+
     const connection = this.redisConnection;
+    const prefix = process.env.REDIS_PREFIX || "bullreckon:";
 
     if (!connection) {
       throw new Error("Redis connection not available for queue setup");
     }
 
-    const queuePrefix = process.env.REDIS_PREFIX || "bullreckon:";
-
-    // Pending orders queue
-    this.pendingOrdersQueue = new Queue<PendingOrderJobData>("pending-orders", {
+    const queue = new Queue<T>(name, {
       connection,
-      prefix: queuePrefix,
-      defaultJobOptions: {
-        removeOnComplete: 100,
-        removeOnFail: 50,
-        attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 2000,
-        },
-      },
+      prefix,
+      defaultJobOptions: options.defaultJobOptions,
     });
 
-    // Email queue with retry configuration
-    this.emailQueue = new Queue<EmailJobData>("emails", {
-      connection,
-      prefix: queuePrefix,
-      defaultJobOptions: {
-        removeOnComplete: 200, // Keep more completed email jobs
-        removeOnFail: 100, // Keep failed email jobs for debugging
-        attempts: 5, // Retry up to 5 times for emails
-        backoff: {
-          type: "exponential",
-          delay: 3000, // Start with 3 second delay
-        },
-      },
-    });
-
-    // Notification queue
-    this.notificationQueue = new Queue("notifications", {
-      connection,
-      prefix: queuePrefix,
-    });
+    this.queues.set(name, queue);
+    console.log(`✅ Registered queue: ${name}`);
+    return queue;
   }
 
-  private async setupWorkers(): Promise<void> {
-    const connection = this.redisConnection;
-
-    if (!connection) {
-      throw new Error("Redis connection not available for workers setup");
+  /**
+   * Register a new worker to process jobs from a queue
+   * @param queueName - Name of the queue to process
+   * @param processor - Function to process jobs
+   * @param options - Worker configuration options
+   * @returns Worker instance
+   */
+  public registerWorker<T = any>(
+    queueName: string,
+    processor: JobProcessor<T>,
+    options: WorkerOptions<T> = {}
+  ): Worker<T> {
+    if (this.workers.has(queueName)) {
+      console.warn(`⚠️ Worker for queue '${queueName}' already registered`);
+      return this.workers.get(queueName) as Worker<T>;
     }
 
-    const queuePrefix = process.env.REDIS_PREFIX || "bullreckon:";
+    const connection = this.redisConnection;
+    const prefix = process.env.REDIS_PREFIX || "bullreckon:";
 
-    this.pendingOrdersWorker = new Worker<PendingOrderJobData>(
-      "pending-orders",
-      processPendingOrder,
-      {
-        connection,
-        prefix: queuePrefix,
-        concurrency: parseInt(
-          process.env.PENDING_ORDER_WORKER_CONCURRENCY || "5"
-        ),
-        limiter: {
-          max: 50,
-          duration: 60000,
-        },
-      }
-    );
+    if (!connection) {
+      throw new Error("Redis connection not available for worker setup");
+    }
 
-    // Email worker with higher concurrency for faster processing
-    this.emailWorker = new Worker<EmailJobData>("emails", processEmailJob, {
+    const worker = new Worker<T>(queueName, processor, {
       connection,
-      prefix: queuePrefix,
-      concurrency: parseInt(process.env.EMAIL_WORKER_CONCURRENCY || "10"),
-      limiter: {
-        max: 30, // Max 30 emails per minute to avoid rate limits
-        duration: 60000,
-      },
+      prefix,
+      concurrency: options.concurrency || 5,
+      limiter: options.limiter,
     });
 
-    // Email worker event listeners
-    this.emailWorker.on("completed", (job) => {
-      console.log(`✅ Email job ${job.id} completed successfully`);
-    });
+    // Attach event listeners
+    if (options.onCompleted) {
+      worker.on("completed", options.onCompleted);
+    }
 
-    this.emailWorker.on("failed", (job, err) => {
-      console.error(`❌ Email job ${job?.id} failed:`, err.message);
-    });
+    if (options.onFailed) {
+      worker.on("failed", options.onFailed);
+    }
 
-    this.emailWorker.on("error", (err) => {
-      console.error("❌ Email worker error:", err);
-    });
+    if (options.onError) {
+      worker.on("error", options.onError);
+    }
+
+    this.workers.set(queueName, worker);
+    console.log(`✅ Registered worker for queue: ${queueName}`);
+    return worker;
   }
 
-  private async setupQueueEvents(): Promise<void> {
+  /**
+   * Register queue events to monitor queue status
+   * @param queueName - Name of the queue to monitor
+   * @returns QueueEvents instance
+   */
+  public registerQueueEvents(queueName: string): QueueEvents {
+    if (this.queueEvents.has(queueName)) {
+      return this.queueEvents.get(queueName)!;
+    }
+
     const connection = this.redisConnection;
+    const prefix = process.env.REDIS_PREFIX || "bullreckon:";
 
     if (!connection) {
       throw new Error("Redis connection not available for queue events setup");
     }
 
-    const queuePrefix = process.env.REDIS_PREFIX || "bullreckon:";
-
-    // Pending orders queue events
-    this.pendingOrdersQueueEvents = new QueueEvents("pending-orders", {
+    const queueEvents = new QueueEvents(queueName, {
       connection,
-      prefix: queuePrefix,
+      prefix,
     });
 
-    this.pendingOrdersQueueEvents.on(
-      "completed",
-      async ({ jobId, returnvalue }) => {
-        console.log(`✅ Pending order job ${jobId} completed:`, returnvalue);
-      }
-    );
-
-    this.pendingOrdersQueueEvents.on(
-      "failed",
-      async ({ jobId, failedReason }) => {
-        console.error(`❌ Pending order job ${jobId} failed:`, failedReason);
-      }
-    );
-
-    this.pendingOrdersQueueEvents.on("stalled", (jobId) => {
-      console.warn(`⚠️ Pending order job ${jobId} stalled`);
-    });
+    this.queueEvents.set(queueName, queueEvents);
+    console.log(`✅ Registered queue events for: ${queueName}`);
+    return queueEvents;
   }
 
-  // Public methods to add jobs
-  public async addPendingOrderJob(
-    data: PendingOrderJobData,
-    options?: {
-      delay?: number;
-      priority?: number;
-      attempts?: number;
-    }
-  ): Promise<Job<PendingOrderJobData> | null> {
-    if (
-      process.env.DISABLE_REDIS_QUEUES === "true" ||
-      !this.isInitialized ||
-      !this.pendingOrdersQueue
-    ) {
-      console.log("📊 Processing pending order directly (queues disabled)");
-      await this.processPendingOrderDirectly(data);
-      return null;
-    }
-
-    return await this.pendingOrdersQueue.add("process-pending-order", data, {
-      priority: options?.priority || 5,
-      delay: options?.delay,
-      attempts: options?.attempts,
-      ...options,
-    });
+  /**
+   * Get a registered queue by name
+   */
+  public getQueue<T = any>(name: string): Queue<T> | undefined {
+    return this.queues.get(name) as Queue<T> | undefined;
   }
 
-  public async addNotificationJob(data: any): Promise<Job | null> {
-    if (!this.isInitialized || !this.notificationQueue) {
-      console.log("📨 Processing notification directly (queues disabled)");
-      // Process directly or skip
-      return null;
-    }
-
-    return await this.notificationQueue.add("send-notification", data);
+  /**
+   * Get a registered worker by queue name
+   */
+  public getWorker<T = any>(queueName: string): Worker<T> | undefined {
+    return this.workers.get(queueName) as Worker<T> | undefined;
   }
 
-  public async addEmailJob(
-    data: EmailJobData,
-    options?: {
-      delay?: number;
-      priority?: number;
-      attempts?: number;
-    }
-  ): Promise<Job<EmailJobData> | null> {
-    if (
-      process.env.DISABLE_REDIS_QUEUES === "true" ||
-      !this.isInitialized ||
-      !this.emailQueue
-    ) {
-      console.log("📧 Processing email directly (queues disabled)");
-      await this.processEmailDirectly(data);
-      return null;
-    }
-
-    return await this.emailQueue.add("send-email", data, {
-      priority: options?.priority || 5,
-      delay: options?.delay,
-      attempts: options?.attempts || 5,
-      ...options,
-    });
+  /**
+   * Get Redis connection for advanced usage
+   */
+  public getRedisConnection(): IORedis | null | undefined {
+    return this.redisConnection;
   }
 
-  // Fallback processing when queues are disabled
-  private async processPendingOrderDirectly(
-    data: PendingOrderJobData
-  ): Promise<void> {
-    try {
-      // Import the processor and run directly
-      await processPendingOrder({ data } as Job<PendingOrderJobData>);
-    } catch (error) {
-      console.error("❌ Direct pending order processing failed:", error);
-    }
-  }
-
-  private async processEmailDirectly(data: EmailJobData): Promise<void> {
-    try {
-      await processEmailJob({ data } as Job<EmailJobData>);
-    } catch (error) {
-      console.error("❌ Direct email processing failed:", error);
-    }
-  }
-
-  // Health check
+  /**
+   * Health check for all registered queues
+   */
   public async healthCheck(): Promise<boolean> {
     if (!this.isInitialized) {
       return false;
     }
 
     try {
-      await Promise.all([
-        this.pendingOrdersQueue?.getWaiting(),
-        this.notificationQueue?.getWaiting(),
-      ]);
+      const healthChecks = Array.from(this.queues.values()).map((queue) =>
+        queue.getWaiting()
+      );
+      await Promise.all(healthChecks);
       return true;
     } catch (error) {
       console.error("Queue health check failed:", error);
@@ -376,50 +295,62 @@ export class QueueManager {
     }
   }
 
-  // Graceful shutdown
+  /**
+   * Graceful shutdown - closes all workers, queues, and connections
+   */
   public async shutdown(): Promise<void> {
     console.log("🔄 Shutting down Queue Manager...");
 
-    await Promise.all([
-      this.pendingOrdersWorker?.close(),
-      this.notificationWorker?.close(),
-      this.emailWorker?.close(),
-      this.pendingOrdersQueueEvents?.close(),
-    ]);
+    // Close all workers
+    const workerClosePromises = Array.from(this.workers.values()).map(
+      (worker) => worker.close()
+    );
 
+    // Close all queue events
+    const queueEventsClosePromises = Array.from(this.queueEvents.values()).map(
+      (queueEvents) => queueEvents.close()
+    );
+
+    // Wait for all to close
+    await Promise.all([...workerClosePromises, ...queueEventsClosePromises]);
+
+    // Close Redis connection
     if (this.redisConnection) {
       await this.redisConnection.quit();
     }
+
     console.log("✅ Queue Manager shut down successfully");
   }
 
-  public registerQueue<T = any>(
-    name: string,
-    options: {
-      defaultJobOptions?: any;
-      prefix?: string;
-      connection?: any;
-    } = {}
-  ): Queue<T> {
-    const connection = options.connection || this.redisConnection;
-    const prefix = options.prefix || process.env.REDIS_PREFIX || "bullreckon:";
-
-    if (!connection)
-      throw new Error("Redis connection not available for queue setup");
-
-    if (!this.customQueues[name]) {
-      this.customQueues[name] = new Queue<T>(name, {
-        connection,
-        prefix,
-        defaultJobOptions: options.defaultJobOptions,
-      });
-      console.log(`✅ Registered custom queue: ${name}`);
+  /**
+   * Add a job to a queue
+   * This is a convenience method - you can also use queue.add() directly
+   */
+  public async addJob<T = any>(
+    queueName: string,
+    jobName: string,
+    data: T,
+    options?: {
+      delay?: number;
+      priority?: number;
+      attempts?: number;
     }
-    return this.customQueues[name] as Queue<T>;
-  }
+  ): Promise<any> {
+    const queue = this.getQueue<T>(queueName);
 
-  public getQueue<T = any>(name: string): Queue<T> | undefined {
-    return this.customQueues[name] as Queue<T> | undefined;
+    if (!queue) {
+      console.warn(
+        `⚠️ Queue '${queueName}' not registered. Job will not be added.`
+      );
+      return null;
+    }
+
+    if (process.env.DISABLE_REDIS_QUEUES === "true" || !this.isInitialized) {
+      console.log(`⚠️ Processing job '${jobName}' directly (queues disabled)`);
+      return null;
+    }
+
+    return await (queue as any).add(jobName, data, options);
   }
 }
 

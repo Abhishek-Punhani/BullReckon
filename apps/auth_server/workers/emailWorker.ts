@@ -3,7 +3,6 @@ import { emailService } from "../../../shared/emailService";
 import { activateEmail } from "../emails/activateEmail";
 import { passwordEmail } from "../emails/PasswordEmail";
 import { welcomeEmail } from "../emails/welcomeEmail";
-import { tradeConfirmationEmail } from "../../calc_server/emails/tradeConfirmationEmail";
 
 export interface EmailJobData {
   type:
@@ -90,16 +89,6 @@ export async function processEmailJob(job: Job<EmailJobData>) {
         case "welcome":
           // Import welcome template dynamically
           htmlContent = welcomeEmail(templateData.userName || to);
-          break;
-        case "trade-confirmation":
-          // Import trade confirmation template dynamically
-
-          if (!templateData.tradeDetails) {
-            throw new Error(
-              "Trade confirmation email requires tradeDetails in templateData"
-            );
-          }
-          htmlContent = tradeConfirmationEmail(templateData.tradeDetails);
           break;
         default:
           throw new Error(`Unknown email template: ${template}`);

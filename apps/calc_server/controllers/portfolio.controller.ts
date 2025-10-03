@@ -1,9 +1,8 @@
 import { Response, NextFunction } from "express";
-import { Portfolio, Trade, RiskSettings } from "apps/calc_server/models";
 import { ErrorHandling } from "../../../middleware/errorHandler";
-import { AuthenticatedRequest } from "types/auth";
+import { AuthenticatedRequest } from "../../../types/auth";
 import { fetchMultiplePrices } from "../utils/fetchPrice";
-import { ITrade } from "../types";
+import { Portfolio, RiskSettings, Trade } from "../models";
 
 // Helper function to generate mock performance data
 const generatePerformanceData = (currentValue: number, period: string) => {

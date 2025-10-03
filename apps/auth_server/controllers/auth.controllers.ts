@@ -11,7 +11,7 @@ import {
 import { AuthenticatedRequest } from "../../../types/auth";
 import { OAuth2Client } from "google-auth-library";
 import { Types } from "mongoose";
-import { User } from "apps/calc_server/models";
+import { User } from "../models/user";
 
 export const registerUser = async (
   req: Request,

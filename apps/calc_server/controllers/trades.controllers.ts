@@ -5,8 +5,26 @@ import { validateTradeInput } from "../validations/tradeValidator";
 import { executeOrder } from "../utils/orderExecutor";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import { fetchLivePrice } from "../utils/fetchPrice";
-import { AuthenticatedRequest } from "types/auth";
-import { sendTradeConfirmationEmail } from "apps/auth_server/utils/emailUtils";
+import { AuthenticatedRequest } from "../../../types/auth";
+import { sendTradeConfirmationEmail } from "../utils/emailUtils";
+
+// Add a type declaration for global.queueManager
+declare global {
+  // Adjust the type below to match your actual queueManager implementation
+  var queueManager: {
+    addPendingOrderJob?: (params: {
+      tradeId: string;
+      userId: string;
+      symbol: string;
+      action: string;
+      quantity: number;
+      orderType: string;
+      limitPrice?: number;
+      stopPrice?: number;
+      triggerPrice: number;
+    }) => Promise<void>;
+  };
+}
 
 export const trade = async (
   req: AuthenticatedRequest,

@@ -3,7 +3,7 @@ import { PendingOrderJobData } from "../../../shared/queueManager";
 import { Trade } from "../models/trade";
 import { Portfolio } from "../models/portfolio";
 import { fetchLivePrice } from "../utils/fetchPrice";
-import { sendTradeConfirmationEmail } from "apps/auth_server/utils/emailUtils";
+import { sendTradeConfirmationEmail } from "../utils/emailUtils";
 
 export async function processPendingOrder(job: Job<PendingOrderJobData>) {
   const { tradeId, userId, symbol, action, orderType, limitPrice, stopPrice } =

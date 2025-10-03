@@ -1,7 +1,7 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { User } from "../models/user";
-import { internalAuth } from "middleware/internalAuthMiddleware";
+import { internalAuth } from "../../../middleware/internalAuthMiddleware";
 
 const router: Router = Router();
 

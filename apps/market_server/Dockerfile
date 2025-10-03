@@ -7,7 +7,7 @@ RUN npm install -g pnpm
 WORKDIR /app
 
 # Copy workspace configuration files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
 
 # Copy only necessary shared dependencies (no packages folder)
 COPY shared ./shared
@@ -28,7 +28,7 @@ RUN npm install -g pnpm
 WORKDIR /app
 
 # Copy workspace files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
 
 # Copy dependencies from base
 COPY --from=base /app/shared ./shared

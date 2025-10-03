@@ -4,7 +4,7 @@
   "description": "Market data service using Yahoo Finance",
   "main": "server.ts",
   "scripts": {
-    "dev": "npx tsx watch server.ts",
+    "dev": "NODE_OPTIONS='--require tsconfig-paths/register' npx tsx watch server.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -15,7 +15,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "yahoo-finance2": "^2.13.3"
+    "yahoo-finance2": "^2.13.3",
+    "tsconfig-paths": "^4.2.0"
   },
   "devDependencies": {
     "tsx": "^4.20.6"
