@@ -3,6 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import MarketChart from "./MarketCharts";
 import TradingTools from "@/components/TradingTools";
 import {
@@ -20,16 +27,28 @@ import { marketService } from "@/services";
 
 interface StockDetailsProps {
   symbol: string;
-  period: string;
-  historical: StockHistoricalData;
+  period?: string;
+  historical?: StockHistoricalData | null;
   quote: StockQuote;
   onBack: () => void;
 }
 
+const PERIODS = [
+  { value: "1d", label: "1D" },
+  { value: "5d", label: "5D" },
+  { value: "1mo", label: "1M" },
+  { value: "3mo", label: "3M" },
+  { value: "6mo", label: "6M" },
+  { value: "1y", label: "1Y" },
+  { value: "2y", label: "2Y" },
+  { value: "5y", label: "5Y" },
+  { value: "max", label: "Max" },
+];
+
 const StockDetails = ({
   symbol,
-  period,
-  historical,
+  period: initialPeriod,
+  historical: initialHistorical,
   quote,
   onBack,
 }: StockDetailsProps) => {
@@ -37,6 +56,11 @@ const StockDetails = ({
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [recentNews, setRecentNews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPeriod, setSelectedPeriod] = useState(initialPeriod || "1y");
+  const [historical, setHistorical] = useState<StockHistoricalData | null>(
+    initialHistorical || null
+  );
+  const [chartLoading, setChartLoading] = useState(false);
 
   // Extract real market data from props
   const currentPrice = quote?.data?.price || 0;
@@ -60,6 +84,30 @@ const StockDetails = ({
     yearlyData.length > 0
       ? Math.min(...yearlyData.map((d) => d.low))
       : dayLow * 0.85;
+
+  // Fetch historical data when period changes
+  useEffect(() => {
+    const fetchHistoricalData = async () => {
+      if (!symbol || !selectedPeriod) return;
+
+      setChartLoading(true);
+      try {
+        const data = await marketService.getHistoricalData(
+          symbol,
+          selectedPeriod,
+          "1d"
+        );
+        setHistorical(data);
+      } catch (error) {
+        console.error("Failed to fetch historical data:", error);
+        setHistorical(null);
+      } finally {
+        setChartLoading(false);
+      }
+    };
+
+    fetchHistoricalData();
+  }, [symbol, selectedPeriod]);
 
   useEffect(() => {
     const fetchCompanyData = async () => {
@@ -208,6 +256,26 @@ const StockDetails = ({
             </div>
 
             <div className="text-right">
+              <div className="flex items-center gap-4 justify-end mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Period:</span>
+                  <Select
+                    value={selectedPeriod}
+                    onValueChange={setSelectedPeriod}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PERIODS.map((period) => (
+                        <SelectItem key={period.value} value={period.value}>
+                          {period.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="text-3xl font-bold font-mono">
                 ${currentPrice.toLocaleString()}
               </div>
@@ -246,11 +314,33 @@ const StockDetails = ({
           <TabsContent value="chart" className="space-y-6">
             <div className="grid lg:grid-cols-4 gap-6">
               <div className="lg:col-span-3">
-                <MarketChart
-                  key={`chart-${symbol}-${period}`}
-                  historical={historical}
-                  height={500}
-                />
+                {chartLoading ? (
+                  <Card className="h-[500px] flex items-center justify-center">
+                    <div className="text-center space-y-2">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                      <p className="text-muted-foreground">
+                        Loading chart data...
+                      </p>
+                    </div>
+                  </Card>
+                ) : historical ? (
+                  <MarketChart
+                    key={`chart-${symbol}-${selectedPeriod}`}
+                    historical={historical}
+                    height={500}
+                  />
+                ) : (
+                  <Card className="h-[500px] flex items-center justify-center">
+                    <div className="text-center space-y-2">
+                      <p className="text-muted-foreground">
+                        No chart data available
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Try selecting a different period
+                      </p>
+                    </div>
+                  </Card>
+                )}
               </div>
               <div className="lg:col-span-1">
                 <TradingTools symbol={symbol} price={quote?.data?.price} />
