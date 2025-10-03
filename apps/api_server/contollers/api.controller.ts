@@ -78,7 +78,6 @@ export const apiKeyController = {
                 data: {
                     id: apiKeyRecord._id,
                     publicKey, // Return public key to user
-                    email: apiKeyRecord.email,
                     expiresAt: apiKeyRecord.expiresAt,
                     createdAt: apiKeyRecord.createdAt,
                     warning: 'Save this public key securely. You will need it for API requests.'

@@ -1,13 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { generateTokens } from "../../../shared/tokens";
+import { generateTokens } from "../utils/tokens";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import {
   sendActivationEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
-} from "../../../shared/emailUtils";
+} from "../utils/emailUtils";
 import { AuthenticatedRequest } from "../../../types/auth";
 import { OAuth2Client } from "google-auth-library";
 import { Types } from "mongoose";

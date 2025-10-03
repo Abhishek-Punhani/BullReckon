@@ -6,7 +6,7 @@ import { executeOrder } from "../utils/orderExecutor";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import { fetchLivePrice } from "../utils/fetchPrice";
 import { AuthenticatedRequest } from "types/auth";
-import { sendTradeConfirmationEmail } from "@/emailUtils";
+import { sendTradeConfirmationEmail } from "apps/auth_server/utils/emailUtils";
 
 export const trade = async (
   req: AuthenticatedRequest,

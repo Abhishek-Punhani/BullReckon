@@ -1,14 +1,12 @@
-import { emailService } from "@repo/services/emailService";
-import { EmailJobData } from "./queueManager";
+import { emailService } from "@/emailService";
+import { EmailJobData } from "../../../shared/queueManager";
 import jwt from "jsonwebtoken";
-import { activateEmail } from "../apps/auth_server/emails/activateEmail";
-import { passwordEmail } from "../apps/auth_server/emails/PasswordEmail";
-import { welcomeEmail } from "../apps/auth_server/emails/welcomeEmail";
-import { tradeConfirmationEmail } from "../apps/calc_server/emails/tradeConfirmationEmail";
-import  dotenv from "dotenv";
-import { internalApi } from "./internalApi.client";
+import { activateEmail } from "../emails/activateEmail";
+import { passwordEmail } from "../emails/PasswordEmail";
+import { welcomeEmail } from "../emails/welcomeEmail";
+import dotenv from "dotenv";
 
-dotenv.config({path: '../.env'});
+dotenv.config({ path: "../.env" });
 const sendActivationEmail = async (user_id: string, email: string) => {
   const CLIENT_URL = process.env.CLIENT_URL;
   const JWT_SECRET_EMAIL = process.env.JWT_SECRET_EMAIL;
@@ -122,67 +120,9 @@ const sendWelcomeEmail = async (email: string, userName: string) => {
 };
 
 
-const sendTradeConfirmationEmail = async (
-  userId: string,
-  symbol: string,
-  action: string,
-  quantity: number,
-  price: number,
-  total: number
-) => {
-  try {
-    // Fetch user email via internal API
-    const response = await internalApi.get(`${process.env.AUTH_SERVER_URL}/api/internal/get-user-email/${userId}`);
-    const email = response.data.email;
-    if (!email) {
-      console.log(`⚠️ User ${userId} has no email`);
-      return;
-    }
-
-    // Prepare trade details
-    const tradeDetails = {
-      symbol,
-      action,
-      quantity,
-      price,
-      total,
-      timestamp: new Date().toISOString(),
-      status: "executed",
-    };
-
-    // Send the email using existing utility
-    // (reuse the previous implementation)
-    const queueManager = (global as any).queueManager;
-
-    if (queueManager && queueManager.addEmailJob) {
-      const emailData: EmailJobData = {
-        type: "trade-confirmation",
-        to: email,
-        subject: `Trade Confirmation - ${action} ${quantity} ${symbol}`,
-        template: "trade-confirmation",
-        templateData: { tradeDetails },
-      };
-
-      await queueManager.addEmailJob(emailData, { priority: 3 });
-      console.log(`✅ Trade confirmation email queued for ${email}`);
-    } else {
-      await emailService(
-        email,
-        "",
-        `Trade Confirmation - ${action} ${quantity} ${symbol}`,
-        () => tradeConfirmationEmail(tradeDetails)
-      );
-      console.log(`✅ Trade confirmation email sent directly to ${email}`);
-    }
-  } catch (error) {
-    console.error("Error sending trade confirmation email:", error);
-    // Don't throw - email failure shouldn't affect trade execution
-  }
-};
 
 export {
   sendActivationEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
-  sendTradeConfirmationEmail,
 };
