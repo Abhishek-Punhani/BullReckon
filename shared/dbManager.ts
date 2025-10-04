@@ -51,6 +51,13 @@ export class DatabaseManager {
   }
 
   private setupEventHandlers(): void {
+    if (!mongoose.connection) {
+      console.error(
+        "❌ mongoose.connection is undefined, cannot set up event handlers."
+      );
+      return;
+    }
+
     mongoose.connection.on("error", (err: any) => {
       console.error("❌ Database error:", err);
     });
