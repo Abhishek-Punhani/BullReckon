@@ -67,7 +67,7 @@ const RiskPage = () => {
     try {
       const token = authService.getToken();
       if (!token) return;
-      const response = await calcService.getRiskSettings(token);
+      const response = await calcService.getRiskSettings();
       const data = response.data;
       setSettings(data);
     } catch (error) {
@@ -93,7 +93,7 @@ const RiskPage = () => {
       const token = authService.getToken();
       if (!token || !settings) return;
       
-      await calcService.updateRiskSettings(settings, token);
+      await calcService.updateRiskSettings(settings);
       await refreshSettings();
     } catch (error) {
       console.error("Error saving risk settings:", error);

@@ -74,7 +74,7 @@ export default function TradeModal({ symbol }: Props) {
 
       // Try to call calcService.executeTrade if backend supports it
       if (token) {
-        await calcService.executeTrade(trade, token);
+        await calcService.executeTrade(trade);
       } else {
         throw new Error("User not authenticated");
       }
