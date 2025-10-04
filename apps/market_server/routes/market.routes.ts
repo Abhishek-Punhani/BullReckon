@@ -10,6 +10,7 @@ import {
   getLivePrice,
   getCompanyInfo,
 } from "../controllers/market.controllers";
+import { protectRoute } from "middleware/authMiddleware";
 
 const marketRoutes: Router = Router();
 
@@ -30,6 +31,6 @@ marketRoutes.delete("/cache", clearCache);
 marketRoutes.get("/internal/quote/:symbol", internalAuth, getStockQuote);
 
 // long polling route for prices
-marketRoutes.get("/long-poll/prices", getLivePrice);
+marketRoutes.get("/long-poll/prices", protectRoute, getLivePrice);
 
 export { marketRoutes };
