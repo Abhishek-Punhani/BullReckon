@@ -5,6 +5,7 @@ import {
   tradingController,
 } from "../contollers/market.controller";
 import { protectRoute } from "../../../middleware/authMiddleware";
+import { internalAuth } from "../../../middleware/internalAuthMiddleware";
 import { authenticateApiKey } from "../apiMiddleware";
 import backtestRoutes from "./backtest.routes";
 
@@ -29,6 +30,7 @@ apiRoutes.get(
 );
 
 // GET /api/market/historical/:symbol?period=1d
+// OR for backtest: GET /api/market/historical/:symbol?interval=1h&start=2023-01-01T00:00:00Z&end=2023-12-31T23:59:59Z
 apiRoutes.get(
   "/market/historical/:symbol",
   authenticateApiKey,
@@ -44,6 +46,14 @@ apiRoutes.get(
 
 // Trading Routes (API Key Protected)
 apiRoutes.post("/trade", authenticateApiKey, tradingController.executeTrade);
+
+// Internal Routes (Service-to-Service)
+// GET /api/internal/market/historical/:symbol - for backtesting services
+apiRoutes.get(
+  "/internal/market/historical/:symbol",
+  internalAuth,
+  marketController.getHistoricalData
+);
 
 // Backtesting Routes (API Key Protected)
 apiRoutes.use("/backtest", authenticateApiKey, backtestRoutes);

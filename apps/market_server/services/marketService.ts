@@ -27,6 +27,21 @@ export interface StockHistoricalData {
   }>;
 }
 
+export interface BacktestHistoricalData {
+  symbol: string;
+  interval: string;
+  start: string;
+  end: string;
+  data: Array<{
+    timestamp: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+  }>;
+}
+
 class MarketService {
   private cache: Map<string, { data: any; expiresAt: number }> = new Map();
   private priceTimestamps: Map<string, number> = new Map(); // Track when prices were actually fetched
@@ -187,6 +202,121 @@ class MarketService {
       if (error instanceof ErrorHandling) throw error;
       throw new ErrorHandling(
         `Failed to fetch historical data for ${symbol}: ${error?.message || String(error)}`,
+        502
+      );
+    }
+  }
+
+  /**
+   * Get historical stock data for backtest with specific interval and date range
+   */
+  async getHistoricalDataForBacktest(
+    symbol: string,
+    interval: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<BacktestHistoricalData> {
+    const cacheKey = `backtest_${symbol.toUpperCase()}_${interval}_${startDate.getTime()}_${endDate.getTime()}`;
+    const cached = this.getCachedData(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      // Map our intervals to Yahoo Finance intervals
+      const yahooIntervalMap: Record<string, string> = {
+        "1m": "1m",
+        "5m": "5m",
+        "15m": "15m",
+        "30m": "30m",
+        "1h": "1h",
+        "1d": "1d",
+      };
+
+      const yahooInterval = yahooIntervalMap[interval] || "1d";
+
+      let result: any = null;
+
+      // Primary attempt using the provided symbol
+      try {
+        result = await yahooFinance.historical(symbol, {
+          period1: startDate,
+          period2: endDate,
+          interval: yahooInterval as any,
+        });
+      } catch (yErr) {
+        console.warn(
+          `Primary yahoo.historical lookup failed for ${symbol}: ${yErr}`
+        );
+      }
+
+      // If no usable result, try common normalization for crypto pairs (USDT -> -USD)
+      if (!result || (Array.isArray(result) && result.length === 0)) {
+        try {
+          const up = String(symbol).toUpperCase();
+          if (up.endsWith("USDT")) {
+            const alt = up.replace(/USDT$/i, "-USD");
+            console.info(`Trying alternate symbol for Yahoo: ${alt}`);
+            result = await yahooFinance.historical(alt, {
+              period1: startDate,
+              period2: endDate,
+              interval: yahooInterval as any,
+            });
+          }
+        } catch (altErr) {
+          console.warn(
+            `Alternate yahoo.historical lookup failed for ${symbol}: ${altErr}`
+          );
+        }
+      }
+
+      // Some Yahoo responses can be nested or empty; normalize to an array if possible
+      const resultArray = Array.isArray(result) ? result : result?.prices || [];
+
+      if (resultArray && resultArray.length > 0) {
+        const backtestData: BacktestHistoricalData = {
+          symbol: symbol.toUpperCase(),
+          interval,
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+          data: resultArray
+            .map((item: any) => ({
+              timestamp: item.date.toISOString(),
+              open: item.open || 0,
+              high: item.high || 0,
+              low: item.low || 0,
+              close: item.close || 0,
+              volume: item.volume || 0,
+            }))
+            .sort(
+              (a: any, b: any) =>
+                new Date(a.timestamp).getTime() -
+                new Date(b.timestamp).getTime()
+            ),
+        };
+
+        // Cache backtest data for longer (10 minutes)
+        this.setCachedData(cacheKey, backtestData, 10 * 60 * 1000);
+        return backtestData;
+      }
+
+      // Yahoo returned no usable data
+      console.warn(
+        `No backtest historical data from Yahoo for ${symbol} (interval=${interval}, ${startDate.toISOString()} to ${endDate.toISOString()})`
+      );
+      throw new ErrorHandling(
+        `No historical data available from provider for ${symbol} in the specified date range`,
+        502
+      );
+    } catch (error: any) {
+      console.error(
+        `Error fetching backtest historical data for ${symbol}:`,
+        error
+      );
+      if (error instanceof ErrorHandling) throw error;
+      throw new ErrorHandling(
+        `Failed to fetch backtest historical data for ${symbol}: ${error?.message || String(error)}`,
         502
       );
     }

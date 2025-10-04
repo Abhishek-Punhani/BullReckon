@@ -59,19 +59,29 @@ export const marketController = {
   ) => {
     try {
       const { symbol } = req.params;
-      const { period } = req.query;
+      const { period, interval, start, end } = req.query;
 
       if (!symbol) {
         return next(new ErrorHandling("Symbol is required", 400));
       }
 
-      const url = `${MARKET_SERVER_URL}/api/market/historical/${symbol}${period ? `?period=${period}` : ""}`;
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (period) queryParams.set("period", period as string);
+      if (interval) queryParams.set("interval", interval as string);
+      if (start) queryParams.set("start", start as string);
+      if (end) queryParams.set("end", end as string);
+
+      const queryString = queryParams.toString();
+      const url = `${MARKET_SERVER_URL}/api/market/historical/${symbol}${queryString ? `?${queryString}` : ""}`;
+
       const response = await axios.get(url);
 
       res.json({
         success: true,
         data: response.data,
         requestedBy: req.apiUser?.email,
+        format: response.data.format || "legacy",
       });
     } catch (error: any) {
       console.error("Error fetching historical data:", error);
@@ -148,7 +158,7 @@ export const tradingController = {
         return next(new ErrorHandling("API authentication required", 401));
       }
 
-      // Forward the trade request to calc server
+      // Forward the trade request to calc server using internal route
       const tradeData = {
         symbol,
         action: action.toUpperCase(),
@@ -159,11 +169,13 @@ export const tradingController = {
       };
 
       const response = await axios.post(
-        `${CALC_SERVER_URL}/api/trades`,
+        `${CALC_SERVER_URL}/api/trades/internal`,
         tradeData,
         {
           headers: {
             "Content-Type": "application/json",
+            "X-Service-Secret": process.env.INTERNAL_SERVICE_SECRET,
+            "X-Internal-Service": "api-server",
             "X-API-Email": req.apiUser.email,
             "X-API-Key-ID": req.apiUser.keyId,
           },
