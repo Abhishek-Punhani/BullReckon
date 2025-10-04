@@ -90,7 +90,7 @@ const Backtest = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/40 to-background/80">
       <Navigation />
-      <div className="container max-w-7xl mx-auto px-6 py-10 space-y-8">
+      <div className="lg:ml-64 container max-w-7xl mx-auto px-6 py-10 space-y-8">
         <div className="flex items-center justify-between mb-2">
           <div>
             <h1 className="text-4xl font-extrabold tracking-tight flex items-center gap-2">
