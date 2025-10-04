@@ -183,4 +183,35 @@ export const authService = {
       throw new Error(message);
     }
   },
+
+  async updateProfile(data: {
+    firstName?: string;
+    lastName?: string;
+    photo?: string;
+  }) {
+    try {
+      const response = await axios.post(
+        `${API_CONFIG.AUTH_SERVER}/api/auth/user/update`,
+        data,
+        {
+          withCredentials: true,
+          headers: {
+            Authorization: `Bearer ${this.getToken()}`,
+          },
+        }
+      );
+      const result = response.data;
+
+      // Update localStorage with the new user object from backend
+      if (result?.user && typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify(result.user));
+      }
+
+      return result.user;
+    } catch (error: any) {
+      throw new Error(
+        error?.response?.data?.message || "Profile update failed"
+      );
+    }
+  },
 };

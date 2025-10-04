@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    reactStrictMode: false, // Disable strict mode to prevent double rendering
+  reactStrictMode: false,
+  images: {
+    domains: ["lh3.googleusercontent.com", "res.cloudinary.com"],
+  },
 };
 
 export default nextConfig;

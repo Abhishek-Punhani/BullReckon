@@ -68,7 +68,7 @@ const RegisterPage = () => {
       });
     } finally {
       setIsLoading(false);
-      router.push("/auth/post-register-mail-confirmation");
+      router.push("/auth/post-register-mail-confirmation?type=activate");
     }
   };
 

@@ -332,7 +332,7 @@ export const changePassword = async (
   res: Response,
   next: NextFunction
 ) => {
-  const { token, newPassword, type } = req.body;
+  const { token, newPassword } = req.body;
   if (!token || !newPassword) {
     return next(new ErrorHandling("Token and new password are required", 400));
   }
@@ -368,7 +368,6 @@ export const changePassword = async (
   return res.status(200).json({
     status: "success",
     message: "Password changed successfully",
-    type: type,
   });
 };
 
@@ -450,5 +449,46 @@ export const googleAuth = async (
   } catch (error) {
     console.error("Google auth error:", error);
     return next(new ErrorHandling("Authentication failed", 401));
+  }
+};
+
+export const updateUserProfile = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?._id;
+    const { firstName, lastName, photo } = req.body;
+
+    const updateData: any = {};
+    if (firstName) updateData.firstName = firstName;
+    if (lastName) updateData.lastName = lastName;
+    if (photo) updateData.photo = photo;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateData },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return next(new ErrorHandling("User not found", 404));
+    }
+
+    return res.status(200).json({
+      status: "success",
+      message: "Profile updated successfully",
+      user: {
+        _id: updatedUser._id,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        photo: updatedUser.photo,
+        email: updatedUser.email,
+        balance: updatedUser.balance,
+      },
+    });
+  } catch (err) {
+    next(err);
   }
 };

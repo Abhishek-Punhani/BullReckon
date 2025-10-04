@@ -51,7 +51,7 @@ const sendPasswordResetEmail = async (
     expiresIn: "5m",
   });
 
-  const url = `${CLIENT_URL}/reset_password/${token}`;
+  const url = `${CLIENT_URL}/auth/reset_password/${token}`;
 
   try {
     // Add to queue for async processing

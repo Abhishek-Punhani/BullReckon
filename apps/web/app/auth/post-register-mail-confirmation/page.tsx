@@ -1,8 +1,24 @@
 "use client";
 import Link from "next/link";
 import { MailCheck, CheckCircle2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 const MailSentPage = () => {
+  const searchParams = useSearchParams();
+  const type =
+    (searchParams.get("type") as "activate" | "reset" | "forgot") || "activate";
+
+  const title = "Mail Sent!";
+  let heading = "Activate your account";
+  let message =
+    "We've sent a verification link to your email. Please check your inbox and follow the instructions to activate your account.\nIf you don't see the email, check your spam folder or try resending.";
+
+  if (type === "reset" || type === "forgot") {
+    heading = "Reset your password";
+    message =
+      "We've sent a password reset link to your email. Please check your inbox and follow the instructions to reset your password.\nIf you don't see the email, check your spam folder or try resending.";
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
@@ -13,19 +29,12 @@ const MailSentPage = () => {
               BullReckon
             </h1>
           </div>
-          <p className="text-muted-foreground text-lg">
-            Please verify your email address
-          </p>
+          <p className="text-muted-foreground text-lg">{heading}</p>
         </div>
         <div className="mt-8 bg-card border border-border rounded-xl shadow-lg p-8 text-center">
           <CheckCircle2 className="mx-auto h-16 w-16 text-green-500 mb-4" />
-          <h2 className="text-2xl font-semibold mb-2">Mail Sent!</h2>
-          <p className="text-muted-foreground mb-6">
-            We've sent a verification link to your email. Please check your
-            inbox and follow the instructions to activate your account.
-            <br />
-            If you don't see the email, check your spam folder or try resending.
-          </p>
+          <h2 className="text-2xl font-semibold mb-2">{title}</h2>
+          <p className="text-muted-foreground mb-6">{message}</p>
           <Link
             href="/auth/login"
             className="inline-block w-full bg-primary text-primary-foreground font-medium rounded-lg px-5 py-3 hover:bg-primary/90 transition"
