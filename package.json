@@ -7,7 +7,7 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
-    "clean:web": "rm -rf apps/calc_server apps/market_server apps/auth_server apps/api_server packages shared middleware",
+    "clean:web": "rm -rf apps/calc_server apps/market_server apps/auth_server apps/api_server shared middleware",
     "clean:calc_server": "rm -rf apps/web apps/market_server apps/auth_server apps/api_server ",
     "clean:market_server": "rm -rf apps/web apps/calc_server apps/auth_server apps/api_server",
     "clean:auth_server": "rm -rf apps/web apps/calc_server apps/market_server apps/api_server",
