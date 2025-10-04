@@ -7,8 +7,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { SYMBOLS, INDICATORS } from "@/lib/mockData";
 import { Blocks, Plus, Play, Save, Trash2, Settings } from "lucide-react";
+
+// You may want to import SYMBOLS and INDICATORS from your data source
+const SYMBOLS = [
+  { value: "BTCUSDT", label: "BTCUSDT", icon: "₿" },
+  { value: "ETHUSDT", label: "ETHUSDT", icon: "Ξ" },
+  { value: "BNBUSDT", label: "BNBUSDT", icon: "🟡" },
+];
+const INDICATORS = [
+  { value: "rsi", label: "RSI" },
+  { value: "ema", label: "EMA" },
+  { value: "macd", label: "MACD" },
+  { value: "bollinger", label: "Bollinger Bands" },
+  { value: "volume", label: "Volume" },
+];
 
 interface Rule {
   id: string;
@@ -26,24 +39,8 @@ interface Rule {
 }
 
 const NoCodeBuilder = () => {
-  const [rules, setRules] = useState<Rule[]>([
-    {
-      id: "1",
-      condition: {
-        indicator: "rsi",
-        operator: "less_than",
-        value: "30",
-        symbol: "BTCUSDT",
-      },
-      action: {
-        type: "BUY",
-        quantity: "10",
-        quantityType: "percentage",
-      },
-    },
-  ]);
-
-  const [strategyName, setStrategyName] = useState("My RSI Strategy");
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [strategyName, setStrategyName] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const { toast } = useToast();
 
@@ -61,14 +58,14 @@ const NoCodeBuilder = () => {
     const newRule: Rule = {
       id: (rules.length + 1).toString(),
       condition: {
-        indicator: "rsi",
-        operator: "less_than",
-        value: "30",
-        symbol: "BTCUSDT",
+        indicator: INDICATORS[0].value,
+        operator: operators[0].value,
+        value: "",
+        symbol: SYMBOLS[0].value,
       },
       action: {
         type: "BUY",
-        quantity: "5",
+        quantity: "",
         quantityType: "percentage",
       },
     };
@@ -129,7 +126,7 @@ const NoCodeBuilder = () => {
     await new Promise(resolve => setTimeout(resolve, 3000));
     toast({
       title: "Backtest Complete",
-      description: "Your strategy achieved a 12.5% return with 67% win rate.",
+      description: "Backtest finished.",
     });
     setIsRunning(false);
   };
