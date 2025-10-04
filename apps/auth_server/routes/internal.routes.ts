@@ -54,6 +54,23 @@ router.get("/get-user-email/:userId", async (req, res) => {
   }
 });
 
+router.get("/get-user-details/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId)
+      .select("_id firstName lastName email role isEmailVerified")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 router.post("/store-public-key", async (req, res) => {
   try {
     const { email, publicKey } = req.body;

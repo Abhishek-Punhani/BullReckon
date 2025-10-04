@@ -17,7 +17,7 @@ const app = new BaseApp({
 });
 
 // Setup routes
-app.app.use("/api", apiRoutes);
+app.addRoutes("/api", apiRoutes);
 
 app.initializeErrorHandling();
 

@@ -6,6 +6,7 @@ import {
 } from "../contollers/market.controller";
 import { protectRoute } from "../../../middleware/authMiddleware";
 import { authenticateApiKey } from "../apiMiddleware";
+import backtestRoutes from "./backtest.routes";
 
 const apiRoutes: Router = Router();
 
@@ -42,7 +43,9 @@ apiRoutes.get(
 );
 
 // Trading Routes (API Key Protected)
-// POST /api/trade
 apiRoutes.post("/trade", authenticateApiKey, tradingController.executeTrade);
+
+// Backtesting Routes (API Key Protected)
+apiRoutes.use("/backtest", authenticateApiKey, backtestRoutes);
 
 export default apiRoutes;
