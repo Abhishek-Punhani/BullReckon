@@ -128,6 +128,11 @@ export const trade = async (
         }
         portfolio.cash += tradeValue;
         portfolio.removePosition(symbol, quantity);
+        // Update realizedPnL only for executed SELL trades
+        const realizedPnL =
+          (executionPrice - position.avgBuyPrice) * quantity - tempTrade.fees;
+        portfolio.realizedPnL += realizedPnL;
+        tempTrade.realizedPnL = realizedPnL;
       }
       await portfolio.save();
     } else {

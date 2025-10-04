@@ -1,9 +1,9 @@
 import { Job } from "bullmq";
-import { PendingOrderJobData } from "../../../shared/queueManager";
 import { Trade } from "../models/trade";
 import { Portfolio } from "../models/portfolio";
 import { fetchLivePrice } from "../utils/fetchPrice";
 import { sendTradeConfirmationEmail } from "../utils/emailUtils";
+import { PendingOrderJobData } from "../queue.setup";
 
 export async function processPendingOrder(job: Job<PendingOrderJobData>) {
   const { tradeId, userId, symbol, action, orderType, limitPrice, stopPrice } =
@@ -119,6 +119,11 @@ async function executeTrade(trade: any, price: number): Promise<void> {
     const proceeds = price * trade.quantity - trade.fees;
     portfolio.cash += proceeds;
     portfolio.removePosition(trade.symbol, trade.quantity);
+    // Update realizedPnL only for executed SELL trades
+    const realizedPnL =
+      (price - position.avgBuyPrice) * trade.quantity - trade.fees;
+    portfolio.realizedPnL += realizedPnL;
+    trade.realizedPnL = realizedPnL;
   }
 
   await portfolio.save();
