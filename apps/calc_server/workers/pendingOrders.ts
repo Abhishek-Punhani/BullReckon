@@ -73,12 +73,18 @@ export async function processPendingOrder(job: Job<PendingOrderJobData>) {
       console.log(`✅ Executed pending order ${tradeId} at ${executionPrice}`);
       return { success: true, executedAt: executionPrice };
     } else {
-      // Re-queue for later processing
-      console.log(`⏸️ Order ${tradeId} conditions not met, re-queuing`);
-      await job.moveToDelayed(Date.now() + 60 * 1000);
-      return { success: false, reason: "Conditions not met, re-queued" };
+      // Conditions not met - throw error to trigger retry with delay
+      // BullMQ will automatically retry based on queue configuration
+      console.log(
+        `⏸️ Order ${tradeId} conditions not met (current: ${currentPrice}, limit: ${limitPrice}, stop: ${stopPrice}), will retry...`
+      );
+      throw new Error("ORDER_CONDITIONS_NOT_MET");
     }
-  } catch (error) {
+  } catch (error: any) {
+    // Don't log errors for conditions not met (expected behavior)
+    if (error.message === "ORDER_CONDITIONS_NOT_MET") {
+      throw error; // Let BullMQ handle retry
+    }
     console.error(`❌ Error processing pending order ${tradeId}:`, error);
     throw error;
   }

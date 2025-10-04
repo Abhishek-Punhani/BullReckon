@@ -87,6 +87,7 @@ export default function SymbolPage() {
   const [quantity, setQuantity] = useState(1);
   const [limitPrice, setLimitPrice] = useState("");
   const [stopPrice, setStopPrice] = useState("");
+  const [takeProfitPrice, setTakeProfitPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Subscribe to live prices
@@ -219,22 +220,54 @@ export default function SymbolPage() {
     let source = "market";
     if (orderType === "limit") source = "limit";
     else if (orderType === "stop") source = "stop_loss";
+    else if (orderType === "take_profit") source = "take_profit";
 
-    const orderDetails = {
+    const orderDetails: any = {
       symbol,
       quantity,
       action,
       source,
-      limitPrice: orderType === "limit" ? Number(limitPrice) : undefined,
-      stopPrice: orderType === "stop" ? Number(stopPrice) : undefined,
     };
+
+    // Add price fields based on order type
+    if (orderType === "limit" && limitPrice) {
+      orderDetails.limitPrice = Number(limitPrice);
+    }
+
+    if (orderType === "stop" && stopPrice) {
+      orderDetails.stopPrice = Number(stopPrice);
+    }
+
+    if (orderType === "take_profit" && takeProfitPrice) {
+      orderDetails.stopPrice = Number(takeProfitPrice);
+    }
+
+    // CRITICAL: For market/limit orders, if user sets SL/TP in the optional fields, add them
+    // These will create separate pending SELL orders after the main order executes
+    if ((orderType === "market" || orderType === "limit") && action === "BUY") {
+      if (stopPrice && Number(stopPrice) > 0) {
+        orderDetails.stopLoss = Number(stopPrice);
+      }
+      if (takeProfitPrice && Number(takeProfitPrice) > 0) {
+        orderDetails.takeProfit = Number(takeProfitPrice);
+      }
+    }
 
     setSubmitting(true);
     try {
-      await tradeService.placeOrder(orderDetails);
+      const result = await tradeService.placeOrder(orderDetails);
+
+      // Show success message with details about pending orders
+      const pendingCount = result?.data?.pendingOrders || 0;
+      const baseMessage = `${action} ${quantity} ${symbol} at ${orderType === "market" ? "market price" : orderType === "limit" ? `$${limitPrice}` : `stop $${stopPrice}`}`;
+      const fullMessage =
+        pendingCount > 0
+          ? `${baseMessage} with ${pendingCount} pending order(s) (SL/TP)`
+          : baseMessage;
+
       toast({
         title: "Order Placed Successfully",
-        description: `${action} ${quantity} ${symbol} at ${orderType === "market" ? "market price" : orderType === "limit" ? `$${limitPrice}` : `stop $${stopPrice}`}`,
+        description: fullMessage,
       });
 
       // Refresh holdings
@@ -245,6 +278,7 @@ export default function SymbolPage() {
       setQuantity(1);
       setLimitPrice("");
       setStopPrice("");
+      setTakeProfitPrice("");
     } catch (error: unknown) {
       toast({
         title: "Order Failed",
@@ -485,7 +519,8 @@ export default function SymbolPage() {
                       <SelectContent>
                         <SelectItem value="market">Market Order</SelectItem>
                         <SelectItem value="limit">Limit Order</SelectItem>
-                        <SelectItem value="stop">Stop Order</SelectItem>
+                        <SelectItem value="stop">Stop Loss</SelectItem>
+                        <SelectItem value="take_profit">Take Profit</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -520,9 +555,9 @@ export default function SymbolPage() {
 
                   {orderType === "stop" && (
                     <div className="space-y-2">
-                      <Label htmlFor="stopPrice">Stop Price</Label>
+                      <Label htmlFor="stopPriceMain">Stop Loss Price</Label>
                       <Input
-                        id="stopPrice"
+                        id="stopPriceMain"
                         type="number"
                         min="0"
                         step="0.01"
@@ -531,6 +566,60 @@ export default function SymbolPage() {
                         placeholder={currentPrice.toFixed(2)}
                         className="text-lg font-semibold"
                       />
+                    </div>
+                  )}
+
+                  {orderType === "take_profit" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="takeProfitPriceMain">
+                        Take Profit Price
+                      </Label>
+                      <Input
+                        id="takeProfitPriceMain"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={takeProfitPrice}
+                        onChange={(e) => setTakeProfitPrice(e.target.value)}
+                        placeholder={currentPrice.toFixed(2)}
+                        className="text-lg font-semibold"
+                      />
+                    </div>
+                  )}
+
+                  {/* Only show optional SL/TP for market and limit orders */}
+                  {(orderType === "market" || orderType === "limit") && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="stopPrice" className="text-xs">
+                          Stop Loss (optional)
+                        </Label>
+                        <Input
+                          id="stopPrice"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={stopPrice}
+                          onChange={(e) => setStopPrice(e.target.value)}
+                          placeholder={(currentPrice * 0.95).toFixed(2)}
+                          className="text-sm font-semibold"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="takeProfitPrice" className="text-xs">
+                          Take Profit (optional)
+                        </Label>
+                        <Input
+                          id="takeProfitPrice"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={takeProfitPrice}
+                          onChange={(e) => setTakeProfitPrice(e.target.value)}
+                          placeholder={(currentPrice * 1.05).toFixed(2)}
+                          className="text-sm font-semibold"
+                        />
+                      </div>
                     </div>
                   )}
 

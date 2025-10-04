@@ -269,15 +269,21 @@ export const portfolioController = {
       const enhancedTrades = trades.map((trade) => {
         const currentPrice = currentPrices[trade.symbol];
 
-        // Calculate unrealized P&L for open positions
+        // Calculate unrealized P&L ONLY for pending orders (not executed trades)
         let unrealizedPnL = null;
-        if (trade.status === "executed" && currentPrice) {
+        if (trade.status === "pending" && currentPrice) {
+          // For pending BUY: estimate potential profit if executed now
+          // For pending SELL: estimate potential profit if executed now
           if (trade.action === "BUY") {
-            unrealizedPnL =
-              (currentPrice - trade.triggerPrice) * trade.quantity;
+            // Pending buy at triggerPrice, current market value vs what we'd pay
+            const estimatedCost =
+              trade.triggerPrice * trade.quantity + trade.fees;
+            const currentMarketValue = currentPrice * trade.quantity;
+            unrealizedPnL = currentMarketValue - estimatedCost;
           } else if (trade.action === "SELL") {
-            unrealizedPnL =
-              (trade.triggerPrice - currentPrice) * trade.quantity;
+            // Pending sell - need to get the avgBuyPrice from portfolio
+            // For now, we'll skip unrealized P&L for pending sells as it requires position lookup
+            unrealizedPnL = null;
           }
         }
 
@@ -350,14 +356,23 @@ export const portfolioController = {
           (sum, trade) => sum + (trade.fees || 0),
           0
         ),
-        totalRealizedPnL: filteredTrades.reduce(
-          (sum, trade) => sum + (trade.realizedPnL || 0),
-          0
-        ),
-        totalUnrealizedPnL: filteredTrades.reduce(
-          (sum, trade) => sum + (trade.unrealizedPnL || 0),
-          0
-        ),
+        // Only include realized P&L from executed SELL trades
+        totalRealizedPnL: filteredTrades
+          .filter(
+            (t) =>
+              t.status === "executed" &&
+              t.action === "SELL" &&
+              t.realizedPnL !== undefined
+          )
+          .reduce((sum, trade) => sum + (trade.realizedPnL || 0), 0),
+        // Only include unrealized P&L from pending trades or executed BUY trades
+        totalUnrealizedPnL: filteredTrades
+          .filter(
+            (t) =>
+              t.status === "pending" ||
+              (t.status === "executed" && t.action === "BUY")
+          )
+          .reduce((sum, trade) => sum + (trade.unrealizedPnL || 0), 0),
         buyTrades: filteredTrades.filter((t) => t.action === "BUY").length,
         sellTrades: filteredTrades.filter((t) => t.action === "SELL").length,
 
@@ -380,7 +395,13 @@ export const portfolioController = {
           .length,
 
         profitableTrades: filteredTrades.filter((t) => {
-          const pnl = t.realizedPnL ?? t.unrealizedPnL ?? 0;
+          // For executed SELL trades, use realized P&L, otherwise use unrealized P&L
+          const pnl =
+            t.status === "executed" &&
+            t.action === "SELL" &&
+            t.realizedPnL !== undefined
+              ? t.realizedPnL
+              : (t.unrealizedPnL ?? 0);
           return pnl > 0;
         }).length,
         uniqueSymbols: [...new Set(filteredTrades.map((t) => t.symbol))].length,
@@ -456,8 +477,11 @@ export const portfolioController = {
       await portfolio.refreshMarketValues(currentPrices);
       await portfolio.save();
 
-      // Get recent trades
-      const recentTrades = await Trade.find({ userId })
+      // Get recent trades (only executed trades for dashboard)
+      const recentTrades = await Trade.find({
+        userId,
+        status: "executed", // Only show executed trades on dashboard
+      })
         .sort({ executedAt: -1 })
         .limit(5)
         .lean();
@@ -605,6 +629,7 @@ export const portfolioController = {
               totalInvested: 0,
               totalCurrentValue: 0,
               totalUnrealizedPnL: 0,
+              totalRealizedPnL: 0, // Include realized P&L even when no positions
               profitablePositions: 0,
               losingPositions: 0,
               winRate: 0,
@@ -780,6 +805,7 @@ export const portfolioController = {
             totalInvested,
             totalCurrentValue,
             totalUnrealizedPnL,
+            totalRealizedPnL: portfolio.realizedPnL, // Include realized P&L from portfolio
             profitablePositions,
             losingPositions,
             winRate:

@@ -41,8 +41,16 @@ export const trade = async (
       return next(new ErrorHandling(errorMsg, 400));
     }
 
-    const { symbol, action, quantity, source, limitPrice, stopPrice } =
-      req.body;
+    const {
+      symbol,
+      action,
+      quantity,
+      source,
+      limitPrice,
+      stopPrice,
+      stopLoss,
+      takeProfit,
+    } = req.body;
     const userId = req.user._id;
     const currentPrice = await fetchLivePrice(symbol);
 
@@ -174,6 +182,100 @@ export const trade = async (
 
     await tempTrade.save();
 
+    // Track created trades for response
+    const createdTrades = [tempTrade];
+
+    // CRITICAL: If the main order executed and it was a BUY with stopLoss or takeProfit, create additional pending orders
+    if (execute && action === "BUY") {
+      console.log(
+        `🔍 Checking for SL/TP: stopLoss=${stopLoss}, takeProfit=${takeProfit}`
+      );
+
+      // Create stop loss order (SELL when price drops)
+      if (stopLoss && stopLoss > 0) {
+        const stopLossTrade = new Trade({
+          userId,
+          symbol,
+          action: "SELL",
+          quantity,
+          triggerPrice: currentPrice,
+          fees: stopLoss * quantity * 0.001,
+          total: stopLoss * quantity,
+          source: "stop_loss",
+          stopPrice: stopLoss,
+          status: "pending",
+          executedAt: null,
+          marketData: {
+            open: currentPrice,
+            high: currentPrice,
+            low: currentPrice,
+            close: currentPrice,
+            volume: 0,
+          },
+        });
+        await stopLossTrade.save();
+        createdTrades.push(stopLossTrade);
+
+        // Queue the stop loss order
+        if (global.queueManager?.addPendingOrderJob) {
+          await global.queueManager.addPendingOrderJob({
+            tradeId: stopLossTrade._id.toString(),
+            userId,
+            symbol,
+            action: "SELL",
+            quantity,
+            orderType: "stop_loss",
+            stopPrice: stopLoss,
+            triggerPrice: currentPrice,
+          });
+        }
+        console.log(`✅ Stop Loss order created at $${stopLoss} for ${symbol}`);
+      }
+
+      // Create take profit order (SELL when price rises)
+      if (takeProfit && takeProfit > 0) {
+        const takeProfitTrade = new Trade({
+          userId,
+          symbol,
+          action: "SELL",
+          quantity,
+          triggerPrice: currentPrice,
+          fees: takeProfit * quantity * 0.001,
+          total: takeProfit * quantity,
+          source: "take_profit",
+          stopPrice: takeProfit,
+          status: "pending",
+          executedAt: null,
+          marketData: {
+            open: currentPrice,
+            high: currentPrice,
+            low: currentPrice,
+            close: currentPrice,
+            volume: 0,
+          },
+        });
+        await takeProfitTrade.save();
+        createdTrades.push(takeProfitTrade);
+
+        // Queue the take profit order
+        if (global.queueManager?.addPendingOrderJob) {
+          await global.queueManager.addPendingOrderJob({
+            tradeId: takeProfitTrade._id.toString(),
+            userId,
+            symbol,
+            action: "SELL",
+            quantity,
+            orderType: "take_profit",
+            stopPrice: takeProfit,
+            triggerPrice: currentPrice,
+          });
+        }
+        console.log(
+          `✅ Take Profit order created at $${takeProfit} for ${symbol}`
+        );
+      }
+    }
+
     if (execute) {
       sendTradeConfirmationEmail(
         userId,
@@ -189,8 +291,15 @@ export const trade = async (
 
     return res.json({
       success: true,
-      message: execute ? "Trade executed" : "Order placed (pending)",
-      data: { trade: tempTrade, portfolio },
+      message: execute
+        ? `Trade executed${createdTrades.length > 1 ? ` with ${createdTrades.length - 1} additional pending order(s)` : ""}`
+        : "Order placed (pending)",
+      data: {
+        trade: tempTrade,
+        portfolio,
+        allTrades: createdTrades, // Include all created trades (main + SL + TP)
+        pendingOrders: createdTrades.length - 1, // Number of additional pending orders
+      },
     });
   } catch (err) {
     next(err);

@@ -8,6 +8,8 @@ interface OrderDetails {
   source: string;
   limitPrice?: number;
   stopPrice?: number;
+  stopLoss?: number;
+  takeProfit?: number;
 }
 
 export const tradeService = {
@@ -26,6 +28,8 @@ export const tradeService = {
         source: string;
         limitPrice?: number;
         stopPrice?: number;
+        stopLoss?: number;
+        takeProfit?: number;
       } = {
         symbol: orderDetails.symbol,
         quantity: orderDetails.quantity,
@@ -50,7 +54,15 @@ export const tradeService = {
         tradeData.stopPrice = orderDetails.stopPrice;
       }
 
-      const result = await calcService.executeTrade(tradeData, token);
+      // CRITICAL: Always include stopLoss and takeProfit if set (for market orders with SL/TP)
+      if (orderDetails.stopLoss !== undefined) {
+        tradeData.stopLoss = orderDetails.stopLoss;
+      }
+      if (orderDetails.takeProfit !== undefined) {
+        tradeData.takeProfit = orderDetails.takeProfit;
+      }
+
+      const result = await calcService.executeTrade(tradeData);
       return result;
     } catch (error) {
       console.error("Trade execution failed:", error);

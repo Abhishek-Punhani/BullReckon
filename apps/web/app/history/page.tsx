@@ -745,12 +745,36 @@ const HistoryPage = () => {
             </thead>
             <tbody>
               {updatedTrades.map((trade) => {
-                const pnl = trade.realizedPnL ?? trade.unrealizedPnL ?? 0;
+                // Determine P&L based on trade status and action
+                let pnl = 0;
+                let pnlType = "-";
+
+                if (trade.status === "executed") {
+                  if (
+                    trade.action === "SELL" &&
+                    trade.realizedPnL !== undefined
+                  ) {
+                    // Executed SELL trades show realized P&L
+                    pnl = trade.realizedPnL;
+                    pnlType = "Realized";
+                  } else if (
+                    trade.action === "BUY" &&
+                    trade.unrealizedPnL !== undefined
+                  ) {
+                    // Executed BUY trades show unrealized P&L
+                    pnl = trade.unrealizedPnL;
+                    pnlType = "Unrealized";
+                  }
+                } else if (
+                  trade.status === "pending" &&
+                  trade.unrealizedPnL !== undefined
+                ) {
+                  // Pending trades show unrealized P&L
+                  pnl = trade.unrealizedPnL;
+                  pnlType = "Unrealized";
+                }
+
                 const isPnLPositive = pnl >= 0;
-                const pnlType =
-                  trade.realizedPnL !== undefined && trade.realizedPnL !== null
-                    ? "Realized"
-                    : "Unrealized";
 
                 return (
                   <tr

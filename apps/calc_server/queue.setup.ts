@@ -80,11 +80,11 @@ export async function setupCalcQueues(
       {
         defaultJobOptions: {
           removeOnComplete: 100,
-          removeOnFail: 50,
-          attempts: 3,
+          removeOnFail: false, // Keep failed jobs for monitoring
+          attempts: Number.MAX_SAFE_INTEGER, // Retry indefinitely until conditions are met
           backoff: {
-            type: "exponential",
-            delay: 2000,
+            type: "fixed",
+            delay: 30000, // Check every 30 seconds
           },
         },
       }
@@ -95,9 +95,9 @@ export async function setupCalcQueues(
       "pending-orders",
       processPendingOrder,
       {
-        concurrency: 5,
+        concurrency: 10, // Increased concurrency for monitoring multiple orders
         limiter: {
-          max: 50,
+          max: 100,
           duration: 60000,
         },
         onCompleted: (job, result) => {
@@ -107,10 +107,13 @@ export async function setupCalcQueues(
           );
         },
         onFailed: (job, error) => {
-          console.error(
-            `❌ [Calc] Pending order job ${job?.id} failed:`,
-            error.message
-          );
+          // Don't log errors for "conditions not met" (expected behavior)
+          if (error?.message !== "ORDER_CONDITIONS_NOT_MET") {
+            console.error(
+              `❌ [Calc] Pending order job ${job?.id} failed:`,
+              error.message
+            );
+          }
         },
         onError: (error) => {
           console.error("❌ [Calc] Pending orders worker error:", error);

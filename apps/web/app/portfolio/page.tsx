@@ -65,6 +65,7 @@ interface PositionsData {
     totalInvested: number;
     totalCurrentValue: number;
     totalUnrealizedPnL: number;
+    totalRealizedPnL: number; // Add realized P&L to interface
     profitablePositions: number;
     losingPositions: number;
     winRate: number;
@@ -441,7 +442,7 @@ const HoldingsPage = () => {
 
           {/* Summary Statistics */}
           {summary && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
@@ -495,6 +496,33 @@ const HoldingsPage = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
+                    Realized P&L
+                  </CardTitle>
+                  {summary.totalRealizedPnL >= 0 ? (
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div
+                    className={`text-2xl font-bold ${
+                      summary.totalRealizedPnL >= 0
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {formatCurrency(summary.totalRealizedPnL)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    From closed trades
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
                     Unrealized P&L
                   </CardTitle>
                   {summary.totalUnrealizedPnL >= 0 ? (
@@ -514,7 +542,7 @@ const HoldingsPage = () => {
                     {formatCurrency(summary.totalUnrealizedPnL)}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {formatPercentage(summary.averageReturn)}
+                    Open positions
                   </p>
                 </CardContent>
               </Card>

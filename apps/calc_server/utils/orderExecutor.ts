@@ -5,13 +5,13 @@ import { ExecutionResult } from "../types";
  *
  * Order Types:
  * 1. MARKET: Executes immediately at current price
- * 2. LIMIT: Executes only when price reaches desired level
+ * 2. LIMIT: Always queued as pending, worker monitors continuously
  *    - Buy Limit: Executes when price <= limitPrice (buy at or below)
  *    - Sell Limit: Executes when price >= limitPrice (sell at or above)
- * 3. STOP (stop_loss): Trigger order that converts to market order
+ * 3. STOP (stop_loss): Always queued as pending, worker monitors continuously
  *    - Buy Stop: Executes when price >= stopPrice (breakout buy)
  *    - Sell Stop: Executes when price <= stopPrice (stop loss sell)
- * 4. TAKE_PROFIT: Executes when profit target is reached
+ * 4. TAKE_PROFIT: Always queued as pending, worker monitors continuously
  *    - Sell Take Profit: Executes when price >= stopPrice
  */
 export const executeOrder = ({
@@ -37,53 +37,16 @@ export const executeOrder = ({
       };
 
     case "limit":
-      // Limit Buy: Execute if current price <= limit price (buy at or below)
-      if (action === "BUY" && currentPrice <= (limitPrice ?? 0)) {
-        return {
-          execute: true,
-          executionPrice: limitPrice ?? currentPrice,
-          status: "executed",
-        };
-      }
-      // Limit Sell: Execute if current price >= limit price (sell at or above)
-      if (action === "SELL" && currentPrice >= (limitPrice ?? Infinity)) {
-        return {
-          execute: true,
-          executionPrice: limitPrice ?? currentPrice,
-          status: "executed",
-        };
-      }
-      return { execute: false, executionPrice: null, status: "pending" };
-
     case "stop_loss":
-      // Stop Loss Buy: Execute if price >= stop price (breakout buy)
-      if (action === "BUY" && currentPrice >= (stopPrice ?? Infinity)) {
-        return {
-          execute: true,
-          executionPrice: currentPrice, // executed at market when triggered
-          status: "executed",
-        };
-      }
-      // Stop Loss Sell: Execute if price <= stop price (stop loss sell)
-      if (action === "SELL" && currentPrice <= (stopPrice ?? Infinity)) {
-        return {
-          execute: true,
-          executionPrice: currentPrice, // executed at market when triggered
-          status: "executed",
-        };
-      }
-      return { execute: false, executionPrice: null, status: "pending" };
-
     case "take_profit":
-      // Take Profit Sell: Execute if price >= stop price (profit target reached)
-      if (action === "SELL" && currentPrice >= (stopPrice ?? 0)) {
-        return {
-          execute: true,
-          executionPrice: currentPrice, // executed at market when triggered
-          status: "executed",
-        };
-      }
-      return { execute: false, executionPrice: null, status: "pending" };
+      // ALL limit, stop loss, and take profit orders are ALWAYS queued as pending
+      // The pending order worker will continuously monitor and execute when conditions are met
+      // This ensures orders don't execute immediately even if conditions are currently met
+      return {
+        execute: false,
+        executionPrice: null,
+        status: "pending",
+      };
 
     default:
       return { execute: false, executionPrice: null, status: "pending" };
