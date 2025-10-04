@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { mockBacktestResult, SYMBOLS } from "@/lib/mockData";
+import { mockBacktestResult, SYMBOLS, BacktestResult } from "@/lib/mockData";
 import {
   Select,
   SelectContent,
@@ -43,7 +43,7 @@ const Backtest = () => {
   });
 
   const [isRunning, setIsRunning] = useState(false);
-  const [results, setResults] = useState(mockBacktestResult);
+  const [results, setResults] = useState<BacktestResult>(mockBacktestResult);
   const [hasResults, setHasResults] = useState(true);
   const { toast } = useToast();
 
@@ -64,12 +64,35 @@ const Backtest = () => {
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // Generate mock results
-    const mockResults = {
+    const mockResults: BacktestResult = {
       ...mockBacktestResult,
       total_return: Math.random() * 30 - 5, // -5% to 25%
       max_drawdown: Math.random() * 15 + 2, // 2% to 17%
       sharpe_ratio: Math.random() * 2 + 0.5, // 0.5 to 2.5
       win_rate: Math.random() * 40 + 40, // 40% to 80%
+      trades: [
+        ...mockBacktestResult.trades,
+        {
+          id: "bt3",
+          timestamp: "2023-03-15T14:30:00Z",
+          symbol: backtestConfig.symbol,
+          action: "BUY",
+          quantity: 0.5,
+          price: 25000,
+          fees: 12.5,
+          pnl: 0,
+        },
+        {
+          id: "bt4",
+          timestamp: "2023-04-20T09:15:00Z",
+          symbol: backtestConfig.symbol,
+          action: "SELL",
+          quantity: 0.5,
+          price: 27500,
+          fees: 13.75,
+          pnl: 2463.75,
+        },
+      ],
     };
 
     setResults(mockResults);
