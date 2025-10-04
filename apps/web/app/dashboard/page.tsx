@@ -311,7 +311,7 @@ const DashboardPage = () => {
                   <Button
                     variant="outline"
                     className="ml-4"
-                    onClick={() => (window.location.href = "/login")}
+                    onClick={() => (window.location.href = "/auth/login")}
                   >
                     Go to Login
                   </Button>
