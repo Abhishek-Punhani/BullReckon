@@ -5,7 +5,8 @@
   "main": "server.ts",
   "scripts": {
     "dev": "npx tsx watch --require tsconfig-paths/register server.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
   },
   "keywords": [
     "market",
