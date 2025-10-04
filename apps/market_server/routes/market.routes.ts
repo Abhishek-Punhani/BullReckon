@@ -29,6 +29,11 @@ marketRoutes.delete("/cache", clearCache);
 
 // internal routes
 marketRoutes.get("/internal/quote/:symbol", internalAuth, getStockQuote);
+marketRoutes.get(
+  "/internal/historical/:symbol",
+  internalAuth,
+  getHistoricalData
+);
 
 // long polling route for prices
 marketRoutes.get("/long-poll/prices", protectRoute, getLivePrice);

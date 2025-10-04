@@ -33,6 +33,8 @@ export const getStockQuote = async (
 /**
  * Get historical stock data
  * GET /api/market/historical/:symbol?period=1mo
+ * OR for backtest compatibility:
+ * GET /api/market/historical/:symbol?interval=1h&start=2023-01-01T00:00:00Z&end=2023-12-31T23:59:59Z
  */
 export const getHistoricalData = async (
   req: Request,
@@ -41,12 +43,61 @@ export const getHistoricalData = async (
 ) => {
   try {
     const { symbol } = req.params;
-    const { period = "1mo" } = req.query;
+    const { period, interval, start, end } = req.query;
 
     if (!symbol) {
       return next(new ErrorHandling("Stock symbol is required", 400));
     }
 
+    // Check if this is a backtest format request
+    if (interval && start && end) {
+      // Backtest format validation
+      const validIntervals = ["1m", "5m", "15m", "30m", "1h", "1d"];
+      if (!validIntervals.includes(interval as string)) {
+        return next(
+          new ErrorHandling(
+            `Invalid interval. Valid intervals: ${validIntervals.join(", ")}`,
+            400
+          )
+        );
+      }
+
+      // Validate ISO date strings
+      const startDate = new Date(start as string);
+      const endDate = new Date(end as string);
+
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return next(
+          new ErrorHandling(
+            "Invalid date format. Use ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)",
+            400
+          )
+        );
+      }
+
+      if (startDate >= endDate) {
+        return next(
+          new ErrorHandling("Start date must be before end date", 400)
+        );
+      }
+
+      // Call service with backtest format
+      const historicalData = await marketService.getHistoricalDataForBacktest(
+        symbol,
+        interval as string,
+        startDate,
+        endDate
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: historicalData,
+        message: `Backtest historical data retrieved for ${symbol.toUpperCase()}`,
+        format: "backtest",
+      });
+    }
+
+    // Legacy format handling
     const validPeriods = [
       "1d",
       "5d",
@@ -60,7 +111,9 @@ export const getHistoricalData = async (
       "ytd",
       "max",
     ];
-    if (!validPeriods.includes(period as string)) {
+
+    const requestedPeriod = (period as string) || "1mo";
+    if (!validPeriods.includes(requestedPeriod)) {
       return next(
         new ErrorHandling(
           `Invalid period. Valid periods: ${validPeriods.join(", ")}`,
@@ -71,7 +124,7 @@ export const getHistoricalData = async (
 
     const historicalData = await marketService.getHistoricalData(
       symbol,
-      period as
+      requestedPeriod as
         | "1d"
         | "5d"
         | "1mo"
@@ -89,6 +142,7 @@ export const getHistoricalData = async (
       success: true,
       data: historicalData,
       message: `Historical data retrieved for ${symbol.toUpperCase()}`,
+      format: "legacy",
     });
   } catch (error) {
     next(error);
