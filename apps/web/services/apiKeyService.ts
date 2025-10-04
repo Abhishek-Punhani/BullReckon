@@ -1,6 +1,5 @@
-import axios from "axios";
+import api from "@/lib/api";
 import { API_CONFIG } from "../lib/config";
-import { authService } from "./authService";
 
 export interface ApiKeyData {
   id: string;
@@ -31,19 +30,9 @@ export const apiKeyService = {
    */
   async generateApiKey(expiresInDays?: number): Promise<GeneratedApiKey> {
     try {
-      const token = authService.getToken();
-      if (!token) {
-        throw new Error("Not authenticated");
-      }
-
-      const response = await axios.post(
+      const response = await api.post(
         `${API_CONFIG.API_SERVER}/api/keys/generate`,
-        { expiresInDays },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { expiresInDays }
       );
 
       return response.data.data;
@@ -61,19 +50,7 @@ export const apiKeyService = {
    */
   async getUserApiKeys(): Promise<ApiKeyData[]> {
     try {
-      const token = authService.getToken();
-      if (!token) {
-        throw new Error("Not authenticated");
-      }
-
-      const response = await axios.get(
-        `${API_CONFIG.API_SERVER}/api/keys`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await api.get(`${API_CONFIG.API_SERVER}/api/keys`);
 
       return response.data.data.keys;
     } catch (error: any) {
@@ -90,19 +67,7 @@ export const apiKeyService = {
    */
   async revokeApiKey(keyId: string): Promise<void> {
     try {
-      const token = authService.getToken();
-      if (!token) {
-        throw new Error("Not authenticated");
-      }
-
-      await axios.delete(
-        `${API_CONFIG.API_SERVER}/api/keys/${keyId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      await api.delete(`${API_CONFIG.API_SERVER}/api/keys/${keyId}`);
     } catch (error: any) {
       const message =
         error?.response?.data?.message ||

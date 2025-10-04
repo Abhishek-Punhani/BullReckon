@@ -1,6 +1,6 @@
 import { API_CONFIG } from "@/lib/config";
-import axios from "axios";
 import { authService } from "./authService";
+import api from "@/lib/api";
 
 export interface PortfolioPosition {
   symbol: string;
@@ -68,14 +68,6 @@ export interface RiskSettings {
 }
 
 class PortfolioService {
-  private getAuthHeaders() {
-    const token = localStorage.getItem("access_token");
-    return {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    };
-  }
-
   private getUserId(): string | null {
     try {
       const userData = localStorage.getItem("user");
@@ -96,9 +88,8 @@ class PortfolioService {
         throw new Error("User ID not found. Please log in again.");
       }
 
-      const response = await axios.get(
-        `${API_CONFIG.CALC_SERVER}/api/portfolio/${targetUserId}`,
-        { headers: this.getAuthHeaders() }
+      const response = await api.get(
+        `${API_CONFIG.CALC_SERVER}/api/portfolio/${targetUserId}`
       );
 
       if (!response.data.success) {
@@ -134,9 +125,8 @@ class PortfolioService {
         throw new Error("User ID not found. Please log in again.");
       }
 
-      const response = await axios.get(
-        `${API_CONFIG.CALC_SERVER}/api/portfolio/${targetUserId}/performance?period=${period}`,
-        { headers: this.getAuthHeaders() }
+      const response = await api.get(
+        `${API_CONFIG.CALC_SERVER}/api/portfolio/${targetUserId}/performance?period=${period}`
       );
 
       if (!response.data.success) {
@@ -169,9 +159,8 @@ class PortfolioService {
         throw new Error("User ID not found. Please log in again.");
       }
 
-      const response = await axios.get(
-        `${API_CONFIG.CALC_SERVER}/api/portfolio/${targetUserId}/recent-trades?limit=${limit}`,
-        { headers: this.getAuthHeaders() }
+      const response = await api.get(
+        `${API_CONFIG.CALC_SERVER}/api/portfolio/${targetUserId}/recent-trades?limit=${limit}`
       );
 
       if (!response.data.success) {
@@ -201,9 +190,8 @@ class PortfolioService {
         throw new Error("User ID not found. Please log in again.");
       }
 
-      const response = await axios.get(
-        `${API_CONFIG.CALC_SERVER}/api/portfolio/${targetUserId}/dashboard`,
-        { headers: this.getAuthHeaders() }
+      const response = await api.get(
+        `${API_CONFIG.CALC_SERVER}/api/portfolio/${targetUserId}/dashboard`
       );
 
       if (!response.data.success) {
@@ -244,10 +232,9 @@ class PortfolioService {
         throw new Error("User ID not found. Please log in again.");
       }
 
-      const response = await axios.post(
+      const response = await api.post(
         `${API_CONFIG.CALC_SERVER}/api/portfolio/${targetUserId}/positions`,
-        { symbol, quantity, price, action },
-        { headers: this.getAuthHeaders() }
+        { symbol, quantity, price, action }
       );
 
       if (!response.data.success) {
@@ -287,9 +274,8 @@ class PortfolioService {
         throw new Error("User ID not found. Please log in again.");
       }
 
-      const response = await axios.get(
-        `${API_CONFIG.CALC_SERVER}/api/risk-settings/${targetUserId}`,
-        { headers: this.getAuthHeaders() }
+      const response = await api.get(
+        `${API_CONFIG.CALC_SERVER}/api/risk-settings/${targetUserId}`
       );
 
       if (!response.data.success) {
@@ -340,10 +326,9 @@ class PortfolioService {
         throw new Error("User ID not found. Please log in again.");
       }
 
-      const response = await axios.put(
+      const response = await api.put(
         `${API_CONFIG.CALC_SERVER}/api/risk-settings/${targetUserId}`,
-        settings,
-        { headers: this.getAuthHeaders() }
+        settings
       );
 
       if (!response.data.success) {

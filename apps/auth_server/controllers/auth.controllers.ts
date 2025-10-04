@@ -190,10 +190,9 @@ export const refreshToken = async (
     } catch (err) {
       return next(new ErrorHandling("Invalid or expired refresh token", 401));
     }
-
     const user = await User.findById(decoded.id);
-    if (!user || !user.refreshToken) {
-      return next(new ErrorHandling("User not found or logged out", 401));
+    if (!user) {
+      return next(new ErrorHandling("User not found", 401));
     }
 
     const { accessToken, refreshToken } = await generateTokens(user._id);

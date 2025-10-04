@@ -1,43 +1,26 @@
-import axios from "axios";
+import api from "@/lib/api";
 import { API_CONFIG } from "../lib/config";
 
 export const calcService = {
-  async getRiskSettings( token: string) {
-    const response = await axios.get(
-      `${API_CONFIG.CALC_SERVER}/api/risk-settings/`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+  async getRiskSettings() {
+    const response = await api.get(
+      `${API_CONFIG.CALC_SERVER}/api/risk-settings/`
     );
     return response.data;
   },
 
-  async updateRiskSettings(settings: any, token: string) {
-    const response = await axios.post(
+  async updateRiskSettings(settings: object) {
+    const response = await api.post(
       `${API_CONFIG.CALC_SERVER}/api/risk-settings/`,
-      settings,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      settings
     );
     return response.data;
   },
 
-  async executeTrade(tradeData: any, token: string) {
-    const response = await axios.post(
+  async executeTrade(tradeData: object) {
+    const response = await api.post(
       `${API_CONFIG.CALC_SERVER}/api/trades`,
-      tradeData,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      tradeData
     );
     return response.data;
   },

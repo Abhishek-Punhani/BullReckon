@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { API_CONFIG } from '@/lib/config';
+import api from "@/lib/api";
+import { API_CONFIG } from "@/lib/config";
 
 export interface PriceData {
   symbol: string;
@@ -31,9 +31,9 @@ class CentralPriceService {
   private maxRetries = 3;
 
   // Configuration
-  private readonly POLL_INTERVAL = 2000*5; // 10 seconds
+  private readonly POLL_INTERVAL = 2000 * 5; // 10 seconds
   private readonly RETRY_DELAY_BASE = 1000; // 1 second base delay
-  private readonly MAX_RETRY_DELAY = 1000*15; // 15 seconds max delay
+  private readonly MAX_RETRY_DELAY = 1000 * 15; // 15 seconds max delay
 
   private constructor() {
     // Singleton pattern
@@ -49,9 +49,15 @@ class CentralPriceService {
   /**
    * Subscribe to price updates for specific symbols
    */
-  subscribe(subscriberId: string, symbols: string[], callback: (prices: Record<string, PriceData>) => void): void {
-    console.log(`📊 Subscriber ${subscriberId} subscribing to: ${symbols.join(', ')}`);
-    
+  subscribe(
+    subscriberId: string,
+    symbols: string[],
+    callback: (prices: Record<string, PriceData>) => void
+  ): void {
+    console.log(
+      `📊 Subscriber ${subscriberId} subscribing to: ${symbols.join(", ")}`
+    );
+
     this.subscribers.set(subscriberId, {
       id: subscriberId,
       symbols: [...new Set(symbols)], // Remove duplicates
@@ -87,8 +93,8 @@ class CentralPriceService {
     const subscriber = this.subscribers.get(subscriberId);
     if (subscriber) {
       subscriber.symbols = [...new Set(symbols)];
-      console.log(`📊 Updated ${subscriberId} symbols: ${symbols.join(', ')}`);
-      
+      console.log(`📊 Updated ${subscriberId} symbols: ${symbols.join(", ")}`);
+
       // Send current cached prices for new symbols
       this.sendCachedPrices(subscriberId);
     }
@@ -117,10 +123,10 @@ class CentralPriceService {
    */
   private async startPolling(): Promise<void> {
     if (this.isPolling) return;
-    
+
     this.isPolling = true;
-    console.log('🔄 Starting central price polling');
-    
+    console.log("🔄 Starting central price polling");
+
     await this.pollPrices();
   }
 
@@ -129,7 +135,7 @@ class CentralPriceService {
    */
   private stopPolling(): void {
     this.isPolling = false;
-    console.log('⏹️ Stopping central price polling');
+    console.log("⏹️ Stopping central price polling");
 
     if (this.abortController) {
       this.abortController.abort();
@@ -150,7 +156,7 @@ class CentralPriceService {
 
     try {
       const activeSymbols = this.getActiveSymbols();
-      
+
       if (activeSymbols.length === 0) {
         // No symbols to poll, check again later
         this.schedulePoll(5000);
@@ -160,60 +166,73 @@ class CentralPriceService {
       // Create new abort controller for this request
       this.abortController = new AbortController();
 
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem("access_token");
       if (!token) {
-        console.warn('📊 No auth token, retrying in 5 seconds');
+        console.warn("📊 No auth token, retrying in 5 seconds");
         this.schedulePoll(5000);
         return;
       }
 
-      console.log(`📊 Polling prices for ${activeSymbols.length} symbols:`, activeSymbols, `lastUpdate: ${this.lastUpdateTime}`);
+      console.log(
+        `📊 Polling prices for ${activeSymbols.length} symbols:`,
+        activeSymbols,
+        `lastUpdate: ${this.lastUpdateTime}`
+      );
 
-      const response = await axios.get(`${API_CONFIG.MARKET_SERVER}/api/market/long-poll/prices`, {
-        params: {
-          symbols: activeSymbols.join(','),
-          lastUpdate: this.lastUpdateTime,
-        },
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        signal: this.abortController.signal,
-        timeout: 35000, // 35 seconds
-      });
+      const response = await api.get(
+        `${API_CONFIG.MARKET_SERVER}/api/market/long-poll/prices`,
+        {
+          params: {
+            symbols: activeSymbols.join(","),
+            lastUpdate: this.lastUpdateTime,
+          },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          signal: this.abortController.signal,
+          timeout: 35000, // 35 seconds
+        }
+      );
 
       if (response.data.success) {
         const { data: newPrices, timestamp, hasUpdates } = response.data;
-        
-        console.log(`📊 Polling response - hasUpdates: ${hasUpdates}, timestamp: ${timestamp}`);
-        
+
+        console.log(
+          `📊 Polling response - hasUpdates: ${hasUpdates}, timestamp: ${timestamp}`
+        );
+
         if (hasUpdates && newPrices) {
           this.updatePriceCache(newPrices);
           this.notifySubscribers();
           this.lastUpdateTime = timestamp;
-          console.log(`📊 Updated ${Object.keys(newPrices).length} prices at ${new Date(timestamp).toISOString()}`);
+          console.log(
+            `📊 Updated ${Object.keys(newPrices).length} prices at ${new Date(timestamp).toISOString()}`
+          );
         } else {
-          console.log(`📊 No price updates, keeping cache. Next poll in ${this.POLL_INTERVAL}ms`);
+          console.log(
+            `📊 No price updates, keeping cache. Next poll in ${this.POLL_INTERVAL}ms`
+          );
         }
 
         this.retryCount = 0; // Reset retry count on success
-        
+
         // Use configured polling interval
         console.log(`📊 Scheduling next poll in ${this.POLL_INTERVAL}ms`);
         this.schedulePoll(this.POLL_INTERVAL);
-        
       } else {
-        console.warn('📊 Price polling failed:', response.data.message);
-        this.handlePollingError(new Error(response.data.message || 'Unknown error'));
+        console.warn("📊 Price polling failed:", response.data.message);
+        this.handlePollingError(
+          new Error(response.data.message || "Unknown error")
+        );
       }
-
     } catch (error: any) {
-      if (error.name === 'AbortError' || error.code === 'ABORT_ERR') {
+      if (error.name === "AbortError" || error.code === "ABORT_ERR") {
         // Request was cancelled, this is normal
         return;
       }
 
-      console.error('📊 Price polling error:', error);
+      console.error("📊 Price polling error:", error);
       this.handlePollingError(error);
     }
   }
@@ -223,18 +242,20 @@ class CentralPriceService {
    */
   private handlePollingError(error: Error): void {
     this.retryCount++;
-    
+
     if (this.retryCount <= this.maxRetries) {
       const delay = Math.min(
         this.RETRY_DELAY_BASE * Math.pow(2, this.retryCount - 1),
         this.MAX_RETRY_DELAY
       );
-      
-      console.log(`📊 Retrying in ${delay}ms (attempt ${this.retryCount}/${this.maxRetries})`);
+
+      console.log(
+        `📊 Retrying in ${delay}ms (attempt ${this.retryCount}/${this.maxRetries})`
+      );
       this.schedulePoll(delay);
     } else {
       // Max retries reached, use regular interval
-      console.log('📊 Max retries reached, falling back to regular polling');
+      console.log("📊 Max retries reached, falling back to regular polling");
       this.retryCount = 0;
       this.schedulePoll(this.POLL_INTERVAL * 5); // 10 seconds fallback
     }
@@ -260,11 +281,11 @@ class CentralPriceService {
    */
   private getActiveSymbols(): string[] {
     const symbolSet = new Set<string>();
-    
-    this.subscribers.forEach(subscriber => {
-      subscriber.symbols.forEach(symbol => symbolSet.add(symbol));
+
+    this.subscribers.forEach((subscriber) => {
+      subscriber.symbols.forEach((symbol) => symbolSet.add(symbol));
     });
-    
+
     return Array.from(symbolSet);
   }
 
@@ -291,7 +312,7 @@ class CentralPriceService {
    * Notify all subscribers with relevant price updates
    */
   private notifySubscribers(): void {
-    this.subscribers.forEach(subscriber => {
+    this.subscribers.forEach((subscriber) => {
       this.sendCachedPrices(subscriber.id);
     });
   }
@@ -304,8 +325,8 @@ class CentralPriceService {
     if (!subscriber) return;
 
     const relevantPrices: Record<string, PriceData> = {};
-    
-    subscriber.symbols.forEach(symbol => {
+
+    subscriber.symbols.forEach((symbol) => {
       const priceData = this.priceCache.get(symbol);
       if (priceData) {
         relevantPrices[symbol] = priceData;
@@ -359,8 +380,8 @@ class CentralPriceService {
 export const centralPriceService = CentralPriceService.getInstance();
 
 // Cleanup on page unload
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => {
     centralPriceService.destroy();
   });
 }

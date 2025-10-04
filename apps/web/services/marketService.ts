@@ -1,11 +1,11 @@
-import axios from "axios";
+import api from "@/lib/api";
 import { API_CONFIG } from "../lib/config";
 
 export const marketService = {
   // Test if market server is available
   async testConnection() {
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `${API_CONFIG.MARKET_SERVER}/api/market/health`,
         { timeout: 5000 }
       );
@@ -39,7 +39,7 @@ export const marketService = {
 
   async getQuote(symbol: string) {
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `${API_CONFIG.MARKET_SERVER}/api/market/quote/${symbol}`
       );
       return response.data;
@@ -58,7 +58,7 @@ export const marketService = {
 
   async searchSymbols(query: string) {
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `${API_CONFIG.MARKET_SERVER}/api/market/search?q=${encodeURIComponent(query)}`
       );
       return response.data;
@@ -73,7 +73,7 @@ export const marketService = {
     interval: string = "1d"
   ) {
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `${API_CONFIG.MARKET_SERVER}/api/market/historical/${symbol}?period=${period}&interval=${interval}`
       );
       const json = response.data;
@@ -86,7 +86,7 @@ export const marketService = {
 
   async getTrendingStocks() {
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `${API_CONFIG.MARKET_SERVER}/api/market/trending`
       );
       return response.data;
@@ -97,7 +97,7 @@ export const marketService = {
 
   async getMarketSummary() {
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `${API_CONFIG.MARKET_SERVER}/api/market/summary`
       );
       return response.data;
@@ -108,7 +108,7 @@ export const marketService = {
 
   async getMultipleQuotes(symbols: string[]) {
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `${API_CONFIG.MARKET_SERVER}/api/market/quotes`,
         { symbols }
       );
@@ -182,7 +182,7 @@ export const marketService = {
 
   async getCompanyInfo(symbol: string) {
     try {
-      const response = await axios.get(
+      const response = await api.get(
         `${API_CONFIG.MARKET_SERVER}/api/market/company/${symbol}`
       );
       return response.data;
