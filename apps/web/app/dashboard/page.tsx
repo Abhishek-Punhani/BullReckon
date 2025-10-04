@@ -64,6 +64,10 @@ const DashboardPage = () => {
     }
   );
 
+  const handleHoldingClick = (symbol: string) => {
+    router.push(`/market/${symbol.toUpperCase()}`);
+  };
+
   useEffect(() => {
     const userData = localStorage.getItem("user");
     if (userData) {
@@ -696,10 +700,11 @@ const DashboardPage = () => {
                     {portfolioWithLivePrices.positions.map((position) => (
                       <div
                         key={position.symbol}
-                        className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors"
+                        onClick={() => handleHoldingClick(position.symbol)}
+                        className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer group"
                       >
                         <div className="space-y-1">
-                          <div className="font-semibold text-lg">
+                          <div className="font-semibold text-lg group-hover:text-primary transition-colors">
                             {position.symbol}
                           </div>
                           <div className="text-sm text-muted-foreground">
