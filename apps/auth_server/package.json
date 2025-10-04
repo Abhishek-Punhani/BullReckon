@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "npx tsx watch --require tsconfig-paths/register server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/apps/auth_server/server.js"
   },
   "keywords": [],
   "author": "",
