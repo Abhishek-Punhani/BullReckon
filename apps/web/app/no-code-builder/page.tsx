@@ -149,7 +149,7 @@ const NoCodeBuilder = () => {
         <Navigation />
       </div>
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="lg:ml-64 container max-w-7xl mx-auto px-6 py-10 space-y-8">
         <div className="border-b bg-card/50 backdrop-blur-sm relative w-full z-10">
           <div className="container max-w-7xl mx-auto px-6 py-8">
             <div className="flex flex-wrap items-center justify-between gap-6">
