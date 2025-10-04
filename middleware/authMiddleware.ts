@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { ErrorHandling } from "../middleware/errorHandler";
-import { authClient } from "@/authService.client";
+import { ErrorHandling } from "./errorHandler.js";
+import { authClient } from "../shared/authService.client.js";
 
 declare global {
   namespace Express {
@@ -15,14 +15,6 @@ declare global {
       };
     }
   }
-}
-
-interface JWTPayload {
-  id: string;
-  email: string;
-  role: string;
-  iat: number;
-  exp: number;
 }
 
 // Protect route middleware
@@ -41,7 +33,6 @@ export const protectRoute = async (
     ) {
       token = req.headers.authorization.split(" ")[1];
     } else if (req.cookies && req.cookies.token) {
-      // Or from cookies
       token = req.cookies.token;
     }
 
@@ -49,18 +40,24 @@ export const protectRoute = async (
       return next(new ErrorHandling("Not authorized, no token", 401));
     }
 
+    // Validate token
     const validation = await authClient.validateToken(token);
 
-    if (!validation.valid || !validation.user) {
-      return next(new ErrorHandling(validation.error || "Not authorized, invalid token", 401));
+    if (!validation.valid) {
+      // Return specific error message from validation
+      const errorMsg = validation.error || "Invalid token";
+      return next(new ErrorHandling(errorMsg, 401));
+    }
+
+    if (!validation.user) {
+      return next(new ErrorHandling("Invalid token", 401));
     }
 
     // Attach user to request
     req.user = validation.user;
-
     next();
   } catch (err: any) {
-    console.error('Auth middleware error:', err);
-    return next(new ErrorHandling("Not authorized", 401));
+    console.error("❌ Auth middleware error:", err);
+    return next(new ErrorHandling("Not authorized, invalid token", 401));
   }
 };

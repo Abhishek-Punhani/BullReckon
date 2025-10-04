@@ -1,5 +1,5 @@
-import { BaseApp } from "@/baseApp";
-import { DatabaseManager } from "@/dbManager";
+import { BaseApp } from "../../shared/baseApp";
+import { DatabaseManager } from "../../shared/dbManager";
 import { apiConfig } from "./apiConfig";
 import apiRoutes from "./routes/api.routes.";
 

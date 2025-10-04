@@ -196,16 +196,6 @@ export class BaseApp {
     (global as any).queueManager = this.queueManager;
   }
 
-  public initializeErrorHandling(): void {
-    // 404 handler
-    this.app.use((req: Request, res: Response, next: NextFunction) => {
-      next(createHttpError.NotFound(`Route ${req.originalUrl} not found`));
-    });
-
-    // Global error handler
-    this.app.use(errorHandler);
-  }
-
   // Method to add routes
   public addRoutes(path: string, router: express.Router): void {
     this.app.use(path, router);
@@ -214,6 +204,15 @@ export class BaseApp {
   // Method to add custom middleware
   public addMiddleware(middleware: express.RequestHandler): void {
     this.app.use(middleware);
+  }
+  public initializeErrorHandling(): void {
+    // 404 handler
+    this.app.use((req: Request, res: Response, next: NextFunction) => {
+      next(createHttpError.NotFound(`Route ${req.originalUrl} not found`));
+    });
+
+    // Global error handler
+    this.app.use(errorHandler);
   }
 
   // Method to start the server

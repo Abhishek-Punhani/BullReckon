@@ -94,19 +94,39 @@ export const authService = {
   async refreshToken() {
     try {
       const response = await axios.post(
-        `${API_CONFIG.AUTH_SERVER}/api/auth/refresh`,
+        `${API_CONFIG.AUTH_SERVER}/api/auth/refresh-token`,
         {},
-        { withCredentials: true }
+        {
+          withCredentials: true,
+          timeout: 10000, // 10 second timeout
+        }
       );
+
       const result = response.data;
+
+      if (!result || !result.accessToken) {
+        console.error("❌ Invalid refresh response:", result);
+        throw new Error("No access token in refresh response");
+      }
+
+      // Store new token
       if (typeof window !== "undefined") {
         localStorage.setItem("access_token", result.accessToken);
       }
+
       return result;
-    } catch (error) {
-      console.error("Token refresh failed:", error);
+    } catch (error: any) {
+      console.error(
+        "❌ Refresh token error:",
+        error?.response?.data || error?.message
+      );
+
+      // Re-throw with proper error structure
+      if (error?.response?.data) {
+        throw error;
+      }
+      throw new Error("Token refresh failed");
     }
-    return null;
   },
 
   getToken(): string | null {
@@ -158,8 +178,8 @@ export const authService = {
         (error instanceof Error
           ? error.message
           : typeof error === "string"
-          ? error
-          : "Google Login failed, Please try again");
+            ? error
+            : "Google Login failed, Please try again");
       throw new Error(message);
     }
   },

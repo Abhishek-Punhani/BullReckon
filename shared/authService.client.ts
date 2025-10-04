@@ -29,6 +29,10 @@ class AuthClient {
     token: string
   ): Promise<{ valid: boolean; user?: AuthUser; error?: string }> {
     try {
+      if (!token || token.trim() === "") {
+        return { valid: false, error: "Token is empty" };
+      }
+
       const response = await axios.post(
         `${this.authServiceUrl}/api/internal/validate-token`,
         { token },
@@ -42,13 +46,24 @@ class AuthClient {
         }
       );
 
-      return { valid: true, user: response.data.user };
+      if (response.data && response.data.user) {
+        return { valid: true, user: response.data.user };
+      }
+
+      return { valid: false, error: "Invalid token response" };
     } catch (error: any) {
       if (error.response?.status === 401) {
-        return { valid: false, error: "Invalid token" };
+        const errorMsg = error.response?.data?.message || "Invalid token";
+        return { valid: false, error: errorMsg };
       }
-      console.warn("Auth service unavailable, fallback disabled");
-      return { valid: false, error: "Auth service unavailable" };
+
+      if (error.code === "ECONNREFUSED") {
+        console.warn("⚠️ Auth service unavailable");
+        return { valid: false, error: "Auth service unavailable" };
+      }
+
+      console.error("❌ Token validation error:", error.message);
+      return { valid: false, error: "Token validation failed" };
     }
   }
 }

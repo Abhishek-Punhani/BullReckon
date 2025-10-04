@@ -14,7 +14,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { mockUsers } from "@/lib/mockData";
 import { authService } from "@/services";
 import { Lock, Mail, TrendingUp } from "lucide-react";
 import GoogleAuthButton from "@/components/GoogleAuthBtn";
@@ -45,27 +44,13 @@ const LoginPage = () => {
       } else {
         throw new Error(result.message || "Login failed");
       }
-    } catch (error) {
-      // Fallback to mock users for demo
-      const user = mockUsers.find(
-        (u) => u.email === email && u.password === password
-      );
-
-      if (user) {
-        localStorage.setItem("access_token", "mock_jwt_token");
-        localStorage.setItem("user", JSON.stringify(user));
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully logged in (demo mode).",
-        });
-        router.push("/dashboard");
-      } else {
-        toast({
-          title: "Login failed",
-          description: "Invalid email or password.",
-          variant: "destructive",
-        });
-      }
+    } catch (err) {
+      console.log(err);
+      toast({
+        title: "Login failed",
+        description: "Invalid email or password.",
+        variant: "destructive",
+      });
     }
 
     setIsLoading(false);
