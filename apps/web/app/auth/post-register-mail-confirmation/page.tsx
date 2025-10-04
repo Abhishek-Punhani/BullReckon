@@ -2,8 +2,9 @@
 import Link from "next/link";
 import { MailCheck, CheckCircle2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-const MailSentPage = () => {
+const MailSentPageInner = () => {
   const searchParams = useSearchParams();
   const type =
     (searchParams.get("type") as "activate" | "reset" | "forgot") || "activate";
@@ -47,4 +48,10 @@ const MailSentPage = () => {
   );
 };
 
-export default MailSentPage;
+export default function MailSentPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <MailSentPageInner />
+    </Suspense>
+  );
+}
