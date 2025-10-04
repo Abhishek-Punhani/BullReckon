@@ -177,14 +177,12 @@ const StrategyPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background relative">
+    <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <div className="z-20">
-        <Navigation />
-      </div>
+      <Navigation />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="lg:ml-64 flex flex-col min-h-screen">
         {/* Header */}
         <div className="border-b bg-card/50 backdrop-blur-sm">
           <div className="container max-w-7xl mx-auto px-6 py-8">
