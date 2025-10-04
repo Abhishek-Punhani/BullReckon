@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { protectRoute } from "../../../middleware/authMiddleware";
 import { apiKeyController } from "../contollers/api.controller";
+import { protectRoute } from '../../../middleware/authMiddleware';
 
 const apiRoutes: Router = Router();
 

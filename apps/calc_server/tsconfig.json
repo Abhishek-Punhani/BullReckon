@@ -6,9 +6,8 @@
       "@/*": ["../../shared/*"],
       "@repo/*": ["../../packages/*"]
     },
-    "outDir": "./dist",
-    "rootDir": "."
+    "rootDir": "../../"
   },
-  "include": ["./**/*.ts"],
+  "include": ["../../**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
