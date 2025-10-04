@@ -553,6 +553,7 @@ export const portfolioController = {
       next(error);
     }
   },
+
   /**
    * Get user's current positions with pagination and filters
    * GET /api/portfolio/:userId/positions?page=1&limit=10&search=AAPL&profitability=profitable&sortBy=unrealizedPnL&sortOrder=desc
@@ -792,6 +793,48 @@ export const portfolioController = {
           },
         },
         message: "Positions retrieved successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Get user's holdings for a specific symbol
+   * GET /api/portfolio/:userId/holding/:symbol
+   */
+  getHoldingForSymbol: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const userId = req.params.userId || req.user?.userId;
+      const symbol = req.params.symbol;
+
+      if (!userId || !symbol) {
+        return next(new ErrorHandling("User ID and symbol are required", 400));
+      }
+
+      const portfolio = await Portfolio.findOne({ userId });
+      if (!portfolio) {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          message: "Portfolio not found",
+        });
+      }
+
+      const position = portfolio.positions?.find(
+        (pos: any) => pos.symbol.toUpperCase() === symbol.toUpperCase()
+      );
+
+      res.status(200).json({
+        success: true,
+        data: position || null,
+        message: position
+          ? "Holding retrieved successfully"
+          : "No holding found for symbol",
       });
     } catch (error) {
       next(error);

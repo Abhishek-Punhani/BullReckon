@@ -30,6 +30,11 @@ portfolioRoutes.get(
   "/:userId/positions",
   protectRoute,
   portfolioController.getPositions
-); 
+);
+portfolioRoutes.get(
+  "/:userId/holding/:symbol",
+  protectRoute,
+  portfolioController.getHoldingForSymbol
+);
 
 export default portfolioRoutes;

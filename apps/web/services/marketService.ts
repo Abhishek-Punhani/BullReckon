@@ -191,4 +191,37 @@ export const marketService = {
       return null;
     }
   },
+
+  /**
+   * Get user's holdings for a specific symbol
+   */
+  async getHoldings(symbol: string) {
+    try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const userId = user.id || user._id;
+      const token = localStorage.getItem("access_token");
+
+      if (!userId || !token) {
+        return null;
+      }
+
+      const response = await api.get(
+        `${API_CONFIG.CALC_SERVER}/api/portfolio/${userId}/holding/${symbol}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        return response.data.data || null;
+      }
+
+      return null;
+    } catch (error: any) {
+      console.error(`Failed to fetch holdings for ${symbol}:`, error);
+      return null;
+    }
+  },
 };
