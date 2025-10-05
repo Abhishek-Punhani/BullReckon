@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Navigation from "@/components/Navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,13 @@ import {
   ApiKeyData,
   GeneratedApiKey,
 } from "@/services/apiKeyService";
+import api from "@/lib/api";
+
+interface ScriptInfo {
+  _id: string;
+  scriptName: string;
+  trades: string[];
+}
 
 const StrategyPage = () => {
   const [apiKeys, setApiKeys] = useState<ApiKeyData[]>([]);
@@ -42,24 +50,10 @@ const StrategyPage = () => {
   );
   const [showKeyDialog, setShowKeyDialog] = useState(false);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
+  const [scripts, setScripts] = useState<ScriptInfo[]>([]);
+  const [loadingScripts, setLoadingScripts] = useState(true);
+  const router = useRouter();
   const { toast } = useToast();
-
-  const scripts = [
-    {
-      id: "1",
-      name: "Momentum Trader",
-      api_key: "sk-1234abcd5678efgh",
-      script_name: "momentum_trader.py",
-      status: "active",
-    },
-    {
-      id: "2",
-      name: "Mean Reversion",
-      api_key: "sk-9876wxyz4321lmno",
-      script_name: "mean_reversion.py",
-      status: "inactive",
-    },
-  ];
 
   // Fetch API keys on mount
   useEffect(() => {
@@ -82,6 +76,22 @@ const StrategyPage = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Fetch scripts from backend
+    const fetchScripts = async () => {
+      setLoadingScripts(true);
+      try {
+        const res = await api.get(`/api/trades/scripts`);
+        setScripts(res.data.scripts || []);
+      } catch {
+        setScripts([]);
+      } finally {
+        setLoadingScripts(false);
+      }
+    };
+    fetchScripts();
+  }, []);
 
   const handleGenerateApiKey = async () => {
     try {
@@ -330,25 +340,33 @@ const StrategyPage = () => {
               <CardTitle className="text-xl">Active Scripts</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="space-y-4">
-                {scripts.map((script) => (
-                  <div
-                    key={script.id}
-                    className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border hover:shadow-md cursor-pointer transition-all"
-                    onClick={() =>
-                      alert(`Redirecting to trades for ${script.name}`)
-                    }
-                  >
-                    <div>
-                      <h3 className="font-semibold">{script.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {script.script_name}
-                      </p>
+              {loadingScripts ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Loading scripts...
+                </div>
+              ) : scripts.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No scripts found.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {scripts.map((script) => (
+                    <div
+                      key={script._id}
+                      className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border hover:shadow-md cursor-pointer transition-all"
+                      onClick={() => router.push(`/strategy/${script._id}`)}
+                    >
+                      <div>
+                        <h3 className="font-semibold">{script.scriptName}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Trades: {script.trades.length}
+                        </p>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 

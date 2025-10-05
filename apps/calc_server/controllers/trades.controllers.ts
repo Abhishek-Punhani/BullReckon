@@ -7,6 +7,7 @@ import { ErrorHandling } from "../../../middleware/errorHandler";
 import { fetchLivePrice } from "../utils/fetchPrice";
 import { AuthenticatedRequest } from "../../../types/auth";
 import { sendTradeConfirmationEmail } from "../utils/emailUtils";
+import { logScriptTrade } from "../utils/scriptTradeLogger";
 
 // Add a type declaration for global.queueManager
 declare global {
@@ -273,6 +274,18 @@ export const trade = async (
         console.log(
           `✅ Take Profit order created at $${takeProfit} for ${symbol}`
         );
+      }
+    }
+
+    // After saving each trade, log it if scriptName and metadata are present
+    const { scriptName, confidence, reason } = req.body;
+    for (const t of createdTrades) {
+      if (scriptName) {
+        await logScriptTrade(userId, scriptName, {
+          tradeId: t._id,
+          confidence,
+          reason,
+        });
       }
     }
 

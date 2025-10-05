@@ -1,9 +1,11 @@
+"use client"
 import { Job } from "bullmq";
 import { Trade } from "../models/trade";
 import { Portfolio } from "../models/portfolio";
 import { fetchLivePrice } from "../utils/fetchPrice";
 import { sendTradeConfirmationEmail } from "../utils/emailUtils";
 import { PendingOrderJobData } from "../queue.setup";
+import { logScriptTrade } from "../utils/scriptTradeLogger";
 
 export async function processPendingOrder(job: Job<PendingOrderJobData>) {
   const { tradeId, userId, symbol, action, orderType, limitPrice, stopPrice } =
@@ -69,7 +71,13 @@ export async function processPendingOrder(job: Job<PendingOrderJobData>) {
 
     if (shouldExecute) {
       // Execute the trade
-      await executeTrade(trade, executionPrice);
+      await executeTrade(
+        trade,
+        executionPrice,
+        job.data.scriptName ?? undefined,
+        job.data.confidence ?? undefined,
+        job.data.reason ?? undefined
+      );
       console.log(`✅ Executed pending order ${tradeId} at ${executionPrice}`);
       return { success: true, executedAt: executionPrice };
     } else {
@@ -90,7 +98,13 @@ export async function processPendingOrder(job: Job<PendingOrderJobData>) {
   }
 }
 
-async function executeTrade(trade: any, price: number): Promise<void> {
+async function executeTrade(
+  trade: any,
+  price: number,
+  scriptName?: string,
+  confidence?: number,
+  reason?: string
+): Promise<void> {
   // Update trade status
   trade.status = "executed";
   trade.triggerPrice = price;
@@ -134,6 +148,15 @@ async function executeTrade(trade: any, price: number): Promise<void> {
 
   await portfolio.save();
   await trade.save();
+
+  // Log script trade if scriptName exists (from job data)
+  if (scriptName) {
+    await logScriptTrade(trade.userId, scriptName, {
+      tradeId: trade._id,
+      confidence: confidence ?? undefined,
+      reason: reason ?? undefined,
+    });
+  }
 
   sendTradeConfirmationEmail(
     trade.userId.toString(),
