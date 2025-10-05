@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import { ErrorHandling } from 'middleware/errorHandler';
+import { ErrorHandling } from '../../middleware/errorHandler';
 import { ApiKey } from './models/apiKey';
 
 declare global {
