@@ -13,6 +13,11 @@ strategyRoutes.get(
   protectRoute,
   strategyController.getActiveStrategies
 );
+strategyRoutes.post(
+  "/execute-all",
+  protectRoute,
+  strategyController.executeAllActiveStrategies
+);
 strategyRoutes.get("/:id", protectRoute, strategyController.getStrategy);
 strategyRoutes.put("/:id", protectRoute, strategyController.updateStrategy);
 strategyRoutes.delete("/:id", protectRoute, strategyController.deleteStrategy);
@@ -35,6 +40,11 @@ strategyRoutes.post(
   "/:id/execute",
   protectRoute,
   strategyController.executeStrategy
+);
+strategyRoutes.post(
+  "/:id/schedule",
+  protectRoute,
+  strategyController.scheduleStrategy
 );
 
 // Internal routes (for strategy execution engine)

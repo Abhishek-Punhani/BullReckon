@@ -525,8 +525,13 @@ const StrategyPage = () => {
 
                         {/* Strategy Details */}
                         <Link href={`/strategy/${strategy._id}`}>
-                          <Button variant="ghost" size="sm">
-                            <ChevronRight className="h-4 w-4" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hover:bg-primary/10"
+                          >
+                            <Settings className="h-4 w-4 mr-2" />
+                            Edit
                           </Button>
                         </Link>
 

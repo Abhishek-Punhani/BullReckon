@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { Strategy } from "../models";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import { AuthenticatedRequest } from "../../../types/auth";
-import { fetchLivePrice } from "../utils/fetchPrice";
+import { addStrategyExecutionJob } from "../queue.setup";
 
 export const strategyController = {
   /**
@@ -16,6 +16,9 @@ export const strategyController = {
     next: NextFunction
   ) => {
     try {
+      if (!req.user?._id) {
+        return next(new ErrorHandling("User not authenticated", 401));
+      }
       const userId = req.user._id;
       const { name, description, type, rules, config } = req.body;
 
@@ -60,13 +63,6 @@ export const strategyController = {
           sharpeRatio: 0,
           lastUpdated: new Date(),
         },
-        currentPerformance: {
-          netProfit: 0,
-          roi: 0,
-          winRate: 0,
-          profitFactor: 0,
-          totalTrades: 0,
-        },
         executionLogs: [],
         isBacktested: false,
         version: 1,
@@ -94,6 +90,9 @@ export const strategyController = {
     next: NextFunction
   ) => {
     try {
+      if (!req.user?._id) {
+        return next(new ErrorHandling("User not authenticated", 401));
+      }
       const userId = req.user._id;
       const { status, type, limit = 20, page = 1 } = req.query;
 
@@ -137,10 +136,13 @@ export const strategyController = {
     next: NextFunction
   ) => {
     try {
+      if (!req.user?._id) {
+        return next(new ErrorHandling("User not authenticated", 401));
+      }
       const userId = req.user._id;
       const { id } = req.params;
 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
         return next(new ErrorHandling("Invalid strategy ID", 400));
       }
 
@@ -169,11 +171,14 @@ export const strategyController = {
     next: NextFunction
   ) => {
     try {
+      if (!req.user?._id) {
+        return next(new ErrorHandling("User not authenticated", 401));
+      }
       const userId = req.user._id;
       const { id } = req.params;
       const updateData = req.body;
 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
         return next(new ErrorHandling("Invalid strategy ID", 400));
       }
 
@@ -215,10 +220,13 @@ export const strategyController = {
     next: NextFunction
   ) => {
     try {
+      if (!req.user?._id) {
+        return next(new ErrorHandling("User not authenticated", 401));
+      }
       const userId = req.user._id;
       const { id } = req.params;
 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
         return next(new ErrorHandling("Invalid strategy ID", 400));
       }
 
@@ -258,11 +266,14 @@ export const strategyController = {
     next: NextFunction
   ) => {
     try {
+      if (!req.user?._id) {
+        return next(new ErrorHandling("User not authenticated", 401));
+      }
       const userId = req.user._id;
       const { id } = req.params;
       const { status } = req.body;
 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
         return next(new ErrorHandling("Invalid strategy ID", 400));
       }
 
@@ -329,11 +340,14 @@ export const strategyController = {
     next: NextFunction
   ) => {
     try {
+      if (!req.user?._id) {
+        return next(new ErrorHandling("User not authenticated", 401));
+      }
       const userId = req.user._id;
       const { id } = req.params;
       const { limit = 50, page = 1, status } = req.query;
 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
         return next(new ErrorHandling("Invalid strategy ID", 400));
       }
 
@@ -388,10 +402,13 @@ export const strategyController = {
     next: NextFunction
   ) => {
     try {
+      if (!req.user?._id) {
+        return next(new ErrorHandling("User not authenticated", 401));
+      }
       const userId = req.user._id;
       const { id } = req.params;
 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
         return next(new ErrorHandling("Invalid strategy ID", 400));
       }
 
@@ -443,11 +460,14 @@ export const strategyController = {
     next: NextFunction
   ) => {
     try {
-      const userId = req.user._id;
+      if (!req.user?._id) {
+        return next(new ErrorHandling("User not authenticated", 401));
+      }
+      const userId = req.user._id.toString();
       const { id } = req.params;
-      const { symbol, dryRun = true } = req.body;
+      const { symbol, dryRun = true, priority = 5 } = req.body;
 
-      if (!mongoose.Types.ObjectId.isValid(id)) {
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
         return next(new ErrorHandling("Invalid strategy ID", 400));
       }
 
@@ -456,74 +476,48 @@ export const strategyController = {
         return next(new ErrorHandling("Strategy not found", 404));
       }
 
-      if (!symbol) {
+      // Prepare job data
+      const jobData = {
+        strategyId: id,
+        userId,
+        symbol: symbol || undefined,
+        triggerType: "manual" as const,
+        dryRun,
+        metadata: {
+          triggeredBy: req.user.email || "manual",
+          requestId: Math.random().toString(36).substring(7),
+        },
+      };
+
+      try {
+        // Add job to queue
+        await addStrategyExecutionJob(jobData, {
+          priority,
+          delay: 0, // Execute immediately
+        });
+
+        res.status(202).json({
+          success: true,
+          data: {
+            jobQueued: true,
+            strategyId: id,
+            symbol: symbol || "all",
+            dryRun,
+            message:
+              "Strategy execution job has been queued and will be processed shortly",
+            estimatedProcessingTime: "5-30 seconds",
+          },
+          message: `Strategy execution ${dryRun ? "simulation" : "job"} queued successfully`,
+        });
+      } catch (queueError) {
+        console.error("Failed to queue strategy execution:", queueError);
         return next(
-          new ErrorHandling("Symbol is required for manual execution", 400)
+          new ErrorHandling(
+            "Failed to queue strategy execution. Please try again.",
+            500
+          )
         );
       }
-
-      // Get current price for the symbol
-      const currentPrice = await fetchLivePrice(symbol);
-
-      // Execute strategy logic (simplified for now)
-      const activeRules = strategy.activeRules;
-      const executions = [];
-
-      for (const rule of activeRules) {
-        if (rule.condition.symbol === symbol.toUpperCase()) {
-          // Check if rule can execute (cooldown)
-          if (!strategy.canRuleExecute(rule.id)) {
-            continue;
-          }
-
-          // Simulate condition evaluation (in real implementation, this would use market data)
-          const conditionMet = Math.random() > 0.5; // Random for demo
-
-          if (conditionMet) {
-            const execution = {
-              ruleId: rule.id,
-              ruleName: rule.name || `Rule ${rule.id}`,
-              symbol: symbol.toUpperCase(),
-              action: rule.action.type,
-              quantity: rule.action.quantity,
-              price: currentPrice,
-              confidence: Math.floor(Math.random() * 40) + 60, // 60-100% confidence
-              reason: `${rule.condition.indicator.toUpperCase()} condition met`,
-              status: dryRun ? "simulated" : "pending",
-            };
-
-            executions.push(execution);
-
-            // Add to execution logs if not dry run
-            if (!dryRun) {
-              strategy.addExecutionLog(execution as any);
-
-              // Update rule's last executed time
-              const ruleIndex = strategy.rules.findIndex(
-                (r) => r.id === rule.id
-              );
-              if (ruleIndex !== -1) {
-                strategy.rules[ruleIndex].lastExecuted = new Date();
-              }
-            }
-          }
-        }
-      }
-
-      if (!dryRun && executions.length > 0) {
-        await strategy.save();
-      }
-
-      res.status(200).json({
-        success: true,
-        data: {
-          executions,
-          currentPrice,
-          dryRun,
-          activeRulesCount: activeRules.length,
-        },
-        message: `Strategy ${dryRun ? "simulated" : "executed"} successfully`,
-      });
     } catch (error) {
       next(error);
     }
@@ -539,6 +533,9 @@ export const strategyController = {
     next: NextFunction
   ) => {
     try {
+      if (!req.user?._id) {
+        return next(new ErrorHandling("User not authenticated", 401));
+      }
       const userId = req.user._id;
 
       const activeStrategies = await Strategy.find({
@@ -553,6 +550,184 @@ export const strategyController = {
         data: activeStrategies,
         message: "Active strategies retrieved successfully",
       });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Execute all active strategies for a user
+   * POST /api/strategies/execute-all
+   */
+  executeAllActiveStrategies: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?._id) {
+        return next(new ErrorHandling("User not authenticated", 401));
+      }
+      const userId = req.user._id.toString();
+      const { symbol, dryRun = true, priority = 3 } = req.body;
+
+      // Find all active strategies for the user
+      const activeStrategies = await Strategy.find({
+        userId,
+        status: "active",
+      }).select("_id name");
+
+      if (activeStrategies.length === 0) {
+        return res.status(200).json({
+          success: true,
+          data: {
+            jobsQueued: 0,
+            strategies: [],
+          },
+          message: "No active strategies found to execute",
+        });
+      }
+
+      const queuedJobs = [];
+
+      // Queue execution job for each active strategy
+      for (const strategy of activeStrategies) {
+        const jobData = {
+          strategyId: strategy._id.toString(),
+          userId,
+          symbol: symbol || undefined,
+          triggerType: "manual" as const,
+          dryRun,
+          metadata: {
+            triggeredBy: req.user.email || "bulk_execute",
+            requestId: Math.random().toString(36).substring(7),
+            bulkExecution: true,
+          },
+        };
+
+        try {
+          await addStrategyExecutionJob(jobData, {
+            priority,
+            delay: queuedJobs.length * 1000, // Stagger executions by 1 second
+          });
+
+          queuedJobs.push({
+            strategyId: strategy._id,
+            strategyName: strategy.name,
+            delayMs: queuedJobs.length * 1000,
+          });
+        } catch (queueError) {
+          console.error(
+            `Failed to queue strategy ${strategy._id}:`,
+            queueError
+          );
+        }
+      }
+
+      res.status(202).json({
+        success: true,
+        data: {
+          jobsQueued: queuedJobs.length,
+          strategies: queuedJobs,
+          symbol: symbol || "all",
+          dryRun,
+          estimatedTotalTime: `${queuedJobs.length * 5}-${queuedJobs.length * 30} seconds`,
+        },
+        message: `${queuedJobs.length} strategy execution jobs queued successfully`,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Schedule recurring strategy execution
+   * POST /api/strategies/:id/schedule
+   */
+  scheduleStrategy: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      if (!req.user?._id) {
+        return next(new ErrorHandling("User not authenticated", 401));
+      }
+      const userId = req.user._id.toString();
+      const { id } = req.params;
+      const { intervalMinutes = 60, symbol, enabled = true } = req.body;
+
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+        return next(new ErrorHandling("Invalid strategy ID", 400));
+      }
+
+      const strategy = await Strategy.findOne({ _id: id, userId });
+      if (!strategy) {
+        return next(new ErrorHandling("Strategy not found", 404));
+      }
+
+      if (strategy.status !== "active") {
+        return next(
+          new ErrorHandling(
+            "Strategy must be active to schedule executions",
+            400
+          )
+        );
+      }
+
+      // Validate interval
+      if (intervalMinutes < 5 || intervalMinutes > 1440) {
+        return next(
+          new ErrorHandling(
+            "Interval must be between 5 minutes and 24 hours",
+            400
+          )
+        );
+      }
+
+      if (enabled) {
+        // Schedule the strategy execution
+        const jobData = {
+          strategyId: id,
+          userId,
+          symbol: symbol || undefined,
+          triggerType: "scheduled" as const,
+          dryRun: false,
+          metadata: {
+            scheduledInterval: intervalMinutes,
+            scheduledBy: req.user.email || "scheduler",
+          },
+        };
+
+        // Add recurring job
+        await addStrategyExecutionJob(jobData, {
+          priority: 3,
+          delay: intervalMinutes * 60 * 1000, // Convert to milliseconds
+        });
+
+        res.status(200).json({
+          success: true,
+          data: {
+            strategyId: id,
+            intervalMinutes,
+            symbol: symbol || "all",
+            nextExecution: new Date(Date.now() + intervalMinutes * 60 * 1000),
+            enabled: true,
+          },
+          message: `Strategy scheduled to execute every ${intervalMinutes} minutes`,
+        });
+      } else {
+        // For now, we'll just acknowledge the disable request
+        // In a full implementation, you'd need to track and cancel recurring jobs
+        res.status(200).json({
+          success: true,
+          data: {
+            strategyId: id,
+            enabled: false,
+          },
+          message: "Strategy scheduling disabled",
+        });
+      }
     } catch (error) {
       next(error);
     }

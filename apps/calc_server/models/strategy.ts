@@ -101,6 +101,14 @@ export interface IStrategy extends Document {
   updatedAt: Date;
   lastExecuted?: Date;
   version: number;
+
+  // Virtual properties
+  activeRules: IRule[];
+
+  // Methods
+  addExecutionLog(log: Omit<IExecutionLog, "timestamp">): IExecutionLog;
+  updateMetrics(tradeResult: { profit: number; isWin: boolean }): void;
+  canRuleExecute(ruleId: string): boolean;
 }
 
 // Mongoose schemas
@@ -467,25 +475,7 @@ const strategySchema = new mongoose.Schema(
 
 // Virtual for getting active rules
 strategySchema.virtual("activeRules").get(function () {
-  return this.rules.filter((rule: IRule) => rule.isActive);
-});
-
-// Virtual for calculating current performance
-strategySchema.virtual("currentPerformance").get(function () {
-  const metrics = this.metrics;
-  const netProfit = metrics.totalProfit - Math.abs(metrics.totalLoss);
-  const roi =
-    this.config.portfolioAllocation > 0
-      ? (netProfit / this.config.portfolioAllocation) * 100
-      : 0;
-
-  return {
-    netProfit,
-    roi,
-    winRate: metrics.winRate,
-    profitFactor: metrics.profitFactor,
-    totalTrades: metrics.totalTrades,
-  };
+  return this.rules.filter((rule: any) => rule.isActive);
 });
 
 // Method to add execution log

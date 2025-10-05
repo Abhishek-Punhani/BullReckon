@@ -1,6 +1,10 @@
 import { QueueManager } from "../../shared/queueManager";
 import { processCalcEmailJob, CalcEmailJobData } from "./workers/emailWorker";
 import { processPendingOrder } from "./workers/pendingOrders";
+import {
+  processStrategyExecutionJob,
+  StrategyExecutionJobData,
+} from "./workers/strategyWorker";
 import { Queue } from "bullmq";
 
 /**
@@ -27,6 +31,7 @@ export interface PendingOrderJobData {
 
 let emailQueue: Queue<CalcEmailJobData> | undefined;
 let pendingOrdersQueue: Queue<PendingOrderJobData> | undefined;
+let strategyExecutionQueue: Queue<StrategyExecutionJobData> | undefined;
 
 export async function setupCalcQueues(
   queueManager: QueueManager
@@ -124,10 +129,57 @@ export async function setupCalcQueues(
       }
     );
 
+    // Register strategy execution queue
+    strategyExecutionQueue =
+      queueManager.registerQueue<StrategyExecutionJobData>(
+        "strategy-execution",
+        {
+          defaultJobOptions: {
+            removeOnComplete: 50,
+            removeOnFail: 20,
+            attempts: 3,
+            backoff: {
+              type: "exponential",
+              delay: 5000,
+            },
+          },
+        }
+      );
+
+    // Register strategy execution worker
+    queueManager.registerWorker<StrategyExecutionJobData>(
+      "strategy-execution",
+      processStrategyExecutionJob,
+      {
+        concurrency: 5, // Process up to 5 strategies concurrently
+        limiter: {
+          max: 50, // 50 strategy executions per minute
+          duration: 60000,
+        },
+        onCompleted: (job, result) => {
+          console.log(
+            `✅ [Calc] Strategy execution job ${job.id} completed:`,
+            `${result.executionsPerformed} executions in ${result.processingTime}ms`
+          );
+        },
+        onFailed: (job, error) => {
+          console.error(
+            `❌ [Calc] Strategy execution job ${job?.id} failed:`,
+            error.message
+          );
+        },
+        onError: (error) => {
+          console.error("❌ [Calc] Strategy execution worker error:", error);
+        },
+      }
+    );
+
     // Register queue events for monitoring
     const emailQueueEvents = queueManager.registerQueueEvents("calc-emails");
     const pendingOrdersQueueEvents =
       queueManager.registerQueueEvents("pending-orders");
+    const strategyExecutionQueueEvents =
+      queueManager.registerQueueEvents("strategy-execution");
 
     emailQueueEvents.on("completed", ({ jobId }) => {
       console.log(`✅ [Calc] Email job ${jobId} completed successfully`);
@@ -136,6 +188,12 @@ export async function setupCalcQueues(
     pendingOrdersQueueEvents.on("completed", ({ jobId }) => {
       console.log(
         `✅ [Calc] Pending order job ${jobId} completed successfully`
+      );
+    });
+
+    strategyExecutionQueueEvents.on("completed", ({ jobId }) => {
+      console.log(
+        `✅ [Calc] Strategy execution job ${jobId} completed successfully`
       );
     });
 
@@ -197,4 +255,31 @@ export async function addPendingOrderJob(
   });
 }
 
-export { emailQueue, pendingOrdersQueue };
+/**
+ * Add a strategy execution job to the queue
+ */
+export async function addStrategyExecutionJob(
+  data: StrategyExecutionJobData,
+  options?: {
+    delay?: number;
+    priority?: number;
+    attempts?: number;
+  }
+): Promise<void> {
+  if (!strategyExecutionQueue) {
+    console.warn(
+      "⚠️ Strategy execution queue not initialized - processing directly"
+    );
+    await processStrategyExecutionJob({ data } as any);
+    return;
+  }
+
+  await strategyExecutionQueue.add("execute-strategy", data, {
+    priority: options?.priority || 5,
+    delay: options?.delay,
+    attempts: options?.attempts || 3,
+    ...options,
+  });
+}
+
+export { emailQueue, pendingOrdersQueue, strategyExecutionQueue };

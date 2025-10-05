@@ -5,15 +5,21 @@ export { Strategy } from "./strategy";
 export { ScriptTrade } from "./scriptTrade";
 
 // Type exports
-export type { IPortfolio } from "./portfolio";
+export type {
+  IPortfolio,
+  IPosition,
+  IPositionWithMarketData,
+  IPortfolioSnapshot,
+} from "./portfolio";
 export type { IRiskSettings } from "./risk_settings";
-export type { ITrade } from "./trade";
+export type { ITrade } from "../types";
 export type {
   IStrategy,
   IRule,
   ICondition,
   IAction,
   IStrategyConfig,
+  IStrategyMetrics,
   IExecutionLog,
 } from "./strategy";
 export type { IScriptTrade } from "./scriptTrade";

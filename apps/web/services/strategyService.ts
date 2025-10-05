@@ -118,7 +118,7 @@ export interface StrategyExecutionResult {
 class StrategyService {
   private getUserId(): string | null {
     try {
-      const user = authService.getCurrentUser();
+      const user = authService.getUser();
       return user?.id || null;
     } catch {
       return null;
@@ -475,12 +475,13 @@ class StrategyService {
   async executeStrategy(
     id: string,
     symbol: string,
-    dryRun: boolean = true
+    dryRun: boolean = true,
+    priority: number = 5
   ): Promise<StrategyExecutionResult> {
     try {
       const response = await api.post(
         `${API_CONFIG.CALC_SERVER}/api/strategies/${id}/execute`,
-        { symbol, dryRun }
+        { symbol, dryRun, priority }
       );
 
       if (!response.data.success) {
@@ -497,6 +498,87 @@ class StrategyService {
         error?.response?.data?.message ||
           error.message ||
           "Failed to execute strategy"
+      );
+    }
+  }
+
+  /**
+   * Execute all active strategies
+   */
+  async executeAllActiveStrategies(
+    symbol?: string,
+    dryRun: boolean = true,
+    priority: number = 3
+  ): Promise<{
+    jobsQueued: number;
+    strategies: Array<{
+      strategyId: string;
+      strategyName: string;
+      delayMs: number;
+    }>;
+    estimatedTotalTime: string;
+  }> {
+    try {
+      const response = await api.post(
+        `${API_CONFIG.CALC_SERVER}/api/strategies/execute-all`,
+        { symbol, dryRun, priority }
+      );
+
+      if (!response.data.success) {
+        throw new Error(
+          response.data.message || "Failed to execute strategies"
+        );
+      }
+
+      return response.data.data;
+    } catch (error: any) {
+      console.error("Bulk strategy execution error:", error);
+      if (error.response?.status === 401) {
+        throw new Error("Authentication required. Please log in again.");
+      }
+      throw new Error(
+        error?.response?.data?.message ||
+          error.message ||
+          "Failed to execute strategies"
+      );
+    }
+  }
+
+  /**
+   * Schedule strategy execution
+   */
+  async scheduleStrategy(
+    id: string,
+    intervalMinutes: number = 60,
+    symbol?: string,
+    enabled: boolean = true
+  ): Promise<{
+    strategyId: string;
+    intervalMinutes?: number;
+    symbol?: string;
+    nextExecution?: Date;
+    enabled: boolean;
+  }> {
+    try {
+      const response = await api.post(
+        `${API_CONFIG.CALC_SERVER}/api/strategies/${id}/schedule`,
+        { intervalMinutes, symbol, enabled }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to schedule strategy");
+      }
+
+      return response.data.data;
+    } catch (error: any) {
+      console.error("Strategy scheduling error:", error);
+      if (error.response?.status === 401) {
+        throw new Error("Authentication required. Please log in again.");
+      }
+      throw new Error(
+        error?.response?.data?.message ||
+          error.message ||
+          "Failed to schedule strategy"
       );
     }
   }
