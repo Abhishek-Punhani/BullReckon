@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { Backtest } from "../models/backtest";
-import { internalApi } from "shared/internalApi.client";
-
+import { internalApi } from "../../../shared/internalApi.client";
 export const postBacktestResults = async (
   req: Request,
   res: Response,
@@ -40,12 +39,10 @@ export const postBacktestResults = async (
       });
       return res.json({ status: "success", backtest_id: backtest.backtest_id });
     } catch (err) {
-      return res
-        .status(500)
-        .json({
-          error: "Failed to fetch user or create backtest",
-          details: err instanceof Error ? err.message : err,
-        });
+      return res.status(500).json({
+        error: "Failed to fetch user or create backtest",
+        details: err instanceof Error ? err.message : err,
+      });
     }
   } catch (err) {
     next(err);
