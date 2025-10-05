@@ -1,8 +1,8 @@
 const API_CONFIG = {
-  AUTH_SERVER: "http://localhost:4000",
-  MARKET_SERVER: "http://localhost:5000",
-  CALC_SERVER: "http://localhost:8000",
-  API_SERVER: "http://localhost:3004",
+  AUTH_SERVER: process.env.NEXT_PUBLIC_AUTH_SERVER!,
+  MARKET_SERVER: process.env.NEXT_PUBLIC_MARKET_SERVER!,
+  CALC_SERVER: process.env.NEXT_PUBLIC_CALC_SERVER!,
+  API_SERVER: process.env.NEXT_PUBLIC_API_SERVER!,
 };
 
 export { API_CONFIG };
