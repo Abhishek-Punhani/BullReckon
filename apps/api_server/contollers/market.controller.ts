@@ -1,6 +1,7 @@
 import { Response, NextFunction, Request } from "express";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import axios from "axios";
+import { internalApi } from "shared/internalApi.client";
 
 const MARKET_SERVER_URL =
   process.env.MARKET_SERVER_URL || "http://localhost:5000";
@@ -168,13 +169,11 @@ export const tradingController = {
         apiKeyId: req.apiUser.keyId,
       };
 
-      const response = await axios.post(
+      const response = await internalApi.post(
         `${CALC_SERVER_URL}/api/trades/internal`,
         tradeData,
         {
           headers: {
-            "Content-Type": "application/json",
-            "X-Service-Secret": process.env.INTERNAL_SERVICE_SECRET,
             "X-Internal-Service": "api-server",
             "X-API-Email": req.apiUser.email,
             "X-API-Key-ID": req.apiUser.keyId,

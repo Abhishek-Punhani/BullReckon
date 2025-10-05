@@ -7,44 +7,50 @@ export const postBacktestResults = async (
   res: Response,
   next: NextFunction
 ) => {
-try {
+  try {
     const { backtest_id, status, results } = req.body;
     if (!backtest_id || !results || !results.summary) {
-        return res
-            .status(400)
-            .json({ error: "Missing required backtest fields" });
+      return res
+        .status(400)
+        .json({ error: "Missing required backtest fields" });
     }
 
     // Fetch user details from auth server using email from req.apiUser
     const apiUserEmail = req.apiUser?.email;
     if (!apiUserEmail) {
-        return res.status(401).json({ error: "API user email not found" });
+      return res.status(401).json({ error: "API user email not found" });
     }
 
-    const authServerUrl = process.env.AUTH_SERVER_URL || "http://localhost:4000";
+    const authServerUrl =
+      process.env.AUTH_SERVER_URL || "http://localhost:4000";
     try {
-        // Get user details using internal route
-        const userRes = await internalApi.get(
-            `${authServerUrl}/internal/get-user-details/${encodeURIComponent(apiUserEmail)}`
-        );
-        const userId = userRes.data?.user?._id;
-        if (!userId) {
-            return res.status(401).json({ error: "User not found in auth server" });
-        }
-        const backtest = await Backtest.create({
-            userId,
-            backtest_id,
-            status,
-            results,
-        });
-        return res.json({ status: "success", backtest_id: backtest.backtest_id });
+      // Get user details using internal route
+      const userRes = await internalApi.get(
+        `${authServerUrl}/internal/get-user-details/${encodeURIComponent(apiUserEmail)}`
+      );
+      const userId = userRes.data?.user?._id;
+      if (!userId) {
+        return res.status(401).json({ error: "User not found in auth server" });
+      }
+      const backtest = await Backtest.create({
+        userId,
+        backtest_id,
+        status,
+        results,
+      });
+      return res.json({ status: "success", backtest_id: backtest.backtest_id });
     } catch (err) {
-        return res.status(500).json({ error: "Failed to fetch user or create backtest", details: err instanceof Error ? err.message : err });
+      return res
+        .status(500)
+        .json({
+          error: "Failed to fetch user or create backtest",
+          details: err instanceof Error ? err.message : err,
+        });
     }
-} catch (err) {
+  } catch (err) {
     next(err);
-}
-}
+  }
+};
 
 export const getBacktestResults = async (
   req: Request,
@@ -59,4 +65,3 @@ export const getBacktestResults = async (
     next(err);
   }
 };
-
