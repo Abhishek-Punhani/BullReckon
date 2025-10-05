@@ -5,10 +5,10 @@ import {
   tradingController,
 } from "../contollers/market.controller";
 import { protectRoute } from "../../../middleware/authMiddleware";
-import { internalAuth } from "../../../middleware/internalAuthMiddleware";
 import { authenticateApiKey } from "../apiMiddleware";
 import backtestRoutes from "./backtest.routes";
 import { ErrorHandling } from "../../../middleware/errorHandler";
+import { internalApi } from "../../../shared/internalApi.client";
 
 const apiRoutes: Router = Router();
 
@@ -48,13 +48,44 @@ apiRoutes.get(
 // Trading Routes (API Key Protected)
 apiRoutes.post("/trade", authenticateApiKey, tradingController.executeTrade);
 
+// Get trades by script name (forward to calc_server)
+apiRoutes.get(
+  "/trades/by-script/:scriptName",
+  authenticateApiKey,
+  async (req, res, next) => {
+    try {
+      const { scriptName } = req.params;
+      if (!scriptName) {
+        return next(new ErrorHandling("Script name required", 400));
+      }
+
+      // Forward request to calc_server
+      const calcServerUrl =
+        process.env.CALC_SERVER_URL || "http://localhost:3003";
+      const response = await internalApi.get(
+        `${calcServerUrl}/api/script-trades/${scriptName}`
+      );
+
+      res.json(response.data);
+    } catch (err: any) {
+      if (err.response) {
+        // Forward the error from calc_server
+        res.status(err.response.status).json(err.response.data);
+      } else {
+        next(err);
+      }
+    }
+  }
+);
+
 // Internal Routes (Service-to-Service)
 // GET /api/internal/market/historical/:symbol - for backtesting services
 apiRoutes.get(
   "/internal/market/historical/:symbol",
-  internalAuth,
   marketController.getHistoricalData
 );
+
+// Internal Routes (Service-to-Service)
 
 // Backtesting Routes (API Key Protected)
 apiRoutes.use("/backtest", authenticateApiKey, backtestRoutes);

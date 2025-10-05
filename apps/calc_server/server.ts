@@ -5,6 +5,7 @@ import { calcConfig } from "./config";
 import portfolioRoutes from "./routes/portfolio.routes";
 import { riskRoutes } from "./routes/risk_settings.routes";
 import { tradeRoutes } from "./routes/trades.routes";
+import strategyRoutes from "./routes/strategy.routes";
 import { setupCalcQueues } from "./queue.setup";
 import { allowedOrigins } from "./config";
 import scriptTradeRoutes from "./routes/scriptTrade.routes";
@@ -37,6 +38,7 @@ app.addRoutes("/api/trades", tradeRoutes);
 app.addRoutes("/api/risk-settings", riskRoutes);
 app.addRoutes("/api/portfolio", portfolioRoutes);
 app.addRoutes("/api/script-trades", scriptTradeRoutes);
+app.addRoutes("/api/strategies", strategyRoutes);
 app.initializeErrorHandling();
 
 // Start server and initialize calc-specific queues
