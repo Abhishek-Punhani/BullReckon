@@ -1,6 +1,6 @@
 import { BaseApp } from "../../shared/baseApp";
 import { DatabaseManager } from "../../shared/dbManager";
-import { marketConfig } from "./config";
+import { marketConfig, allowedOrigins } from "./config";
 import { marketRoutes } from "./routes/market.routes";
 
 // Initialize database
@@ -17,7 +17,7 @@ const app = new BaseApp({
     max: marketConfig.RATE_LIMIT_REQUESTS, // Configurable request limit
   },
   customCors: {
-    origin: marketConfig.CLIENT_URL,
+    origin: allowedOrigins,
     credentials: true,
     optionsSuccessStatus: 200,
     methods: ["GET", "POST", "DELETE", "OPTIONS"],

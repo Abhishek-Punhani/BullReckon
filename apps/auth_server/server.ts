@@ -5,6 +5,7 @@ import { authConfig } from "./config";
 import { authRoutes } from "./routes/auth.routes";
 import { internalRoutes } from "./routes/internal.routes";
 import { setupAuthQueues } from "./queue.setup";
+import { allowedOrigins } from "./config";
 
 // Initialize database
 const db = DatabaseManager.getInstance(authConfig);
@@ -22,6 +23,13 @@ const app = new BaseApp({
   customRateLimit: {
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 50, // Stricter for auth service
+  },
+  customCors: {
+    origin: allowedOrigins,
+    credentials: true,
+    optionsSuccessStatus: 200,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
   },
 });
 

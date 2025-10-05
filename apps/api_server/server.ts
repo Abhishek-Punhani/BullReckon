@@ -1,6 +1,6 @@
 import { BaseApp } from "../../shared/baseApp";
 import { DatabaseManager } from "../../shared/dbManager";
-import { apiConfig } from "./apiConfig";
+import { apiConfig, allowedOrigins } from "./apiConfig";
 import apiRoutes from "./routes/api.routes.";
 
 // Initialize database
@@ -14,6 +14,13 @@ const app = new BaseApp({
   enableQueues: false,
   enableFileUpload: false,
   enableSessions: false,
+  customCors: {
+    origin: allowedOrigins,
+    credentials: true,
+    optionsSuccessStatus: 200,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
+  },
 });
 
 // Setup routes
