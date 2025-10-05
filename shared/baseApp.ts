@@ -90,14 +90,14 @@ export class BaseApp {
     this.app.use("/api/", limiter);
 
     // CORS configuration
-    const corsOptions: cors.CorsOptions = options.customCors || {
-      origin: this.config.CLIENT_URL,
-      credentials: true,
-      optionsSuccessStatus: 200,
-      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
-    };
-    this.app.use(cors(corsOptions));
+    // const corsOptions: cors.CorsOptions = options.customCors || {
+    //   origin: this.config.CLIENT_URL,
+    //   credentials: true,
+    //   optionsSuccessStatus: 200,
+    //   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    //   allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
+    // };
+    // this.app.use(cors(corsOptions));
 
     // Body parsing middleware
     this.app.use(cookieParser() as express.RequestHandler);
