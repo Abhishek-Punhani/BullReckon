@@ -120,8 +120,8 @@ export class BaseApp {
       fileUpload({
         useTempFiles: true,
         tempFileDir: "/tmp/",
-        limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
-      }) as express.RequestHandler
+        limits: { fileSize: 50 * 1024 * 1024 },
+      }) as unknown as express.RequestHandler
     );
 
     // Health check endpoint
@@ -156,7 +156,7 @@ export class BaseApp {
     }) as express.RequestHandler);
 
     // Global error handler
-    this.app.use("/", errorHandler as express.RequestHandler);
+    this.app.use("/", errorHandler as unknown as express.ErrorRequestHandler);
   }
 
   private initializeSessions(): void {
