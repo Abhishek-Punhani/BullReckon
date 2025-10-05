@@ -150,13 +150,7 @@ export class BaseApp {
       next();
     });
 
-    // 404 handler
-    this.app.use("/", ((req: Request, res: Response, next: NextFunction) => {
-      next(createHttpError.NotFound(`Route ${req.originalUrl} not found`));
-    }) as express.RequestHandler);
 
-    // Global error handler
-    this.app.use("/", errorHandler as unknown as express.ErrorRequestHandler);
   }
 
   private initializeSessions(): void {
@@ -221,12 +215,12 @@ export class BaseApp {
   }
   public initializeErrorHandling(): void {
     // 404 handler
-    this.app.use((req: Request, res: Response, next: NextFunction) => {
+    this.app.use("/", ((req: Request, res: Response, next: NextFunction) => {
       next(createHttpError.NotFound(`Route ${req.originalUrl} not found`));
-    });
+    }) as express.RequestHandler);
 
     // Global error handler
-    this.app.use(errorHandler);
+    this.app.use("/", errorHandler as unknown as express.ErrorRequestHandler);
   }
 
   // Method to start the server
