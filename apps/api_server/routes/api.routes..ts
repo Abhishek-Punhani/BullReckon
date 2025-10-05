@@ -8,6 +8,8 @@ import { protectRoute } from "../../../middleware/authMiddleware";
 import { internalAuth } from "../../../middleware/internalAuthMiddleware";
 import { authenticateApiKey } from "../apiMiddleware";
 import backtestRoutes from "./backtest.routes";
+import { ErrorHandling } from "../../../middleware/errorHandler";
+import { ScriptTrade } from "../models/scriptTrade";
 
 const apiRoutes: Router = Router();
 
@@ -46,6 +48,27 @@ apiRoutes.get(
 
 // Trading Routes (API Key Protected)
 apiRoutes.post("/trade", authenticateApiKey, tradingController.executeTrade);
+
+// Get trades by script name (populate trade details)
+apiRoutes.get(
+  "/trades/by-script/:scriptName",
+  authenticateApiKey,
+  async (req, res, next) => {
+    try {
+      const { scriptName } = req.params;
+      if (!scriptName) {
+        return next(new ErrorHandling("Script name required", 400));
+      }
+      // Find ScriptTrade and populate trades array
+      const scriptTrade = await ScriptTrade.findOne({ scriptName }).populate(
+        "trades"
+      );
+      res.json({ success: true, trades: scriptTrade?.trades || [] });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 // Internal Routes (Service-to-Service)
 // GET /api/internal/market/historical/:symbol - for backtesting services
