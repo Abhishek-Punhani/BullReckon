@@ -1,5 +1,6 @@
-import { Strategy } from "../models/strategy";
+import { Strategy, IStrategy } from "../models/strategy";
 import { StrategyExecutionService } from "./strategyExecution.service";
+import mongoose from "mongoose";
 
 export interface StrategyMonitor {
   strategyId: string;
@@ -9,6 +10,7 @@ export interface StrategyMonitor {
   executionCount: number;
   errorCount: number;
   lastError?: string;
+  executionFrequency: string; // e.g., "5m", "1h", "1d"
 }
 
 export class StrategyMonitoringService {
@@ -20,30 +22,34 @@ export class StrategyMonitoringService {
     this.executionService = new StrategyExecutionService();
   }
 
-  async startMonitoring(strategy: Strategy): Promise<void> {
+  async startMonitoring(
+    strategy: IStrategy,
+    executionFrequency: string = "5m"
+  ): Promise<void> {
+    const strategyId = strategy._id.toString();
+
     const monitor: StrategyMonitor = {
-      strategyId: strategy._id,
+      strategyId,
       status: "running",
       lastExecution: new Date(),
       executionCount: 0,
       errorCount: 0,
+      executionFrequency,
     };
 
-    this.activeMonitors.set(strategy._id, monitor);
+    this.activeMonitors.set(strategyId, monitor);
 
-    // Set up periodic execution based on strategy frequency
-    const intervalMs = this.getIntervalFromFrequency(
-      strategy.executionFrequency
-    );
+    // Set up periodic execution based on provided frequency
+    const intervalMs = this.getIntervalFromFrequency(executionFrequency);
 
     const interval = setInterval(async () => {
-      await this.executeStrategyMonitored(strategy._id);
+      await this.executeStrategyMonitored(strategyId);
     }, intervalMs);
 
-    this.monitoringIntervals.set(strategy._id, interval);
+    this.monitoringIntervals.set(strategyId, interval);
 
     console.log(
-      `Started monitoring strategy: ${strategy.name} (${strategy._id})`
+      `Started monitoring strategy: ${strategy.name} (${strategyId}) with frequency: ${executionFrequency}`
     );
   }
 
@@ -100,12 +106,18 @@ export class StrategyMonitoringService {
         return;
       }
 
-      // Execute strategy
+      // Execute strategy using the execution service
       const result = await this.executionService.executeStrategy(strategy);
 
       // Update monitor
       monitor.lastExecution = new Date();
       monitor.executionCount++;
+
+      // Calculate next execution time
+      const intervalMs = this.getIntervalFromFrequency(
+        monitor.executionFrequency
+      );
+      monitor.nextExecution = new Date(Date.now() + intervalMs);
 
       if (!result.success) {
         monitor.errorCount++;
@@ -119,6 +131,10 @@ export class StrategyMonitoringService {
           await this.stopMonitoring(strategyId);
           await this.updateStrategyStatus(strategyId, "error");
         }
+      } else {
+        // Reset error count on successful execution
+        monitor.errorCount = 0;
+        monitor.lastError = undefined;
       }
 
       // Log execution result
@@ -153,23 +169,114 @@ export class StrategyMonitoringService {
     }
   }
 
-  private async getStrategyById(strategyId: string): Promise<Strategy | null> {
-    // This would fetch from database - placeholder implementation
-    console.log(`Fetching strategy ${strategyId} from database`);
-    return null;
+  private async getStrategyById(strategyId: string): Promise<IStrategy | null> {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(strategyId)) {
+        console.error(`Invalid strategy ID: ${strategyId}`);
+        return null;
+      }
+
+      const strategy = await Strategy.findById(strategyId);
+      return strategy;
+    } catch (error) {
+      console.error(`Error fetching strategy ${strategyId}:`, error);
+      return null;
+    }
   }
 
   private async updateStrategyStatus(
     strategyId: string,
-    status: string
+    status: "active" | "inactive" | "paused" | "error"
   ): Promise<void> {
-    // This would update strategy status in database
-    console.log(`Updating strategy ${strategyId} status to ${status}`);
+    try {
+      if (!mongoose.Types.ObjectId.isValid(strategyId)) {
+        console.error(`Invalid strategy ID: ${strategyId}`);
+        return;
+      }
+
+      await Strategy.findByIdAndUpdate(
+        strategyId,
+        { status, updatedAt: new Date() },
+        { new: true }
+      );
+
+      console.log(`Updated strategy ${strategyId} status to ${status}`);
+    } catch (error) {
+      console.error(`Error updating strategy ${strategyId} status:`, error);
+    }
   }
 
   private async logExecution(strategyId: string, result: any): Promise<void> {
-    // This would log execution results to database
-    console.log(`Logging execution for strategy ${strategyId}:`, result);
+    try {
+      // The execution result is already logged in the strategy's execution logs
+      // by the StrategyExecutionService, so we just log to console here
+      console.log(`Execution completed for strategy ${strategyId}:`, {
+        success: result.success,
+        action: result.action,
+        executedTrades: result.executedTrades?.length || 0,
+        error: result.error,
+      });
+    } catch (error) {
+      console.error(
+        `Error logging execution for strategy ${strategyId}:`,
+        error
+      );
+    }
+  }
+
+  // Get strategies by user ID
+  async getStrategiesByUserId(userId: string): Promise<IStrategy[]> {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        console.error(`Invalid user ID: ${userId}`);
+        return [];
+      }
+
+      const strategies = await Strategy.find({
+        userId: new mongoose.Types.ObjectId(userId),
+        status: "active",
+      });
+
+      return strategies;
+    } catch (error) {
+      console.error(`Error fetching strategies for user ${userId}:`, error);
+      return [];
+    }
+  }
+
+  // Start monitoring all active strategies for a user
+  async startMonitoringForUser(
+    userId: string,
+    executionFrequency: string = "5m"
+  ): Promise<void> {
+    try {
+      const strategies = await this.getStrategiesByUserId(userId);
+
+      for (const strategy of strategies) {
+        await this.startMonitoring(strategy, executionFrequency);
+      }
+
+      console.log(
+        `Started monitoring ${strategies.length} strategies for user ${userId}`
+      );
+    } catch (error) {
+      console.error(`Error starting monitoring for user ${userId}:`, error);
+    }
+  }
+
+  // Stop monitoring all strategies for a user
+  async stopMonitoringForUser(userId: string): Promise<void> {
+    try {
+      const strategies = await this.getStrategiesByUserId(userId);
+
+      for (const strategy of strategies) {
+        await this.stopMonitoring(strategy._id.toString());
+      }
+
+      console.log(`Stopped monitoring strategies for user ${userId}`);
+    } catch (error) {
+      console.error(`Error stopping monitoring for user ${userId}:`, error);
+    }
   }
 
   // Cleanup on service shutdown
