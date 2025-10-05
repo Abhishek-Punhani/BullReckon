@@ -3,7 +3,7 @@ import axios from "axios";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { API_CONFIG } from "@/lib/config";
+import { API_CONFIG } from "@/config";
 
 export default function ActivateEmail() {
   const router = useRouter();

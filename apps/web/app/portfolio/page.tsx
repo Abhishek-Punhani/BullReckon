@@ -36,7 +36,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import axios from "axios";
-import { API_CONFIG } from "@/lib/config";
+import { API_CONFIG } from "@/config";
 
 interface Position {
   symbol: string;

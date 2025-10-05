@@ -1,5 +1,5 @@
 import axios from "axios";
-import { API_CONFIG } from "../lib/config";
+import { API_CONFIG } from "../config";
 
 export const authService = {
   async login(email: string, password: string) {

@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import { API_CONFIG } from "../lib/config";
+import { API_CONFIG } from "../config";
 
 export const marketService = {
   // Test if market server is available

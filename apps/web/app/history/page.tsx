@@ -36,7 +36,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { API_CONFIG } from "@/lib/config";
+import { API_CONFIG } from "@/config";
 import axios from "axios";
 
 // Enhanced interface

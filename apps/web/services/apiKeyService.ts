@@ -1,5 +1,5 @@
 import api from "@/lib/api";
-import { API_CONFIG } from "../lib/config";
+import { API_CONFIG } from "../config";
 
 export interface ApiKeyData {
   id: string;
