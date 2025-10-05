@@ -1,8 +1,32 @@
 import mongoose, { Document } from "mongoose";
-import { ITrade } from "../types";
 
-// Re-export the ITrade type for convenience
-export type { ITrade } from "../types";
+export interface ITrade extends Document {
+  userId: mongoose.Types.ObjectId;
+  symbol: string;
+  action: "BUY" | "SELL";
+  quantity: number;
+  triggerPrice: number;
+  fees: number;
+  total: number;
+  source: "market" | "limit" | "strategy" | "stop_loss" | "take_profit";
+  limitPrice?: number;
+  stopPrice?: number;
+  status: "pending" | "executed" | "canceled";
+  strategyId?: string;
+  realizedPnL?: number;
+  executedAt: Date;
+  averageHoldingPeriod?: number;
+  maxDrawdownDuringHold?: number;
+  marketData: {
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+  };
+  calculateTotal(): number;
+  calculateFees(amount: number): number;
+}
 
 const tradeSchema = new mongoose.Schema(
   {

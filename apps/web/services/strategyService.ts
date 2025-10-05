@@ -1,4 +1,4 @@
-import { API_CONFIG } from "@/lib/config";
+import { API_CONFIG } from "../config";
 import { authService } from "./authService";
 import api from "@/lib/api";
 

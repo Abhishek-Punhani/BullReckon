@@ -30,27 +30,8 @@ import {
   type CreateStrategyData,
 } from "@/services/strategyService";
 
-// Symbols and indicators (you can move these to a constants file)
-const SYMBOLS = [
-  { value: "BTCUSDT", label: "BTCUSDT", icon: "₿" },
-  { value: "ETHUSDT", label: "ETHUSDT", icon: "Ξ" },
-  { value: "BNBUSDT", label: "BNBUSDT", icon: "🟡" },
-  { value: "AAPL", label: "AAPL", icon: "🍎" },
-  { value: "GOOGL", label: "GOOGL", icon: "🔍" },
-  { value: "MSFT", label: "MSFT", icon: "🪟" },
-  { value: "TSLA", label: "TSLA", icon: "🚗" },
-];
-
-const INDICATORS = [
-  { value: "rsi", label: "RSI" },
-  { value: "ema", label: "EMA" },
-  { value: "sma", label: "SMA" },
-  { value: "macd", label: "MACD" },
-  { value: "bollinger", label: "Bollinger Bands" },
-  { value: "volume", label: "Volume" },
-  { value: "price", label: "Price" },
-  { value: "stochastic", label: "Stochastic" },
-];
+// Only price indicator is allowed for no-code builder
+const INDICATORS = [{ value: "price", label: "Price" }];
 
 const OPERATORS = [
   { value: "greater_than", label: ">" },
@@ -91,10 +72,10 @@ const NoCodeBuilder = () => {
       id: `rule_${Date.now()}`,
       name: "",
       condition: {
-        indicator: INDICATORS[0].value,
+        indicator: "price",
         operator: OPERATORS[0].value,
-        value: 0,
-        symbol: SYMBOLS[0].value,
+        value: 100,
+        symbol: "AAPL", // Default symbol
         timeframe: "1h",
       },
       action: {
@@ -250,24 +231,10 @@ const NoCodeBuilder = () => {
 
   const getIndicatorDescription = (indicator: string) => {
     switch (indicator) {
-      case "rsi":
-        return "Relative Strength Index (0-100)";
-      case "ema":
-        return "Exponential Moving Average";
-      case "sma":
-        return "Simple Moving Average";
-      case "macd":
-        return "MACD Line";
-      case "bollinger":
-        return "Bollinger Bands";
-      case "volume":
-        return "Trading Volume";
       case "price":
-        return "Current Price";
-      case "stochastic":
-        return "Stochastic Oscillator (0-100)";
+        return "Current market price of the asset";
       default:
-        return indicator;
+        return "Price";
     }
   };
 
@@ -509,56 +476,44 @@ const NoCodeBuilder = () => {
                   {/* Condition */}
                   <div className="space-y-3">
                     <div className="text-sm font-medium">🔍 IF (Condition)</div>
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                       <div className="space-y-1">
                         <label className="text-xs text-muted-foreground">
                           Symbol
                         </label>
-                        <Select
-                          value={rule.condition.symbol}
-                          onValueChange={(value) =>
-                            updateRule(rule.id, "condition.symbol", value)
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SYMBOLS.map((symbol) => (
-                              <SelectItem
-                                key={symbol.value}
-                                value={symbol.value}
-                              >
-                                {symbol.icon} {symbol.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="relative">
+                          <Input
+                            value={rule.condition.symbol}
+                            onChange={(e) =>
+                              updateRule(
+                                rule.id,
+                                "condition.symbol",
+                                e.target.value.toUpperCase()
+                              )
+                            }
+                            placeholder="Enter symbol (e.g., AAPL)"
+                            className="font-mono"
+                          />
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                            <span className="text-xs text-muted-foreground">
+                              📈
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          💡 Enter stock symbol (AAPL, GOOGL, TSLA, etc.)
+                        </p>
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs text-muted-foreground">
                           Indicator
                         </label>
-                        <Select
-                          value={rule.condition.indicator}
-                          onValueChange={(value) =>
-                            updateRule(rule.id, "condition.indicator", value)
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {INDICATORS.map((indicator) => (
-                              <SelectItem
-                                key={indicator.value}
-                                value={indicator.value}
-                              >
-                                {indicator.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="px-3 py-2 border border-border rounded-md bg-muted/50">
+                          <span className="text-sm font-medium">Price</span>
+                          <span className="text-xs text-muted-foreground ml-2">
+                            (Fixed)
+                          </span>
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs text-muted-foreground">
@@ -584,21 +539,28 @@ const NoCodeBuilder = () => {
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs text-muted-foreground">
-                          Value
+                          Price Value ($)
                         </label>
-                        <Input
-                          type="number"
-                          value={rule.condition.value}
-                          onChange={(e) =>
-                            updateRule(
-                              rule.id,
-                              "condition.value",
-                              Number(e.target.value)
-                            )
-                          }
-                          placeholder="0"
-                          className="font-mono"
-                        />
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+                            $
+                          </span>
+                          <Input
+                            type="number"
+                            value={rule.condition.value}
+                            onChange={(e) =>
+                              updateRule(
+                                rule.id,
+                                "condition.value",
+                                Number(e.target.value)
+                              )
+                            }
+                            placeholder="100.00"
+                            className="font-mono pl-7"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs text-muted-foreground">
@@ -715,13 +677,13 @@ const NoCodeBuilder = () => {
                   {/* Rule Summary */}
                   <div className="bg-accent/50 p-3 rounded-lg text-sm font-mono">
                     <strong>Rule Summary:</strong> When {rule.condition.symbol}{" "}
-                    {rule.condition.indicator.toUpperCase()}{" "}
+                    price{" "}
                     {
                       OPERATORS.find(
                         (op) => op.value === rule.condition.operator
                       )?.label
                     }{" "}
-                    {rule.condition.value} on{" "}
+                    ${rule.condition.value} on{" "}
                     {
                       TIMEFRAMES.find(
                         (tf) => tf.value === rule.condition.timeframe
@@ -794,14 +756,13 @@ const NoCodeBuilder = () => {
                     <div className="bg-muted/50 p-3 rounded-lg font-mono text-xs space-y-1 max-h-40 overflow-y-auto">
                       {rules.map((rule, index) => (
                         <div key={rule.id}>
-                          Rule {index + 1}: IF {rule.condition.symbol}{" "}
-                          {rule.condition.indicator.toUpperCase()}{" "}
+                          Rule {index + 1}: IF {rule.condition.symbol} price{" "}
                           {
                             OPERATORS.find(
                               (op) => op.value === rule.condition.operator
                             )?.label
                           }{" "}
-                          {rule.condition.value} → {rule.action.type}{" "}
+                          ${rule.condition.value} → {rule.action.type}{" "}
                           {rule.action.quantity}
                           {rule.action.quantityType === "percentage"
                             ? "%"
