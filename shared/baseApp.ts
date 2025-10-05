@@ -111,16 +111,15 @@ export class BaseApp {
     }
 
     // File upload (optional)
-    if (options.enableFileUpload) {
-      this.app.use(
-        fileUpload({
-          useTempFiles: true,
-          tempFileDir: "/tmp/",
-          limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
-        })
-      );
-    }
-
+    this.app.use(
+      "/",
+      fileUpload({
+        useTempFiles: true,
+        tempFileDir: "/tmp/",
+        limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+      })
+    );
+    
     // Health check endpoint
     this.app.get("/health", (req: Request, res: Response) => {
       res.status(200).json({
@@ -131,15 +130,31 @@ export class BaseApp {
         memory: process.memoryUsage(),
       });
     });
+
     // Security and optimization
-    this.app.use((req, res, next) => {
+    this.app.use("/", (req, res, next) => {
       // Only sanitize req.body and req.params, not req.query
       if (req.body) mongoSanitize.sanitize(req.body);
       if (req.params) mongoSanitize.sanitize(req.params);
       next();
     });
     this.app.use(compression());
+
+    // Attach socket.io to request object for route handlers
+    this.app.use("/", (req: any, res, next) => {
+      req.io = this.io;
+      next();
+    });
+
+    // 404 handler
+    this.app.use("/", (req: Request, res: Response, next: NextFunction) => {
+      next(createHttpError.NotFound(`Route ${req.originalUrl} not found`));
+    });
+
+    // Global error handler
+    this.app.use("/", errorHandler);
   }
+
   private initializeSessions(): void {
     console.log("config");
     const store = MongoStore.create({
