@@ -2,12 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -26,12 +34,20 @@ import {
   Loader2,
   Eye,
   EyeOff,
+  Play,
+  Pause,
+  Settings,
+  BarChart3,
+  Code,
+  Brain,
+  Blocks,
 } from "lucide-react";
 import {
   apiKeyService,
   ApiKeyData,
   GeneratedApiKey,
 } from "@/services/apiKeyService";
+import { strategyService, Strategy } from "@/services/strategyService";
 import api from "@/lib/api";
 
 interface ScriptInfo {
@@ -42,7 +58,9 @@ interface ScriptInfo {
 
 const StrategyPage = () => {
   const [apiKeys, setApiKeys] = useState<ApiKeyData[]>([]);
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [loading, setLoading] = useState(true);
+  const [strategiesLoading, setStrategiesLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [expiresInDays, setExpiresInDays] = useState<number>(30);
   const [generatedKey, setGeneratedKey] = useState<GeneratedApiKey | null>(
@@ -52,14 +70,25 @@ const StrategyPage = () => {
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [scripts, setScripts] = useState<ScriptInfo[]>([]);
   const [loadingScripts, setLoadingScripts] = useState(true);
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [executingStrategy, setExecutingStrategy] = useState<string | null>(
+    null
+  );
   const router = useRouter();
   const { toast } = useToast();
 
   // Fetch API keys on mount
   useEffect(() => {
     fetchApiKeys();
+    fetchStrategies();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Refetch strategies when status filter changes
+  useEffect(() => {
+    fetchStrategies();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStatus]);
 
   const fetchApiKeys = async () => {
     try {
@@ -74,6 +103,23 @@ const StrategyPage = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStrategies = async () => {
+    try {
+      setStrategiesLoading(true);
+      const params = selectedStatus === "all" ? {} : { status: selectedStatus };
+      const result = await strategyService.getStrategies(params);
+      setStrategies(result.strategies);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: (error as Error).message || "Failed to fetch strategies",
+        variant: "destructive",
+      });
+    } finally {
+      setStrategiesLoading(false);
     }
   };
 
@@ -175,15 +221,118 @@ const StrategyPage = () => {
     });
   };
 
+  const handleStrategyStatusChange = async (
+    strategyId: string,
+    newStatus: "active" | "inactive" | "paused"
+  ) => {
+    try {
+      await strategyService.updateStrategyStatus(strategyId, newStatus);
+
+      toast({
+        title: "Strategy Updated",
+        description: `Strategy ${newStatus === "active" ? "activated" : newStatus === "inactive" ? "deactivated" : "paused"} successfully.`,
+      });
+
+      // Refresh strategies
+      await fetchStrategies();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          (error as Error).message || "Failed to update strategy status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteStrategy = async (strategyId: string) => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this strategy? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await strategyService.deleteStrategy(strategyId);
+
+      toast({
+        title: "Strategy Deleted",
+        description: "Strategy deleted successfully.",
+      });
+
+      // Refresh strategies
+      await fetchStrategies();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: (error as Error).message || "Failed to delete strategy",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExecuteStrategy = async (strategyId: string) => {
+    setExecutingStrategy(strategyId);
+    try {
+      // Get a symbol from the strategy's rules to test with
+      const strategy = strategies.find((s) => s._id === strategyId);
+      if (!strategy || !strategy.rules?.length || strategy.rules.length === 0) {
+        throw new Error("Strategy has no rules to execute");
+      }
+
+      const symbol = strategy.rules[0]?.condition?.symbol || "BTCUSDT";
+      const result = await strategyService.executeStrategy(
+        strategyId,
+        symbol,
+        true
+      );
+
+      toast({
+        title: "Strategy Executed",
+        description: `Found ${result.executions.length} signal(s) for ${symbol} at $${result.currentPrice}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Execution Failed",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setExecutingStrategy(null);
+    }
+  };
+
   const maskKey = (key: string) => {
     if (key.length < 20) return key;
     return `${key.substring(0, 10)}...${key.substring(key.length - 10)}`;
   };
 
-  const getStatusColor = (isActive: boolean) => {
-    return isActive
-      ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-      : "bg-slate-500/10 text-slate-500 border-slate-500/20";
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "active":
+        return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+      case "paused":
+        return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+      case "error":
+        return "bg-red-500/10 text-red-500 border-red-500/20";
+      default:
+        return "bg-slate-500/10 text-slate-500 border-slate-500/20";
+    }
+  };
+
+  const getStrategyIcon = (type: string) => {
+    switch (type) {
+      case "no-code":
+        return <Blocks className="h-4 w-4" />;
+      case "code":
+        return <Code className="h-4 w-4" />;
+      case "ml":
+        return <Brain className="h-4 w-4" />;
+      default:
+        return <Settings className="h-4 w-4" />;
+    }
   };
 
   return (
@@ -196,17 +345,28 @@ const StrategyPage = () => {
         {/* Header */}
         <div className="border-b bg-card/50 backdrop-blur-sm">
           <div className="container max-w-7xl mx-auto px-6 py-8">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-lg">
-                <TrendingUp className="h-7 w-7 text-primary" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <TrendingUp className="h-7 w-7 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-extrabold tracking-tight">
+                    Strategy Management
+                  </h1>
+                  <p className="text-muted-foreground mt-2">
+                    Manage your trading strategies, API keys, and execution
+                    logs.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-4xl font-extrabold tracking-tight">
-                  Strategy Management
-                </h1>
-                <p className="text-muted-foreground mt-2">
-                  Manage your API keys, scripts, and API documentation.
-                </p>
+              <div className="flex gap-2">
+                <Link href="/no-code-builder">
+                  <Button className="shadow">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Strategy
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>
@@ -214,6 +374,181 @@ const StrategyPage = () => {
 
         {/* Content */}
         <div className="container max-w-7xl mx-auto px-6 py-8 space-y-8">
+          {/* Trading Strategies Section */}
+          <Card className="border-2 shadow-lg">
+            <CardHeader className="border-b bg-muted/30">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl">Trading Strategies</CardTitle>
+                <div className="flex items-center gap-3">
+                  <Select
+                    value={selectedStatus}
+                    onValueChange={setSelectedStatus}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="paused">Paused</SelectItem>
+                      <SelectItem value="error">Error</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={fetchStrategies} variant="outline" size="sm">
+                    <Loader2
+                      className={`h-4 w-4 mr-2 ${strategiesLoading ? "animate-spin" : ""}`}
+                    />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              {strategiesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : strategies.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Blocks className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium mb-2">
+                    No strategies found
+                  </p>
+                  <p className="text-sm mb-4">
+                    {selectedStatus === "all"
+                      ? "Create your first trading strategy to get started."
+                      : `No strategies with status "${selectedStatus}" found.`}
+                  </p>
+                  <Link href="/no-code-builder">
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Strategy
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {strategies.map((strategy) => (
+                    <div
+                      key={strategy._id}
+                      className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border hover:shadow-md transition-all"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          {getStrategyIcon(strategy.type)}
+                          <h3 className="font-semibold text-lg">
+                            {strategy.name}
+                          </h3>
+                          <Badge
+                            variant="outline"
+                            className={getStatusColor(strategy.status)}
+                          >
+                            {strategy.status}
+                          </Badge>
+                          <Badge variant="outline">
+                            {strategy.type === "no-code"
+                              ? "No-Code"
+                              : strategy.type.toUpperCase()}
+                          </Badge>
+                        </div>
+
+                        {strategy.description && (
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {strategy.description}
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-6 text-xs text-muted-foreground">
+                          <span>Rules: {strategy.rules?.length || 0}</span>
+                          <span>
+                            Trades: {strategy.metrics?.totalTrades || 0}
+                          </span>
+                          <span>
+                            Win Rate:{" "}
+                            {(strategy.metrics?.winRate || 0).toFixed(1)}%
+                          </span>
+                          <span>
+                            P&L: $
+                            {(
+                              strategy.currentPerformance?.netProfit ||
+                              strategy.metrics?.totalProfit ||
+                              0
+                            ).toFixed(2)}
+                          </span>
+                          <span>
+                            Updated:{" "}
+                            {new Date(
+                              strategy.updatedAt || Date.now()
+                            ).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Strategy Status Controls */}
+                        {strategy.status === "active" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleStrategyStatusChange(strategy._id, "paused")
+                            }
+                          >
+                            <Pause className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleStrategyStatusChange(strategy._id, "active")
+                            }
+                          >
+                            <Play className="h-4 w-4" />
+                          </Button>
+                        )}
+
+                        {/* Test Execute Button */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleExecuteStrategy(strategy._id)}
+                          disabled={executingStrategy === strategy._id}
+                        >
+                          {executingStrategy === strategy._id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <BarChart3 className="h-4 w-4" />
+                          )}
+                        </Button>
+
+                        {/* Strategy Details */}
+                        <Link href={`/strategy/${strategy._id}`}>
+                          <Button variant="ghost" size="sm">
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </Link>
+
+                        {/* Delete Strategy */}
+                        {strategy.status === "inactive" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteStrategy(strategy._id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Active API Keys Section */}
           <Card className="border-2 shadow-lg">
             <CardHeader className="border-b bg-muted/30">
@@ -307,7 +642,9 @@ const StrategyPage = () => {
                       <div className="flex items-center gap-2">
                         <Badge
                           variant="outline"
-                          className={getStatusColor(apiKey.isActive)}
+                          className={getStatusColor(
+                            apiKey.isActive ? "active" : "inactive"
+                          )}
                         >
                           {apiKey.isActive ? "Active" : "Inactive"}
                         </Badge>
