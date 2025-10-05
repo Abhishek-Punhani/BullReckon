@@ -163,7 +163,7 @@ export const trade = async (
       // Add to queue if available
       if (global.queueManager?.addPendingOrderJob) {
         await global.queueManager.addPendingOrderJob({
-          tradeId: tempTrade._id.toString(),
+          tradeId: (tempTrade._id as mongoose.Types.ObjectId).toString(),
           userId: userId.toString(),
           symbol,
           action,
@@ -220,7 +220,7 @@ export const trade = async (
         // Queue the stop loss order
         if (global.queueManager?.addPendingOrderJob) {
           await global.queueManager.addPendingOrderJob({
-            tradeId: stopLossTrade._id.toString(),
+            tradeId: (stopLossTrade._id as mongoose.Types.ObjectId).toString(),
             userId: userId.toString(),
             symbol,
             action: "SELL",
@@ -261,7 +261,9 @@ export const trade = async (
         // Queue the take profit order
         if (global.queueManager?.addPendingOrderJob) {
           await global.queueManager.addPendingOrderJob({
-            tradeId: takeProfitTrade._id.toString(),
+            tradeId: (
+              takeProfitTrade._id as mongoose.Types.ObjectId
+            ).toString(),
             userId: userId.toString(),
             symbol,
             action: "SELL",
@@ -282,7 +284,7 @@ export const trade = async (
     for (const t of createdTrades) {
       if (scriptName) {
         await logScriptTrade(userId.toString(), scriptName, {
-          tradeId: t._id.toString(),
+          tradeId: t._id as mongoose.Types.ObjectId,
           confidence,
           reason,
         });
