@@ -100,10 +100,14 @@ export class BaseApp {
     this.app.use(cors(corsOptions));
 
     // Body parsing middleware
-    this.app.use(cookieParser());
-    this.app.use(bodyParser.urlencoded({ extended: false }));
-    this.app.use(express.json({ limit: "10mb" }));
-    this.app.use(express.urlencoded({ extended: false }));
+    this.app.use(cookieParser() as express.RequestHandler);
+    this.app.use(
+      bodyParser.urlencoded({ extended: false }) as express.RequestHandler
+    );
+    this.app.use(express.json({ limit: "10mb" }) as express.RequestHandler);
+    this.app.use(
+      express.urlencoded({ extended: false }) as express.RequestHandler
+    );
 
     // Session middleware (optional)
     if (options.enableSessions !== false) {
@@ -117,9 +121,9 @@ export class BaseApp {
         useTempFiles: true,
         tempFileDir: "/tmp/",
         limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
-      })
+      }) as express.RequestHandler
     );
-    
+
     // Health check endpoint
     this.app.get("/health", (req: Request, res: Response) => {
       res.status(200).json({
@@ -147,12 +151,12 @@ export class BaseApp {
     });
 
     // 404 handler
-    this.app.use("/", (req: Request, res: Response, next: NextFunction) => {
+    this.app.use("/", ((req: Request, res: Response, next: NextFunction) => {
       next(createHttpError.NotFound(`Route ${req.originalUrl} not found`));
-    });
+    }) as express.RequestHandler);
 
     // Global error handler
-    this.app.use("/", errorHandler);
+    this.app.use("/", errorHandler as express.RequestHandler);
   }
 
   private initializeSessions(): void {
