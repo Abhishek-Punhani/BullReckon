@@ -20,6 +20,9 @@ export interface PendingOrderJobData {
   limitPrice?: number;
   stopPrice?: number;
   triggerPrice: number;
+  scriptName?: string;
+  confidence?: number;
+  reason?: string;
 }
 
 let emailQueue: Queue<CalcEmailJobData> | undefined;

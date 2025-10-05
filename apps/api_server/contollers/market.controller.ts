@@ -2,7 +2,6 @@ import { Response, NextFunction, Request } from "express";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import axios from "axios";
 import { internalApi } from "../../../shared/internalApi.client";
-import { ScriptTrade } from "../models/scriptTrade";
 
 const MARKET_SERVER_URL =
   process.env.MARKET_SERVER_URL || "http://localhost:5000";
@@ -144,7 +143,15 @@ export const tradingController = {
     next: NextFunction
   ) => {
     try {
-      const { symbol, action, quantity, price, scriptName } = req.body;
+      const {
+        symbol,
+        action,
+        quantity,
+        price,
+        scriptName,
+        confidence,
+        reason,
+      } = req.body;
 
       if (!scriptName) {
         return next(
@@ -172,6 +179,8 @@ export const tradingController = {
         userEmail: req.apiUser.email,
         apiKeyId: req.apiUser.keyId,
         scriptName,
+        confidence,
+        reason,
       };
 
       const response = await internalApi.post(
@@ -185,33 +194,6 @@ export const tradingController = {
           },
         }
       );
-
-      // Store trade in ScriptTrade model
-      const tradeResult = response.data?.data?.trade;
-      if (tradeResult) {
-        await ScriptTrade.findOneAndUpdate(
-          { userId: req.apiUser.keyId, scriptName },
-          {
-            $push: {
-              trades: {
-                symbol,
-                action: action.toUpperCase(),
-                quantity: Number(quantity),
-                triggerPrice: tradeResult.triggerPrice || price,
-                fees: tradeResult.fees || 0,
-                total: tradeResult.total || 0,
-                status: tradeResult.status || "executed",
-                executedAt: tradeResult.executedAt
-                  ? new Date(tradeResult.executedAt)
-                  : new Date(),
-              },
-            },
-            $setOnInsert: { userId: req.apiUser.keyId, scriptName },
-          },
-          { upsert: true }
-        );
-      }
-
       res.json({
         success: true,
         message: `${action.toUpperCase()} order executed successfully`,
@@ -229,24 +211,6 @@ export const tradingController = {
         );
       }
       next(new ErrorHandling("Failed to execute trade", 500));
-    }
-  },
-
-  // Get trades by script name
-  getScriptTrades: async (
-    req: ApiAuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const { scriptName } = req.params;
-      if (!scriptName) {
-        return next(new ErrorHandling("Script name required", 400));
-      }
-      const trades = await ScriptTrade.findOne({ scriptName });
-      res.json({ success: true, trades });
-    } catch (err) {
-      next(err);
     }
   },
 };
