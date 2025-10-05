@@ -509,20 +509,6 @@ const StrategyPage = () => {
                           </Button>
                         )}
 
-                        {/* Test Execute Button */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleExecuteStrategy(strategy._id)}
-                          disabled={executingStrategy === strategy._id}
-                        >
-                          {executingStrategy === strategy._id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <BarChart3 className="h-4 w-4" />
-                          )}
-                        </Button>
-
                         {/* Strategy Details */}
                         <Link href={`/strategy/${strategy._id}`}>
                           <Button

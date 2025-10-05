@@ -12,7 +12,7 @@ export type {
   IPortfolioSnapshot,
 } from "./portfolio";
 export type { IRiskSettings } from "./risk_settings";
-export type { ITrade } from "../types";
+export type { ITrade } from "../models/trade";
 export type {
   IStrategy,
   IRule,
