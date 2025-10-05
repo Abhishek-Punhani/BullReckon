@@ -10,7 +10,7 @@ import {
   getLivePrice,
   getCompanyInfo,
 } from "../controllers/market.controllers";
-import { protectRoute } from "middleware/authMiddleware";
+import { protectRoute } from "../../../middleware/authMiddleware";
 
 const marketRoutes: Router = Router();
 
