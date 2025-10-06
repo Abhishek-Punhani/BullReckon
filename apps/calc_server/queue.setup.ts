@@ -9,6 +9,7 @@ import { RiskManagementService } from "./services/riskManagement.service";
 import { processRiskTrade } from "./workers/riskTradeWorker";
 import { Job } from "bullmq";
 import { Queue } from "bullmq";
+import { RiskSettings } from "./models/risk_settings";
 
 /**
  * Calc Server Queue Setup
@@ -273,6 +274,9 @@ export async function setupCalcQueues(
     });
 
     console.log("✅ Calc server queues initialized successfully");
+
+    // Initialize risk monitoring for all users with auto settings enabled
+    await initializeRiskMonitoring(queueManager);
   } catch (error) {
     console.error("❌ Failed to setup calc queues:", error);
   }
@@ -357,3 +361,78 @@ export async function addStrategyExecutionJob(
 }
 
 export { emailQueue, pendingOrdersQueue, strategyExecutionQueue };
+
+/**
+ * Initialize risk monitoring for all users with enabled settings
+ * This runs on server startup to resume monitoring for existing users
+ */
+async function initializeRiskMonitoring(
+  queueManager: QueueManager
+): Promise<void> {
+  try {
+    console.log("🔄 Initializing risk monitoring for existing users...");
+
+    // Debug: Check all risk settings first
+    const allSettings = await RiskSettings.find({});
+    console.log(`📊 Total risk settings in DB: ${allSettings.length}`);
+    
+    if (allSettings.length > 0) {
+      console.log("Sample risk setting:", JSON.stringify(allSettings[0], null, 2));
+    }
+
+    // Find all users with risk monitoring enabled and auto features turned on
+    const activeRiskSettings = await RiskSettings.find({
+      $and: [
+        { $or: [{ enabled: { $ne: false } }, { enabled: { $exists: false } }] }, // enabled is true or doesn't exist (backward compatibility)
+        { $or: [{ autoStopLossEnabled: true }, { autoTakeProfitEnabled: true }] },
+      ],
+    });
+
+    console.log(
+      `📊 Found ${activeRiskSettings.length} users with active risk monitoring (with auto features enabled)`
+    );
+
+    const riskMonitorQueue = queueManager.getQueue("risk-settings-monitor");
+    if (!riskMonitorQueue) {
+      console.warn("⚠️ Risk monitor queue not available");
+      return;
+    }
+
+    // Schedule monitoring for each user
+    for (const settings of activeRiskSettings) {
+      const jobId = `risk-monitor-${settings.userId}`;
+
+      try {
+        // Remove any existing job first
+        await riskMonitorQueue.removeRepeatable(
+          "monitor-risk-settings",
+          { jobId, every: 30000 }
+        );
+      } catch (error) {
+        // Ignore if job doesn't exist
+      }
+
+      // Schedule recurring monitoring every 30 seconds
+      await riskMonitorQueue.add(
+        "monitor-risk-settings",
+        { userId: settings.userId },
+        {
+          jobId,
+          repeat: {
+            every: 30000*20, // 10 min
+          },
+          removeOnComplete: true,
+          removeOnFail: false,
+        }
+      );
+
+      console.log(`✅ Initialized risk monitoring for user ${settings.userId}`);
+    }
+
+    console.log(
+      `✅ Risk monitoring initialized for ${activeRiskSettings.length} users`
+    );
+  } catch (error) {
+    console.error("❌ Failed to initialize risk monitoring:", error);
+  }
+}
