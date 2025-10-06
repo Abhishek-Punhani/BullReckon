@@ -3,6 +3,9 @@ import mongoose, { Document, Schema } from "mongoose";
 export interface IRiskSettings extends Document {
   userId: mongoose.Types.ObjectId;
 
+  // Global Risk Monitoring Toggle
+  enabled: boolean; // Master switch to enable/disable all risk monitoring
+
   // Stop Loss Configuration
   stopLossPercentage: number; // Default 5%
   autoStopLossEnabled: boolean;
@@ -53,6 +56,12 @@ const riskSettingsSchema = new Schema<IRiskSettings>(
       required: true,
       unique: true,
       index: true,
+    },
+
+    enabled: {
+      type: Boolean,
+      default: true,
+      required: true,
     },
 
     stopLossPercentage: {

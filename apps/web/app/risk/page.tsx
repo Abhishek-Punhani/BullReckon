@@ -29,6 +29,7 @@ import { calcService, authService } from "@/services";
 import Navigation from "@/components/Navigation";
 
 interface RiskSettings {
+  enabled: boolean; // Master toggle for all risk monitoring
   stopLossPercentage: number;
   autoStopLossEnabled: boolean;
   trailingStopEnabled: boolean;
@@ -83,8 +84,13 @@ const RiskPage = () => {
     setIsRefreshing(false);
   };
 
-  const handleChange = (field: keyof RiskSettings, value: number | boolean | string) => {
-    setSettings((prev) => (prev ? { ...prev, [field]: value, riskPreset: "custom" } : prev));
+  const handleChange = (
+    field: keyof RiskSettings,
+    value: number | boolean | string
+  ) => {
+    setSettings((prev) =>
+      prev ? { ...prev, [field]: value, riskPreset: "custom" } : prev
+    );
   };
 
   const handleSave = async () => {
@@ -92,11 +98,11 @@ const RiskPage = () => {
     try {
       const token = authService.getToken();
       if (!token || !settings) return;
-      
+
       await calcService.updateRiskSettings(settings);
       await refreshSettings();
-    } catch (error) {
-      console.error("Error saving risk settings:", error);
+    } catch (err) {
+      console.error("Error saving risk settings:", err);
     } finally {
       setIsSaving(false);
     }
@@ -106,6 +112,7 @@ const RiskPage = () => {
   const applyPreset = (preset: "conservative" | "moderate" | "aggressive") => {
     const presets = {
       conservative: {
+        enabled: settings?.enabled ?? true, // Preserve enabled state
         stopLossPercentage: 2,
         takeProfitPercentage: 5,
         maxDrawdownPercentage: 10,
@@ -120,9 +127,14 @@ const RiskPage = () => {
         sectorConcentrationLimit: 25,
         alertsEnabled: true,
         notificationChannels: [],
-        riskPreset: preset as "conservative" | "moderate" | "aggressive" | "custom"
+        riskPreset: preset as
+          | "conservative"
+          | "moderate"
+          | "aggressive"
+          | "custom",
       },
       moderate: {
+        enabled: settings?.enabled ?? true, // Preserve enabled state
         stopLossPercentage: 5,
         takeProfitPercentage: 10,
         maxDrawdownPercentage: 20,
@@ -137,9 +149,14 @@ const RiskPage = () => {
         sectorConcentrationLimit: 40,
         alertsEnabled: true,
         notificationChannels: [],
-        riskPreset: preset as "conservative" | "moderate" | "aggressive" | "custom"
+        riskPreset: preset as
+          | "conservative"
+          | "moderate"
+          | "aggressive"
+          | "custom",
       },
       aggressive: {
+        enabled: settings?.enabled ?? true, // Preserve enabled state
         stopLossPercentage: 10,
         takeProfitPercentage: 20,
         maxDrawdownPercentage: 35,
@@ -154,10 +171,14 @@ const RiskPage = () => {
         sectorConcentrationLimit: 60,
         alertsEnabled: true,
         notificationChannels: [],
-        riskPreset: preset as "conservative" | "moderate" | "aggressive" | "custom"
-      }
+        riskPreset: preset as
+          | "conservative"
+          | "moderate"
+          | "aggressive"
+          | "custom",
+      },
     };
-    
+
     setSettings(presets[preset]);
   };
 
@@ -199,9 +220,16 @@ const RiskPage = () => {
   // Calculate risk metrics
   const portfolioValue = 112500;
   const maxLossAmount = (portfolioValue * settings.maxDrawdownPercentage) / 100;
-  const positionSize = (portfolioValue * settings.capitalAllocationPercentage) / 100;
-  const riskToReward = settings.takeProfitPercentage / settings.stopLossPercentage;
-  const riskScore = Math.round((settings.stopLossPercentage + settings.maxDrawdownPercentage + settings.capitalAllocationPercentage) / 3);
+  const positionSize =
+    (portfolioValue * settings.capitalAllocationPercentage) / 100;
+  const riskToReward =
+    settings.takeProfitPercentage / settings.stopLossPercentage;
+  const riskScore = Math.round(
+    (settings.stopLossPercentage +
+      settings.maxDrawdownPercentage +
+      settings.capitalAllocationPercentage) /
+      3
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -231,21 +259,72 @@ const RiskPage = () => {
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? "Saving..." : "Save Settings"}
               </Button>
-              <Badge 
-                variant={settings.riskPreset === "custom" ? "outline" : "default"} 
+              <Badge
+                variant={
+                  settings.riskPreset === "custom" ? "outline" : "default"
+                }
                 className="px-3 py-1"
               >
                 <Shield className="h-4 w-4 mr-2" />
-                {settings.riskPreset.charAt(0).toUpperCase() + settings.riskPreset.slice(1)}
+                {settings.riskPreset.charAt(0).toUpperCase() +
+                  settings.riskPreset.slice(1)}
               </Badge>
             </div>
           </div>
 
+          {/* Master Risk Toggle - Prominent */}
+          <Card
+            className={`border-2 ${settings.enabled ? "border-green-500 bg-green-50 dark:bg-green-950" : "border-red-500 bg-red-50 dark:bg-red-950"}`}
+          >
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Shield
+                    className={`h-8 w-8 ${settings.enabled ? "text-green-600" : "text-red-600"}`}
+                  />
+                  <div>
+                    <h3 className="text-xl font-bold">
+                      Risk Management {settings.enabled ? "Active" : "Disabled"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {settings.enabled
+                        ? "All risk rules are being monitored and enforced"
+                        : "Risk monitoring is currently disabled. Your positions are not being protected."}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium">
+                    {settings.enabled ? "Enabled" : "Disabled"}
+                  </span>
+                  <Switch
+                    checked={settings.enabled}
+                    onCheckedChange={(value) => handleChange("enabled", value)}
+                    className="data-[state=checked]:bg-green-600"
+                  />
+                </div>
+              </div>
+              {!settings.enabled && (
+                <div className="mt-4 p-3 bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 rounded-lg">
+                  <p className="text-sm text-red-800 dark:text-red-200 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <strong>Warning:</strong> Stop loss, take profit, and all
+                    risk protections are disabled.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Risk Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div
+            className={`grid grid-cols-1 md:grid-cols-4 gap-6 ${!settings.enabled ? "opacity-50 pointer-events-none" : ""}`}
+          >
             <Card className="bg-gradient-to-br from-background to-muted/50 border-2">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Max Drawdown</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Max Drawdown
+                </CardTitle>
                 <TrendingDown className="h-4 w-4 text-destructive" />
               </CardHeader>
               <CardContent>
@@ -260,7 +339,9 @@ const RiskPage = () => {
 
             <Card className="bg-gradient-to-br from-background to-muted/50 border-2">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Position Size</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Position Size
+                </CardTitle>
                 <Settings className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -275,7 +356,9 @@ const RiskPage = () => {
 
             <Card className="bg-gradient-to-br from-background to-muted/50 border-2">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Risk Score</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Risk Score
+                </CardTitle>
                 <Shield className="h-4 w-4 text-amber-500" />
               </CardHeader>
               <CardContent>
@@ -290,7 +373,9 @@ const RiskPage = () => {
 
             <Card className="bg-gradient-to-br from-background to-muted/50 border-2">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Max Positions</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Max Positions
+                </CardTitle>
                 <Settings className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
@@ -304,7 +389,9 @@ const RiskPage = () => {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div
+            className={`grid grid-cols-1 lg:grid-cols-2 gap-6 ${!settings.enabled ? "opacity-50 pointer-events-none" : ""}`}
+          >
             {/* Stop Loss Settings */}
             <Card className="bg-gradient-to-br from-background to-muted/50 border-2">
               <CardHeader>
@@ -321,9 +408,11 @@ const RiskPage = () => {
                       Automatically apply stop losses to new positions
                     </p>
                   </div>
-                  <Switch 
-                    checked={settings.autoStopLossEnabled} 
-                    onCheckedChange={(value) => handleChange("autoStopLossEnabled", value)} 
+                  <Switch
+                    checked={settings.autoStopLossEnabled}
+                    onCheckedChange={(value) =>
+                      handleChange("autoStopLossEnabled", value)
+                    }
                   />
                 </div>
 
@@ -333,7 +422,9 @@ const RiskPage = () => {
                     <div className="flex items-center gap-4 mt-2">
                       <Slider
                         value={[settings.stopLossPercentage]}
-                        onValueChange={(value) => handleChange("stopLossPercentage", value[0])}
+                        onValueChange={(value) =>
+                          handleChange("stopLossPercentage", value[0])
+                        }
                         max={20}
                         min={0.5}
                         step={0.5}
@@ -343,7 +434,12 @@ const RiskPage = () => {
                         <Input
                           type="number"
                           value={settings.stopLossPercentage}
-                          onChange={(e) => handleChange("stopLossPercentage", parseFloat(e.target.value) || 0)}
+                          onChange={(e) =>
+                            handleChange(
+                              "stopLossPercentage",
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
                           min={0.5}
                           max={20}
                           step={0.5}
@@ -360,9 +456,11 @@ const RiskPage = () => {
                         Move stop loss as price moves favorably
                       </p>
                     </div>
-                    <Switch 
-                      checked={settings.trailingStopEnabled} 
-                      onCheckedChange={(value) => handleChange("trailingStopEnabled", value)} 
+                    <Switch
+                      checked={settings.trailingStopEnabled}
+                      onCheckedChange={(value) =>
+                        handleChange("trailingStopEnabled", value)
+                      }
                     />
                   </div>
 
@@ -372,7 +470,9 @@ const RiskPage = () => {
                       <div className="flex items-center gap-4 mt-2">
                         <Slider
                           value={[settings.trailingStopPercentage]}
-                          onValueChange={(value) => handleChange("trailingStopPercentage", value[0])}
+                          onValueChange={(value) =>
+                            handleChange("trailingStopPercentage", value[0])
+                          }
                           max={30}
                           min={1}
                           step={0.5}
@@ -382,7 +482,12 @@ const RiskPage = () => {
                           <Input
                             type="number"
                             value={settings.trailingStopPercentage}
-                            onChange={(e) => handleChange("trailingStopPercentage", parseFloat(e.target.value) || 0)}
+                            onChange={(e) =>
+                              handleChange(
+                                "trailingStopPercentage",
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
                             min={1}
                             max={30}
                             step={0.5}
@@ -395,7 +500,8 @@ const RiskPage = () => {
 
                   <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
                     <p className="text-sm text-destructive">
-                      A {settings.stopLossPercentage}% stop loss means you'll exit positions when they drop{" "}
+                      A {settings.stopLossPercentage}% stop loss means you'll
+                      exit positions when they drop{" "}
                       {settings.stopLossPercentage}% below your entry price.
                     </p>
                   </div>
@@ -419,9 +525,11 @@ const RiskPage = () => {
                       Automatically take profits at target levels
                     </p>
                   </div>
-                  <Switch 
-                    checked={settings.autoTakeProfitEnabled} 
-                    onCheckedChange={(value) => handleChange("autoTakeProfitEnabled", value)} 
+                  <Switch
+                    checked={settings.autoTakeProfitEnabled}
+                    onCheckedChange={(value) =>
+                      handleChange("autoTakeProfitEnabled", value)
+                    }
                   />
                 </div>
 
@@ -431,7 +539,9 @@ const RiskPage = () => {
                     <div className="flex items-center gap-4 mt-2">
                       <Slider
                         value={[settings.takeProfitPercentage]}
-                        onValueChange={(value) => handleChange("takeProfitPercentage", value[0])}
+                        onValueChange={(value) =>
+                          handleChange("takeProfitPercentage", value[0])
+                        }
                         max={100}
                         min={1}
                         step={1}
@@ -441,7 +551,12 @@ const RiskPage = () => {
                         <Input
                           type="number"
                           value={settings.takeProfitPercentage}
-                          onChange={(e) => handleChange("takeProfitPercentage", parseFloat(e.target.value) || 0)}
+                          onChange={(e) =>
+                            handleChange(
+                              "takeProfitPercentage",
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
                           min={1}
                           max={100}
                           step={1}
@@ -453,8 +568,9 @@ const RiskPage = () => {
 
                   <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
                     <p className="text-sm text-green-600 dark:text-green-400">
-                      A {settings.takeProfitPercentage}% take profit means you'll secure gains when positions
-                      rise {settings.takeProfitPercentage}% above your entry price.
+                      A {settings.takeProfitPercentage}% take profit means
+                      you'll secure gains when positions rise{" "}
+                      {settings.takeProfitPercentage}% above your entry price.
                     </p>
                   </div>
                 </div>
@@ -475,7 +591,9 @@ const RiskPage = () => {
                   <div className="flex items-center gap-4 mt-2">
                     <Slider
                       value={[settings.maxDrawdownPercentage]}
-                      onValueChange={(value) => handleChange("maxDrawdownPercentage", value[0])}
+                      onValueChange={(value) =>
+                        handleChange("maxDrawdownPercentage", value[0])
+                      }
                       max={80}
                       min={5}
                       step={1}
@@ -485,7 +603,12 @@ const RiskPage = () => {
                       <Input
                         type="number"
                         value={settings.maxDrawdownPercentage}
-                        onChange={(e) => handleChange("maxDrawdownPercentage", parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleChange(
+                            "maxDrawdownPercentage",
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
                         min={5}
                         max={80}
                         step={1}
@@ -500,7 +623,9 @@ const RiskPage = () => {
                   <div className="flex items-center gap-4 mt-2">
                     <Slider
                       value={[settings.maxPositionsAllowed]}
-                      onValueChange={(value) => handleChange("maxPositionsAllowed", value[0])}
+                      onValueChange={(value) =>
+                        handleChange("maxPositionsAllowed", value[0])
+                      }
                       max={50}
                       min={1}
                       step={1}
@@ -510,7 +635,12 @@ const RiskPage = () => {
                       <Input
                         type="number"
                         value={settings.maxPositionsAllowed}
-                        onChange={(e) => handleChange("maxPositionsAllowed", parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleChange(
+                            "maxPositionsAllowed",
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
                         min={1}
                         max={50}
                         step={1}
@@ -526,9 +656,11 @@ const RiskPage = () => {
                       Enable dynamic position sizing based on risk
                     </p>
                   </div>
-                  <Switch 
-                    checked={settings.positionSizingEnabled} 
-                    onCheckedChange={(value) => handleChange("positionSizingEnabled", value)} 
+                  <Switch
+                    checked={settings.positionSizingEnabled}
+                    onCheckedChange={(value) =>
+                      handleChange("positionSizingEnabled", value)
+                    }
                   />
                 </div>
               </CardContent>
@@ -548,7 +680,9 @@ const RiskPage = () => {
                   <div className="flex items-center gap-4 mt-2">
                     <Slider
                       value={[settings.capitalAllocationPercentage]}
-                      onValueChange={(value) => handleChange("capitalAllocationPercentage", value[0])}
+                      onValueChange={(value) =>
+                        handleChange("capitalAllocationPercentage", value[0])
+                      }
                       max={100}
                       min={1}
                       step={1}
@@ -558,7 +692,12 @@ const RiskPage = () => {
                       <Input
                         type="number"
                         value={settings.capitalAllocationPercentage}
-                        onChange={(e) => handleChange("capitalAllocationPercentage", parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleChange(
+                            "capitalAllocationPercentage",
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
                         min={1}
                         max={100}
                         step={1}
@@ -573,7 +712,9 @@ const RiskPage = () => {
                   <div className="flex items-center gap-4 mt-2">
                     <Slider
                       value={[settings.sectorConcentrationLimit]}
-                      onValueChange={(value) => handleChange("sectorConcentrationLimit", value[0])}
+                      onValueChange={(value) =>
+                        handleChange("sectorConcentrationLimit", value[0])
+                      }
                       max={100}
                       min={10}
                       step={5}
@@ -583,7 +724,12 @@ const RiskPage = () => {
                       <Input
                         type="number"
                         value={settings.sectorConcentrationLimit}
-                        onChange={(e) => handleChange("sectorConcentrationLimit", parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleChange(
+                            "sectorConcentrationLimit",
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
                         min={10}
                         max={100}
                         step={5}
@@ -600,9 +746,11 @@ const RiskPage = () => {
                       Prevent positions in highly correlated assets
                     </p>
                   </div>
-                  <Switch 
-                    checked={settings.correlationRiskEnabled} 
-                    onCheckedChange={(value) => handleChange("correlationRiskEnabled", value)} 
+                  <Switch
+                    checked={settings.correlationRiskEnabled}
+                    onCheckedChange={(value) =>
+                      handleChange("correlationRiskEnabled", value)
+                    }
                   />
                 </div>
 
@@ -613,18 +761,22 @@ const RiskPage = () => {
                       Receive notifications for risk violations
                     </p>
                   </div>
-                  <Switch 
-                    checked={settings.alertsEnabled} 
-                    onCheckedChange={(value) => handleChange("alertsEnabled", value)} 
+                  <Switch
+                    checked={settings.alertsEnabled}
+                    onCheckedChange={(value) =>
+                      handleChange("alertsEnabled", value)
+                    }
                   />
                 </div>
 
                 <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
                   <p className="text-sm text-amber-600 dark:text-amber-400">
-                    <strong>Risk-to-Reward Ratio:</strong> 1:{riskToReward.toFixed(1)}
+                    <strong>Risk-to-Reward Ratio:</strong> 1:
+                    {riskToReward.toFixed(1)}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    For every $1 risked, you target ${riskToReward.toFixed(1)} in profit
+                    For every $1 risked, you target ${riskToReward.toFixed(1)}{" "}
+                    in profit
                   </p>
                 </div>
               </CardContent>
@@ -632,102 +784,110 @@ const RiskPage = () => {
           </div>
 
           {/* Risk Presets */}
-       <Card className="bg-gradient-to-br from-background to-muted/50 border-2 shadow-lg rounded-2xl">
-  <CardHeader>
-    <CardTitle className="text-lg font-semibold flex items-center gap-2">
-      <Shield className="h-5 w-5 text-primary" />
-      Risk Presets
-    </CardTitle>
-    <CardDescription className="text-muted-foreground">
-      Quick setup options for different risk profiles
-    </CardDescription>
-  </CardHeader>
-  <CardContent>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {/* Conservative */}
-      <Button
-        variant="outline"
-        className={`w-full h-auto p-5 flex flex-col items-start gap-3 rounded-2xl border transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-green-500/70 hover:bg-green-50/40 ${
-          settings.riskPreset === "conservative"
-            ? "border-green-600 bg-gradient-to-br from-green-50 to-green-100/60 shadow-lg shadow-green-200 ring-2 ring-green-400/40"
-            : "border-gray-200"
-        }`}
-        onClick={() => applyPreset("conservative")}
-      >
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-green-600" />
-            <span className="font-semibold text-green-700">Conservative</span>
-          </div>
-          {settings.riskPreset === "conservative" && (
-            <span className="text-green-600 text-xs font-bold px-2 py-0.5 bg-green-100 rounded-full shadow-sm">
-              ✓ Selected
-            </span>
-          )}
-        </div>
-        <div className="text-xs text-muted-foreground text-left leading-relaxed">
-          2% stop loss, 5% take profit,<br />
-          10% max drawdown, 10% allocation
-        </div>
-      </Button>
+          <Card className="bg-gradient-to-br from-background to-muted/50 border-2 shadow-lg rounded-2xl">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Shield className="h-5 w-5 text-primary" />
+                Risk Presets
+              </CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Quick setup options for different risk profiles
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Conservative */}
+                <Button
+                  variant="outline"
+                  className={`w-full h-auto p-5 flex flex-col items-start gap-3 rounded-2xl border transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-green-500/70 hover:bg-green-50/40 ${
+                    settings.riskPreset === "conservative"
+                      ? "border-green-600 bg-gradient-to-br from-green-50 to-green-100/60 shadow-lg shadow-green-200 ring-2 ring-green-400/40"
+                      : "border-gray-200"
+                  }`}
+                  onClick={() => applyPreset("conservative")}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-green-600" />
+                      <span className="font-semibold text-green-700">
+                        Conservative
+                      </span>
+                    </div>
+                    {settings.riskPreset === "conservative" && (
+                      <span className="text-green-600 text-xs font-bold px-2 py-0.5 bg-green-100 rounded-full shadow-sm">
+                        ✓ Selected
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground text-left leading-relaxed">
+                    2% stop loss, 5% take profit,
+                    <br />
+                    10% max drawdown, 10% allocation
+                  </div>
+                </Button>
 
-      {/* Moderate */}
-      <Button
-        variant="outline"
-        className={`w-full h-auto p-5 flex flex-col items-start gap-3 rounded-2xl border transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-amber-500/70 hover:bg-amber-50/40 ${
-          settings.riskPreset === "moderate"
-            ? "border-amber-500 bg-gradient-to-br from-amber-50 to-amber-100/60 shadow-lg shadow-amber-200 ring-2 ring-amber-400/40"
-            : "border-gray-200"
-        }`}
-        onClick={() => applyPreset("moderate")}
-      >
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-amber-500" />
-            <span className="font-semibold text-amber-700">Moderate</span>
-          </div>
-          {settings.riskPreset === "moderate" && (
-            <span className="text-amber-600 text-xs font-bold px-2 py-0.5 bg-amber-100 rounded-full shadow-sm">
-              ✓ Selected
-            </span>
-          )}
-        </div>
-        <div className="text-xs text-muted-foreground text-left leading-relaxed">
-          5% stop loss, 10% take profit,<br />
-          20% max drawdown, 25% allocation
-        </div>
-      </Button>
+                {/* Moderate */}
+                <Button
+                  variant="outline"
+                  className={`w-full h-auto p-5 flex flex-col items-start gap-3 rounded-2xl border transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-amber-500/70 hover:bg-amber-50/40 ${
+                    settings.riskPreset === "moderate"
+                      ? "border-amber-500 bg-gradient-to-br from-amber-50 to-amber-100/60 shadow-lg shadow-amber-200 ring-2 ring-amber-400/40"
+                      : "border-gray-200"
+                  }`}
+                  onClick={() => applyPreset("moderate")}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-amber-500" />
+                      <span className="font-semibold text-amber-700">
+                        Moderate
+                      </span>
+                    </div>
+                    {settings.riskPreset === "moderate" && (
+                      <span className="text-amber-600 text-xs font-bold px-2 py-0.5 bg-amber-100 rounded-full shadow-sm">
+                        ✓ Selected
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground text-left leading-relaxed">
+                    5% stop loss, 10% take profit,
+                    <br />
+                    20% max drawdown, 25% allocation
+                  </div>
+                </Button>
 
-      {/* Aggressive */}
-      <Button
-        variant="outline"
-        className={`w-full h-auto p-5 flex flex-col items-start gap-3 rounded-2xl border transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-red-500/70 hover:bg-red-50/40 ${
-          settings.riskPreset === "aggressive"
-            ? "border-red-500 bg-gradient-to-br from-red-50 to-red-100/60 shadow-lg shadow-red-200 ring-2 ring-red-400/40"
-            : "border-gray-200"
-        }`}
-        onClick={() => applyPreset("aggressive")}
-      >
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-red-500" />
-            <span className="font-semibold text-red-700">Aggressive</span>
-          </div>
-          {settings.riskPreset === "aggressive" && (
-            <span className="text-red-600 text-xs font-bold px-2 py-0.5 bg-red-100 rounded-full shadow-sm">
-              ✓ Selected
-            </span>
-          )}
-        </div>
-        <div className="text-xs text-muted-foreground text-left leading-relaxed">
-          10% stop loss, 20% take profit,<br />
-          35% max drawdown, 40% allocation
-        </div>
-      </Button>
-    </div>
-  </CardContent>
-</Card>
-
+                {/* Aggressive */}
+                <Button
+                  variant="outline"
+                  className={`w-full h-auto p-5 flex flex-col items-start gap-3 rounded-2xl border transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-red-500/70 hover:bg-red-50/40 ${
+                    settings.riskPreset === "aggressive"
+                      ? "border-red-500 bg-gradient-to-br from-red-50 to-red-100/60 shadow-lg shadow-red-200 ring-2 ring-red-400/40"
+                      : "border-gray-200"
+                  }`}
+                  onClick={() => applyPreset("aggressive")}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-red-500" />
+                      <span className="font-semibold text-red-700">
+                        Aggressive
+                      </span>
+                    </div>
+                    {settings.riskPreset === "aggressive" && (
+                      <span className="text-red-600 text-xs font-bold px-2 py-0.5 bg-red-100 rounded-full shadow-sm">
+                        ✓ Selected
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground text-left leading-relaxed">
+                    10% stop loss, 20% take profit,
+                    <br />
+                    35% max drawdown, 40% allocation
+                  </div>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Risk Warning */}
           <Card className="border-yellow-500/50 bg-yellow-500/5">

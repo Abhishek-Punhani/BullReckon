@@ -8,6 +8,7 @@ import { fetchLivePrice } from "../utils/fetchPrice";
 import { AuthenticatedRequest } from "../../../types/auth";
 import { sendTradeConfirmationEmail } from "../utils/emailUtils";
 import { logScriptTrade } from "../utils/scriptTradeLogger";
+import { RiskManagementService } from "../services/riskManagement.service";
 
 // Add a type declaration for global.queueManager
 declare global {
@@ -54,6 +55,25 @@ export const trade = async (
     } = req.body;
     const userId = req.user._id;
     const currentPrice = await fetchLivePrice(symbol);
+
+    // RISK CHECK: Validate trade against risk settings before execution
+    const riskService = new RiskManagementService();
+    const riskValidation = await riskService.validateTradeRisk(
+      userId,
+      symbol,
+      action,
+      quantity,
+      currentPrice
+    );
+
+    if (!riskValidation.allowed) {
+      return res.status(400).json({
+        success: false,
+        error: "Risk limit exceeded",
+        violations: riskValidation.violations,
+        message: `Trade blocked due to risk violations: ${riskValidation.violations.join("; ")}`,
+      });
+    }
 
     // Find or create portfolio
     let portfolio = await Portfolio.findOne({

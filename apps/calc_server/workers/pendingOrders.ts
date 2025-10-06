@@ -9,6 +9,8 @@ import { logScriptTrade } from "../utils/scriptTradeLogger";
 import { RiskManagementService } from "../services/riskManagement.service";
 import { addCalcEmailJob } from "../queue.setup";
 import { riskAlertEmail } from "../emails/riskAlertEmail";
+import { RiskAction } from "../models/riskAction";
+import { getUserEmail } from "../utils/userResolver";
 
 export async function processPendingOrder(job: Job<PendingOrderJobData>) {
   const { tradeId, userId, symbol, action, orderType, limitPrice, stopPrice } =
@@ -74,25 +76,52 @@ export async function processPendingOrder(job: Job<PendingOrderJobData>) {
 
     // Check risk settings before executing
     const riskService = new RiskManagementService();
-    const riskSettings = await riskService.getRiskSettings(userId);
-    const metrics = await riskService.calculateRiskMetrics(userId);
-    if (metrics.isRiskLimitExceeded) {
-      await addCalcEmailJob({
-        type: "custom",
-        to: userId, // You may need to resolve user email from userId
-        subject: "Risk Alert: Trade Blocked",
-        customHtml: riskAlertEmail({
-          reason: "Trade blocked due to risk violation",
-          details: metrics.riskViolations.join(", "),
-          tradeInfo: {
-            symbol,
-            action,
-            quantity: trade.quantity,
-            price: executionPrice,
-          },
-        }),
+    const validation = await riskService.validateTradeRisk(
+      userId,
+      symbol,
+      action,
+      trade.quantity,
+      executionPrice
+    );
+
+    if (!validation.allowed) {
+      // Log trade blocked action
+      await RiskAction.create({
+        userId,
+        action: "TRADE_BLOCKED",
+        symbol,
+        quantity: trade.quantity,
+        price: executionPrice,
+        reason: "Trade blocked due to risk violation",
+        violations: validation.violations,
+        status: "executed",
       });
-      return { success: false, reason: "Risk limit exceeded" };
+
+      // Send alert email
+      const userEmail = await getUserEmail(userId);
+      if (userEmail) {
+        await addCalcEmailJob({
+          type: "custom",
+          to: userEmail,
+          subject: "🚨 Risk Alert: Trade Blocked",
+          customHtml: riskAlertEmail({
+            reason: "Trade blocked due to risk violation",
+            details: validation.violations.join(", "),
+            tradeInfo: {
+              symbol,
+              action,
+              quantity: trade.quantity,
+              price: executionPrice,
+            },
+          }),
+        });
+      }
+
+      return {
+        success: false,
+        reason: "Risk limit exceeded",
+        violations: validation.violations,
+      };
     }
 
     if (shouldExecute) {

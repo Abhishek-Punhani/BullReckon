@@ -3,6 +3,8 @@ export { Trade } from "./trade";
 export { RiskSettings } from "./risk_settings";
 export { Strategy } from "./strategy";
 export { ScriptTrade } from "./scriptTrade";
+export { PortfolioSnapshot } from "./portfolioSnapshot";
+export { RiskAction } from "./riskAction";
 
 // Type exports
 export type {
@@ -23,3 +25,5 @@ export type {
   IExecutionLog,
 } from "./strategy";
 export type { IScriptTrade } from "./scriptTrade";
+export type { IPortfolioSnapshot as IPortfolioSnapshotDoc } from "./portfolioSnapshot";
+export type { IRiskAction } from "./riskAction";

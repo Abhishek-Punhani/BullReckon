@@ -18,4 +18,10 @@ router.post("/preset/:preset", riskController.applyRiskPreset);
 
 router.post("/monitor-positions", riskController.monitorPositions);
 
+router.get("/dashboard", riskController.getRiskDashboard);
+router.post("/manual-check", riskController.triggerManualRiskCheck);
+router.get("/history", riskController.getRiskHistory);
+router.get("/monitoring-status", riskController.getMonitoringStatus);
+router.post("/toggle", riskController.toggleRiskMonitoring);
+
 export { router as riskRoutes };

@@ -6,6 +6,7 @@ import {
   StrategyExecutionJobData,
 } from "./workers/strategyWorker";
 import { RiskManagementService } from "./services/riskManagement.service";
+import { processRiskTrade } from "./workers/riskTradeWorker";
 import { Job } from "bullmq";
 import { Queue } from "bullmq";
 
@@ -131,7 +132,7 @@ export async function setupCalcQueues(
       }
     );
 
-// Register strategy execution queue
+    // Register strategy execution queue
     strategyExecutionQueue =
       queueManager.registerQueue<StrategyExecutionJobData>(
         "strategy-execution",
@@ -189,16 +190,63 @@ export async function setupCalcQueues(
       }
     );
 
-    // Register risk settings monitoring worker
+    // Register risk settings monitoring worker with proper error handling
     queueManager.registerWorker<{ userId: string }>(
       "risk-settings-monitor",
       async (job: Job<{ userId: string }>) => {
         const { userId } = job.data;
-        const riskService = new RiskManagementService();
-        await riskService.monitorPositions(userId);
-        console.log(`[Risk] Monitored risk settings for user ${userId}`);
+        try {
+          console.log(`[Risk] Monitoring positions for user ${userId}`);
+          const riskService = new RiskManagementService();
+          await riskService.monitorPositions(userId);
+          return { success: true, userId, timestamp: new Date() };
+        } catch (error: any) {
+          console.error(`[Risk] Error monitoring user ${userId}:`, error);
+          throw error; // Let BullMQ handle retry
+        }
       },
-      { concurrency: 5 }
+      {
+        concurrency: 5,
+        limiter: {
+          max: 100, // Max 100 monitoring checks per minute
+          duration: 60000,
+        },
+      }
+    );
+
+    // Register risk trade execution worker
+    queueManager.registerWorker<any>("trade-execution", processRiskTrade, {
+      concurrency: 10,
+      limiter: {
+        max: 50,
+        duration: 60000,
+      },
+      onCompleted: (job, result) => {
+        console.log(
+          `✅ [Risk] Trade execution job ${job.id} completed:`,
+          result
+        );
+      },
+      onFailed: (job, error) => {
+        console.error(
+          `❌ [Risk] Trade execution job ${job?.id} failed:`,
+          error.message
+        );
+      },
+    });
+
+    // Register portfolio snapshot worker (runs every hour for all active users)
+    queueManager.registerWorker<{ userId: string }>(
+      "portfolio-snapshot",
+      async (job: Job<{ userId: string }>) => {
+        const { userId } = job.data;
+        const riskService = new RiskManagementService();
+        await riskService.updatePortfolioSnapshot(userId);
+        console.log(
+          `📸 [Snapshot] Created portfolio snapshot for user ${userId}`
+        );
+      },
+      { concurrency: 3 }
     );
 
     // Register queue events for monitoring
@@ -211,8 +259,8 @@ export async function setupCalcQueues(
     emailQueueEvents.on("completed", ({ jobId }) => {
       console.log(`✅ [Calc] Email job ${jobId} completed successfully`);
     });
-    
-        pendingOrdersQueueEvents.on("completed", ({ jobId }) => {
+
+    pendingOrdersQueueEvents.on("completed", ({ jobId }) => {
       console.log(
         `✅ [Calc] Pending order job ${jobId} completed successfully`
       );
