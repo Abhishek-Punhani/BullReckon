@@ -13,8 +13,7 @@ export const calcConfig = {
 
 export const allowedOrigins = [
   process.env.CLIENT_URL || "http://localhost:3000",
-  process.env.CALC_SERVER_URL || "http://localhost:3001",
-  process.env.MARKET_SERVER_URL || "http://localhost:3002",
-  process.env.API_SERVER_URL || "http://localhost:3003",
-  process.env.AUTH_SERVER_URL || "http://localhost:3004",
+  process.env.MARKET_SERVER_URL || "http://localhost:5000",
+  process.env.API_SERVER_URL || "http://localhost:3004",
+  process.env.AUTH_SERVER_URL || "http://localhost:4000",
 ];
