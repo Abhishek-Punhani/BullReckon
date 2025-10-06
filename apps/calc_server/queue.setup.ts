@@ -291,7 +291,19 @@ export async function addCalcEmailJob(
 ): Promise<void> {
   if (!emailQueue) {
     console.warn("⚠️ Email queue not initialized - processing directly");
-    await processCalcEmailJob({ data } as any);
+
+    // Create a mock job object that matches the expected interface
+    const mockJob = {
+      data,
+      id: `direct-${Date.now()}`,
+      opts: {
+        priority: options?.priority || 5,
+        attempts: options?.attempts || 5,
+      },
+      attemptsMade: 0,
+    };
+
+    await processCalcEmailJob(mockJob as any);
     return;
   }
 
@@ -317,7 +329,19 @@ export async function addPendingOrderJob(
     console.warn(
       "⚠️ Pending orders queue not initialized - processing directly"
     );
-    await processPendingOrder({ data } as any);
+
+    // Create a mock job object that matches the expected interface
+    const mockJob = {
+      data,
+      id: `direct-${Date.now()}`,
+      opts: {
+        priority: options?.priority || 5,
+        attempts: options?.attempts || 3,
+      },
+      attemptsMade: 0,
+    };
+
+    await processPendingOrder(mockJob as any);
     return;
   }
 
@@ -344,7 +368,19 @@ export async function addStrategyExecutionJob(
     console.warn(
       "⚠️ Strategy execution queue not initialized - processing directly"
     );
-    await processStrategyExecutionJob({ data } as any);
+
+    // Create a mock job object that matches the expected interface
+    const mockJob = {
+      data,
+      id: `direct-${Date.now()}`,
+      opts: {
+        priority: options?.priority || 5,
+        attempts: options?.attempts || 3,
+      },
+      attemptsMade: 0,
+    };
+
+    await processStrategyExecutionJob(mockJob as any);
     return;
   }
 

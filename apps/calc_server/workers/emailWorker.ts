@@ -38,7 +38,7 @@ export async function processCalcEmailJob(job: Job<CalcEmailJobData>) {
 
   try {
     console.log(
-      `📧 [Calc] Processing email job ${job.id} for ${to} (type: ${type}, priority: ${job.opts.priority || 5})`
+      `📧 [Calc] Processing email job ${job.id || "direct"} for ${to} (type: ${type}, priority: ${job.opts?.priority || 5})`
     );
 
     let htmlContent: string;
@@ -66,7 +66,7 @@ export async function processCalcEmailJob(job: Job<CalcEmailJobData>) {
     );
 
     console.log(
-      `✅ [Calc] Email sent successfully to ${to} (job: ${job.id}, messageId: ${result.messageId})`
+      `✅ [Calc] Email sent successfully to ${to} (job: ${job.id || "direct"}, messageId: ${result.messageId})`
     );
 
     return {
@@ -78,7 +78,7 @@ export async function processCalcEmailJob(job: Job<CalcEmailJobData>) {
     };
   } catch (error) {
     console.error(
-      `❌ [Calc] Failed to send email to ${to} (job: ${job.id}):`,
+      `❌ [Calc] Failed to send email to ${to} (job: ${job.id || "direct"}):`,
       error
     );
 
@@ -87,16 +87,18 @@ export async function processCalcEmailJob(job: Job<CalcEmailJobData>) {
       error instanceof Error ? error.message : "Unknown error";
     console.error(`[Calc] Error details: ${errorMessage}`);
 
-    // Check if this is the last retry attempt
-    const attemptsLeft = (job.opts.attempts || 5) - (job.attemptsMade || 0);
-    if (attemptsLeft <= 1) {
-      console.error(
-        `⚠️ [Calc] Final attempt failed for email to ${to}. Email will not be retried.`
-      );
-    } else {
-      console.log(
-        `🔄 [Calc] Will retry email to ${to}. Attempts left: ${attemptsLeft - 1}`
-      );
+    // Check if this is the last retry attempt (only if we have job.opts)
+    if (job.opts && job.attemptsMade !== undefined) {
+      const attemptsLeft = (job.opts.attempts || 5) - (job.attemptsMade || 0);
+      if (attemptsLeft <= 1) {
+        console.error(
+          `⚠️ [Calc] Final attempt failed for email to ${to}. Email will not be retried.`
+        );
+      } else {
+        console.log(
+          `🔄 [Calc] Will retry email to ${to}. Attempts left: ${attemptsLeft - 1}`
+        );
+      }
     }
 
     // Throw error to trigger retry mechanism
