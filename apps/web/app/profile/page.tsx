@@ -18,7 +18,7 @@ const AVATAR_SIZE = 96; // px
 const ProfilePage = () => {
   const user = authService.getUser();
   console.log("ProfilePage user:", user);
-  
+
   // State for edit form
   const [editing, setEditing] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName || "");
@@ -29,7 +29,7 @@ const ProfilePage = () => {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  
+
   // State for password reset
   const [resetting, setResetting] = useState(false);
 
@@ -91,8 +91,13 @@ const ProfilePage = () => {
   const handlePasswordReset = async () => {
     setResetting(true);
     try {
-      await api.post("/api/auth/request-password-mail", { email: user.email, type: "forgot" });
+      await api.post("/api/auth/request-password-mail", {
+        email: user.email,
+        type: "forgot",
+      });
       toast({ title: "Password reset email sent!" });
+      localStorage.setItem("mailConfirmationRequested", "reset");
+      await new Promise((resolve) => setTimeout(resolve, 200));
       router.push("/auth/post-register-mail-confirmation?type=reset");
     } catch (err) {
       toast({

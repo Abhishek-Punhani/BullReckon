@@ -53,8 +53,9 @@ export const registerUser = async (
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        sameSite: "strict",
+        sameSite: "none",
         secure: process.env.NODE_ENV === "production",
+        path: "/",
       });
       if (!user) {
         return next(
@@ -125,8 +126,9 @@ export const loginUser = async (
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        sameSite: "strict",
+        sameSite: "none",
         secure: process.env.NODE_ENV === "production",
+        path: "/",
       });
       user.lastLogin = new Date();
       await user.save();
@@ -163,7 +165,7 @@ export const logoutUser = async (
 
   res.clearCookie("refreshToken", {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "none",
     secure: process.env.NODE_ENV === "production",
   });
 
@@ -200,8 +202,9 @@ export const refreshToken = async (
       res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        sameSite: "strict",
+        sameSite: "none",
         secure: process.env.NODE_ENV === "production",
+        path: "/",
       });
 
       return res.status(200).json({
@@ -421,14 +424,13 @@ export const googleAuth = async (
       await sendWelcomeEmail(user.email, user.firstName);
     }
     try {
-      res.setHeader(
-        "Set-Cookie",
-        `refreshToken=${refreshToken}; HttpOnly; Path=/; Max-Age=${
-          7 * 24 * 60 * 60
-        }; SameSite=Strict;${
-          process.env.NODE_ENV === "production" ? " Secure;" : ""
-        }`
-      );
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        sameSite: "none",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+      });
     } catch (error) {
       console.error("Error setting cookie:", error);
       return next(new ErrorHandling("Error while setting cookie", 500));

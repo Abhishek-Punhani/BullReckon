@@ -66,6 +66,8 @@ const LoginPage = () => {
     try {
       const user = await authService.getUser();
       await api.post("/api/auth/request-password-mail", { email: user.email });
+      localStorage.setItem("mailConfirmationRequested", "forgot"); 
+      await new Promise((resolve) => setTimeout(resolve, 200));
       router.push("/auth/post-register-mail-confirmation?type=forgot");
       toast({ title: "Password reset email sent!" });
     } catch (err) {

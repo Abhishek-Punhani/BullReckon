@@ -68,6 +68,8 @@ const RegisterPage = () => {
       });
     } finally {
       setIsLoading(false);
+      localStorage.setItem("mailConfirmationRequested", "activate");
+      await new Promise((resolve) => setTimeout(resolve, 200));
       router.push("/auth/post-register-mail-confirmation?type=activate");
     }
   };
