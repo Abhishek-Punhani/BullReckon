@@ -2,6 +2,8 @@ import { Portfolio, IPortfolio } from "../models/portfolio";
 import { IRiskSettings, RiskSettings } from "../models/risk_settings";
 import { Trade } from "../models/trade";
 import { fetchLivePrice } from "../utils/fetchPrice";
+import { addCalcEmailJob } from "../queue.setup";
+import { riskAlertEmail } from "../emails/riskAlertEmail";
 
 export interface RiskCalculation {
   currentDrawdown: number;
@@ -217,6 +219,20 @@ export class RiskManagementService {
 
     if (!portfolio || !riskSettings) return;
 
+    // Calculate risk metrics
+    const metrics = await this.calculateRiskMetrics(userId);
+    if (metrics.isRiskLimitExceeded) {
+      await addCalcEmailJob({
+        type: "custom",
+        to: userId, // You may need to resolve user email from userId
+        subject: "Risk Alert: Portfolio Violation",
+        customHtml: riskAlertEmail({
+          reason: "Portfolio risk violation detected",
+          details: metrics.riskViolations.join(", "),
+        }),
+      });
+    }
+
     for (const position of portfolio.positions) {
       const currentPrice = await this.getCurrentMarketPrice(position.symbol);
 
@@ -379,8 +395,13 @@ export class RiskManagementService {
 
   private async queuePositionMonitoring(userId: string): Promise<void> {
     if (this.queueManager?.isQueueReady()) {
-      // Queue a recurring job to monitor this user's positions
-      console.log(`📊 Queued position monitoring for user ${userId}`);
+      const riskMonitorQueue = this.queueManager.getQueue(
+        "risk-settings-monitor"
+      );
+      if (riskMonitorQueue) {
+        await riskMonitorQueue.add("monitor-risk-settings", { userId });
+        console.log(`📊 Queued risk settings monitoring for user ${userId}`);
+      }
     }
   }
 }

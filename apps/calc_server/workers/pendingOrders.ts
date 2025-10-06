@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import { Job } from "bullmq";
 import { Trade } from "../models/trade";
 import { Portfolio } from "../models/portfolio";
@@ -6,6 +6,9 @@ import { fetchLivePrice } from "../utils/fetchPrice";
 import { sendTradeConfirmationEmail } from "../utils/emailUtils";
 import { PendingOrderJobData } from "../queue.setup";
 import { logScriptTrade } from "../utils/scriptTradeLogger";
+import { RiskManagementService } from "../services/riskManagement.service";
+import { addCalcEmailJob } from "../queue.setup";
+import { riskAlertEmail } from "../emails/riskAlertEmail";
 
 export async function processPendingOrder(job: Job<PendingOrderJobData>) {
   const { tradeId, userId, symbol, action, orderType, limitPrice, stopPrice } =
@@ -67,6 +70,29 @@ export async function processPendingOrder(job: Job<PendingOrderJobData>) {
           executionPrice = currentPrice; // Execute at market price when triggered
         }
         break;
+    }
+
+    // Check risk settings before executing
+    const riskService = new RiskManagementService();
+    const riskSettings = await riskService.getRiskSettings(userId);
+    const metrics = await riskService.calculateRiskMetrics(userId);
+    if (metrics.isRiskLimitExceeded) {
+      await addCalcEmailJob({
+        type: "custom",
+        to: userId, // You may need to resolve user email from userId
+        subject: "Risk Alert: Trade Blocked",
+        customHtml: riskAlertEmail({
+          reason: "Trade blocked due to risk violation",
+          details: metrics.riskViolations.join(", "),
+          tradeInfo: {
+            symbol,
+            action,
+            quantity: trade.quantity,
+            price: executionPrice,
+          },
+        }),
+      });
+      return { success: false, reason: "Risk limit exceeded" };
     }
 
     if (shouldExecute) {

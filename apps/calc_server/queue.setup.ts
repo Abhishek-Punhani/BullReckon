@@ -5,6 +5,8 @@ import {
   processStrategyExecutionJob,
   StrategyExecutionJobData,
 } from "./workers/strategyWorker";
+import { RiskManagementService } from "./services/riskManagement.service";
+import { Job } from "bullmq";
 import { Queue } from "bullmq";
 
 /**
@@ -129,7 +131,7 @@ export async function setupCalcQueues(
       }
     );
 
-    // Register strategy execution queue
+// Register strategy execution queue
     strategyExecutionQueue =
       queueManager.registerQueue<StrategyExecutionJobData>(
         "strategy-execution",
@@ -174,6 +176,31 @@ export async function setupCalcQueues(
       }
     );
 
+    // Register risk settings monitoring queue
+    const riskMonitorQueue = queueManager.registerQueue<{ userId: string }>(
+      "risk-settings-monitor",
+      {
+        defaultJobOptions: {
+          removeOnComplete: 100,
+          removeOnFail: 20,
+          attempts: 3,
+          backoff: { type: "exponential", delay: 5000 },
+        },
+      }
+    );
+
+    // Register risk settings monitoring worker
+    queueManager.registerWorker<{ userId: string }>(
+      "risk-settings-monitor",
+      async (job: Job<{ userId: string }>) => {
+        const { userId } = job.data;
+        const riskService = new RiskManagementService();
+        await riskService.monitorPositions(userId);
+        console.log(`[Risk] Monitored risk settings for user ${userId}`);
+      },
+      { concurrency: 5 }
+    );
+
     // Register queue events for monitoring
     const emailQueueEvents = queueManager.registerQueueEvents("calc-emails");
     const pendingOrdersQueueEvents =
@@ -184,8 +211,8 @@ export async function setupCalcQueues(
     emailQueueEvents.on("completed", ({ jobId }) => {
       console.log(`✅ [Calc] Email job ${jobId} completed successfully`);
     });
-
-    pendingOrdersQueueEvents.on("completed", ({ jobId }) => {
+    
+        pendingOrdersQueueEvents.on("completed", ({ jobId }) => {
       console.log(
         `✅ [Calc] Pending order job ${jobId} completed successfully`
       );
@@ -227,7 +254,6 @@ export async function addCalcEmailJob(
     ...options,
   });
 }
-
 /**
  * Add a pending order job to the queue
  */
