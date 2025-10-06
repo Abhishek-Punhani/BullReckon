@@ -167,14 +167,23 @@ export default function TradingTools({ symbol, price }: TradingToolsProps) {
         description: successMsg,
       });
       console.log("Order result:", result);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Could not place order.";
-      toast({
-        title: "Order Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      // Show all risk violations if present
+      if (error?.message && error.message.startsWith("Risk violation(s):")) {
+        toast({
+          title: "Order Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        const errorMessage =
+          error instanceof Error ? error.message : "Could not place order.";
+        toast({
+          title: "Order Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     }
   };
 

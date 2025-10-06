@@ -64,8 +64,21 @@ export const tradeService = {
 
       const result = await calcService.executeTrade(tradeData);
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Trade execution failed:", error);
+      // If backend returns violations, surface them
+      if (
+        error?.response?.data?.violations &&
+        Array.isArray(error.response.data.violations)
+      ) {
+        const violations = error.response.data.violations;
+        const errorMessage =
+          violations.length > 0
+            ? `Risk violation(s):\n- ${violations.join("\n- ")}`
+            : error.response.data.message ||
+              "Trade blocked due to risk settings.";
+        throw new Error(errorMessage);
+      }
       const errorMessage =
         error instanceof Error && error.message
           ? error.message
