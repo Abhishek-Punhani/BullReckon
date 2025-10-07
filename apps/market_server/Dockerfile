@@ -1,57 +1,40 @@
-# Multi-stage build for Market Server
-FROM node:18-alpine AS base
-
-# Install pnpm
-RUN npm install -g pnpm
-
+# Production Dockerfile for market_server with Nginx reverse proxy
+FROM node:20-alpine AS builder
 WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy workspace configuration files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
-
-# Copy only necessary shared dependencies (no packages folder)
+# Copy workspace files
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.json ./
+COPY apps/market_server/package.json ./apps/market_server/
+COPY apps/market_server ./apps/market_server
 COPY shared ./shared
 COPY types ./types
 COPY middleware ./middleware
+COPY packages ./packages
 
-# Copy market server
-COPY apps/market_server ./apps/market_server
+RUN pnpm install --no-frozen-lockfile --filter=market_server && pnpm --filter=market_server run build
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile --filter=market_server...
-
-# Production stage
-FROM node:18-alpine AS production
-
-RUN npm install -g pnpm
-
+FROM node:20-alpine AS runner
 WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@latest --activate
+ENV NODE_ENV=production
 
 # Copy workspace files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.json ./
+COPY apps/market_server/package.json ./apps/market_server/
+COPY --from=builder /app/apps/market_server ./apps/market_server
+COPY shared ./shared
+COPY types ./types
+COPY middleware ./middleware
+COPY packages ./packages
 
-# Copy dependencies from base
-COPY --from=base /app/shared ./shared
-COPY --from=base /app/types ./types
-COPY --from=base /app/middleware ./middleware
-COPY --from=base /app/apps/market_server ./apps/market_server
-COPY --from=base /app/node_modules ./node_modules
+RUN pnpm install --no-frozen-lockfile --filter=market_server --production=false && pnpm store prune
 
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --filter=market_server... --prod
-
-WORKDIR /app/apps/market_server
-
-EXPOSE 5000
-
-# Use production start command
-CMD ["node", "server.ts"]
-
-# Development stage (default)
-FROM base AS development
+# Install Nginx
+RUN apk add --no-cache nginx
+COPY apps/market_server/nginx/nginx.conf /etc/nginx/nginx.conf
 
 WORKDIR /app/apps/market_server
-
 EXPOSE 5000
 
-CMD ["pnpm", "run", "dev"]
+CMD ["pnpm", "run", "start"]

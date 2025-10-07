@@ -1,152 +1,255 @@
 version: "3.8"
-
 services:
-  # Redis for Queue Management
-  redis:
-    image: redis:7-alpine
-    container_name: bullreckon-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    command: redis-server --save "" --appendonly no
-    networks:
-      - bullreckon-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
-
-  # Auth Server
-  auth-server:
-    build:
-      context: .
-      dockerfile: apps/auth_server/Dockerfile
-      target: development
-    container_name: bullreckon-auth
-    restart: unless-stopped
-    ports:
-      - "4000:4000"
-    env_file:
-      - .env
-      - apps/auth_server/.env
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - bullreckon-network
-    volumes:
-      - ./apps/auth_server:/app/apps/auth_server
-      - ./shared:/app/shared
-      - ./types:/app/types
-      - ./middleware:/app/middleware
-      - ./tsconfig.json:/app/tsconfig.json
-      - /app/node_modules
-      - /app/apps/auth_server/node_modules
-
-  # Market Server
-  market-server:
-    build:
-      context: .
-      dockerfile: apps/market_server/Dockerfile
-      target: development
-    container_name: bullreckon-market
-    restart: unless-stopped
-    ports:
-      - "5000:5000"
-    env_file:
-      - .env
-      - apps/market_server/.env
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-    networks:
-      - bullreckon-network
-    volumes:
-      - ./apps/market_server:/app/apps/market_server
-      - ./shared:/app/shared
-      - ./types:/app/types
-      - ./middleware:/app/middleware
-      - ./tsconfig.json:/app/tsconfig.json
-      - /app/node_modules
-      - /app/apps/market_server/node_modules
-
-  # Calc Server
-  calc-server:
-    build:
-      context: .
-      dockerfile: apps/calc_server/Dockerfile
-      target: development
-    container_name: bullreckon-calc
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-      - apps/calc_server/.env
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      AUTH_SERVER_URL: http://auth-server:4000
-      MARKET_SERVER_URL: http://market-server:5000
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-    depends_on:
-      redis:
-        condition: service_healthy
-      auth-server:
-        condition: service_started
-      market-server:
-        condition: service_started
-    networks:
-      - bullreckon-network
-    volumes:
-      - ./apps/calc_server:/app/apps/calc_server
-      - ./shared:/app/shared
-      - ./types:/app/types
-      - ./middleware:/app/middleware
-      - ./tsconfig.json:/app/tsconfig.json
-      - /app/node_modules
-      - /app/apps/calc_server/node_modules
-
-  # Web Frontend (Next.js)
-  web:
+  # WEB
+  web1:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-      target: development
-    container_name: bullreckon-web
-    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+      - apps/web/.env
+  web2:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+    ports:
+      - "3002:3002"
+    env_file:
+      - .env
+      - apps/web/.env
+  web3:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+    ports:
+      - "3003:3003"
+    env_file:
+      - .env
+      - apps/web/.env
+  web-nginx:
+    image: nginx:alpine
+    volumes:
+      - ./apps/web/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
       - "3000:3000"
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      NEXT_PUBLIC_AUTH_SERVER: http://localhost:4000
-      NEXT_PUBLIC_MARKET_SERVER: http://localhost:5000
-      NEXT_PUBLIC_CALC_SERVER: http://localhost:8000
-      NEXT_PUBLIC_API_SERVER: http://localhost:3004
-      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     depends_on:
-      - auth-server
-      - market-server
-      - calc-server
-    networks:
-      - bullreckon-network
-    volumes:
-      - ./apps/web:/app/apps/web
-      - ./shared:/app/shared
-      - ./types:/app/types
-      - /app/node_modules
-      - /app/apps/web/node_modules
-      - /app/apps/web/.next
+      - web1
+      - web2
+      - web3
 
-networks:
-  bullreckon-network:
-    driver: bridge
+  # CALC SERVER
+  calc1:
+    build:
+      context: .
+      dockerfile: apps/calc_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=8001
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+      - apps/calc_server/.env
+  calc2:
+    build:
+      context: .
+      dockerfile: apps/calc_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=8002
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+      - apps/calc_server/.env
+  calc3:
+    build:
+      context: .
+      dockerfile: apps/calc_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=8003
+    ports:
+      - "8003:8003"
+    env_file:
+      - .env
+      - apps/calc_server/.env
+  calc-nginx:
+    image: nginx:alpine
+    volumes:
+      - ./apps/calc_server/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      - calc1
+      - calc2
+      - calc3
+
+  # MARKET SERVER
+  market1:
+    build:
+      context: .
+      dockerfile: apps/market_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=5001
+    ports:
+      - "5001:5001"
+    env_file:
+      - .env
+      - apps/market_server/.env
+  market2:
+    build:
+      context: .
+      dockerfile: apps/market_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=5002
+    ports:
+      - "5002:5002"
+    env_file:
+      - .env
+      - apps/market_server/.env
+  market3:
+    build:
+      context: .
+      dockerfile: apps/market_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=5003
+    ports:
+      - "5003:5003"
+    env_file:
+      - .env
+      - apps/market_server/.env
+  market-nginx:
+    image: nginx:alpine
+    volumes:
+      - ./apps/market_server/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "5000:5000"
+    depends_on:
+      - market1
+      - market2
+      - market3
+
+  # AUTH SERVER
+  auth1:
+    build:
+      context: .
+      dockerfile: apps/auth_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=4001
+    ports:
+      - "4001:4001"
+    env_file:
+      - .env
+      - apps/auth_server/.env
+  auth2:
+    build:
+      context: .
+      dockerfile: apps/auth_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=4002
+    ports:
+      - "4002:4002"
+    env_file:
+      - .env
+      - apps/auth_server/.env
+  auth3:
+    build:
+      context: .
+      dockerfile: apps/auth_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=4003
+    ports:
+      - "4003:4003"
+    env_file:
+      - .env
+      - apps/auth_server/.env
+  auth-nginx:
+    image: nginx:alpine
+    volumes:
+      - ./apps/auth_server/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "4000:4000"
+    depends_on:
+      - auth1
+      - auth2
+      - auth3
+
+  # API SERVER
+  api1:
+    build:
+      context: .
+      dockerfile: apps/api_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+    ports:
+      - "3005:3005"
+    env_file:
+      - .env
+      - apps/api_server/.env
+  api2:
+    build:
+      context: .
+      dockerfile: apps/api_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=3006
+    ports:
+      - "3006:3006"
+    env_file:
+      - .env
+      - apps/api_server/.env
+  api3:
+    build:
+      context: .
+      dockerfile: apps/api_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=3007
+    ports:
+      - "3007:3007"
+    env_file:
+      - .env
+      - apps/api_server/.env
+  api-nginx:
+    image: nginx:alpine
+    volumes:
+      - ./apps/api_server/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "3004:3004"
+    depends_on:
+      - api1
+      - api2
+      - api3
+
+  # REDIS
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redis-data:/data
 
 volumes:
-  redis_data:
+  redis-data:
     driver: local

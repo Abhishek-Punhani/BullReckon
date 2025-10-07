@@ -1,18 +1,18 @@
-# Production Dockerfile for calc_server with Nginx reverse proxy
+# Production Dockerfile for api_server with Nginx reverse proxy
 FROM node:20-alpine AS builder
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy workspace files
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.json ./
-COPY apps/calc_server/package.json ./apps/calc_server/
-COPY apps/calc_server ./apps/calc_server
+COPY apps/api_server/package.json ./apps/api_server/
+COPY apps/api_server ./apps/api_server
 COPY shared ./shared
 COPY types ./types
 COPY middleware ./middleware
 COPY packages ./packages
 
-RUN pnpm install --no-frozen-lockfile --filter=calc_server && pnpm --filter=calc_server run build
+RUN pnpm install --no-frozen-lockfile --filter=api_server && pnpm --filter=api_server run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -21,20 +21,20 @@ ENV NODE_ENV=production
 
 # Copy workspace files
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.json ./
-COPY apps/calc_server/package.json ./apps/calc_server/
-COPY --from=builder /app/apps/calc_server ./apps/calc_server
+COPY apps/api_server/package.json ./apps/api_server/
+COPY --from=builder /app/apps/api_server ./apps/api_server
 COPY shared ./shared
 COPY types ./types
 COPY middleware ./middleware
 COPY packages ./packages
 
-RUN pnpm install --no-frozen-lockfile --filter=calc_server --production=false && pnpm store prune
+RUN pnpm install --no-frozen-lockfile --filter=api_server --production=false && pnpm store prune
 
 # Install Nginx
 RUN apk add --no-cache nginx
-COPY apps/calc_server/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY apps/api_server/nginx/nginx.conf /etc/nginx/nginx.conf
 
-WORKDIR /app/apps/calc_server
-EXPOSE 8000
+WORKDIR /app/apps/api_server
+EXPOSE 3005 3006 3007
 
 CMD ["pnpm", "run", "start"]
