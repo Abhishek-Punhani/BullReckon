@@ -9,6 +9,7 @@ import { AuthenticatedRequest } from "../../../types/auth";
 import { sendTradeConfirmationEmail } from "../utils/emailUtils";
 import { logScriptTrade } from "../utils/scriptTradeLogger";
 import { RiskManagementService } from "../services/riskManagement.service";
+import { clearTradeRelatedCache } from "../../../middleware/cacheMiddleware";
 
 // Add a type declaration for global.queueManager
 declare global {
@@ -321,6 +322,11 @@ export const trade = async (
         tradeValue
       ).catch((error) => {
         console.error("Failed to send trade confirmation email:", error);
+      });
+
+      // Clear related cache after successful trade execution
+      clearTradeRelatedCache(userId.toString(), symbol).catch((error) => {
+        console.error("Failed to clear cache after trade:", error);
       });
     }
 

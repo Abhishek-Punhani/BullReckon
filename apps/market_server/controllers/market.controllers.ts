@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { marketService } from "../services/marketService";
 import { ErrorHandling } from "../../../middleware/errorHandler";
+import { clearMarketCache } from "../../../middleware/cacheMiddleware";
 
 /**
  * Get real-time stock quote
@@ -235,12 +236,21 @@ export const getMarketStats = async (
   next: NextFunction
 ) => {
   try {
-    const cacheStats = marketService.getCacheStats();
+    const inMemoryCacheStats = marketService.getCacheStats();
+
+    // Import cacheManager dynamically to avoid circular dependency
+    const { cacheManager } = await import(
+      "../../../middleware/cacheMiddleware"
+    );
+    const redisCacheStats = await cacheManager.getStats();
 
     res.status(200).json({
       success: true,
       data: {
-        cache: cacheStats,
+        cache: {
+          inMemory: inMemoryCacheStats,
+          redis: redisCacheStats,
+        },
         uptime: process.uptime(),
         memory: process.memoryUsage(),
         timestamp: new Date().toISOString(),
@@ -262,11 +272,14 @@ export const clearCache = async (
   next: NextFunction
 ) => {
   try {
+    // Clear both in-memory cache and Redis cache
     marketService.clearCache();
+    await clearMarketCache();
 
     res.status(200).json({
       success: true,
-      message: "Market service cache cleared successfully",
+      message:
+        "Market service cache cleared successfully (both in-memory and Redis)",
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

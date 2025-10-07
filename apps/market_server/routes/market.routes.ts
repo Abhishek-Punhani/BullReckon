@@ -11,31 +11,37 @@ import {
   getCompanyInfo,
 } from "../controllers/market.controllers";
 import { protectRoute } from "../../../middleware/authMiddleware";
+import { marketCache, companyCache } from "../../../middleware/cacheMiddleware";
 
 const marketRoutes: Router = Router();
 
-// Stock quote routes
-marketRoutes.get("/quote/:symbol", getStockQuote);
-marketRoutes.get("/historical/:symbol", getHistoricalData);
-marketRoutes.get("/company/:symbol", getCompanyInfo);
-marketRoutes.post("/quotes", getMultipleQuotes);
+// Stock quote routes with caching
+marketRoutes.get("/quote/:symbol", marketCache, getStockQuote);
+marketRoutes.get("/historical/:symbol", marketCache, getHistoricalData);
+marketRoutes.get("/company/:symbol", companyCache, getCompanyInfo);
+marketRoutes.post("/quotes", getMultipleQuotes); 
 
-// Search routes
-marketRoutes.get("/search", searchStocks);
+// Search routes with caching
+marketRoutes.get("/search", marketCache, searchStocks);
 
-// Service management routes
+// Service management routes (no caching)
 marketRoutes.get("/stats", getMarketStats);
 marketRoutes.delete("/cache", clearCache);
 
-// internal routes
-marketRoutes.get("/internal/quote/:symbol", internalAuth, getStockQuote);
+// Internal routes with caching
+marketRoutes.get(
+  "/internal/quote/:symbol",
+  internalAuth,
+  marketCache,
+  getStockQuote
+);
 marketRoutes.get(
   "/internal/historical/:symbol",
   internalAuth,
+  marketCache,
   getHistoricalData
 );
 
-// long polling route for prices
 marketRoutes.get("/long-poll/prices", protectRoute, getLivePrice);
 
 export { marketRoutes };
