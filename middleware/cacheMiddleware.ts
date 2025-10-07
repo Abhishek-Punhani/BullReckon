@@ -35,7 +35,7 @@ class CacheManager {
       this.redis = new IORedis({
         host: process.env.REDIS_HOST || "localhost",
         port: Number(process.env.REDIS_PORT) || 6379,
-        retryDelayOnFailover: 100,
+        password: process.env.REDIS_PASSWORD || undefined,
         maxRetriesPerRequest: 3,
         lazyConnect: true,
       });
@@ -82,8 +82,8 @@ class CacheManager {
     parts.push(req.method.toLowerCase());
 
     // Add user ID if needed
-    if (includeUser && req.user?.id) {
-      parts.push(`user:${req.user.id}`);
+    if (includeUser && req.user?._id) {
+      parts.push(`user:${req.user._id}`);
     }
 
     // Add path parameters
@@ -244,7 +244,7 @@ class CacheManager {
       const keyCount = await this.redis.dbsize();
       const info = await this.redis.info("memory");
       const memoryMatch = info.match(/used_memory_human:(.+)/);
-      const memoryUsage = memoryMatch ? memoryMatch[1].trim() : undefined;
+      const memoryUsage = memoryMatch?.[1]?.trim();
 
       return {
         connected: true,
