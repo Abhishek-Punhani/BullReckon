@@ -1,169 +1,301 @@
-# BullReckon — Setup and Run (Developer Instructions)
+# BullReckon
 
-This document explains how to set up and run the BullReckon monorepo locally on a Windows development machine (cmd.exe examples). It includes installing prerequisites, environment variables, running individual services, and running the entire monorepo in development.
+[![Build Passing](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/yourorg/yourrepo)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Next.js](https://img.shields.io/badge/Next.js-13+-black?logo=next.js)](https://nextjs.org/)
+[![Express](https://img.shields.io/badge/Express.js-Backend-lightgrey?logo=express)](https://expressjs.com/)
+[![Docker](https://img.shields.io/badge/Docker-Containerized-blue?logo=docker)](https://www.docker.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Nginx](https://img.shields.io/badge/Nginx-Reverse%20Proxy-green?logo=nginx)](https://nginx.org/)
 
-## Prerequisites
+---
 
-- Node.js LTS (>=18). Verify with:
+## Overview
 
-```cmd
-node -v
+**BullReckon** is a modern, scalable trading and risk management platform built with a microservices architecture. It provides real-time market data, automated risk controls, portfolio management, and a rich web interface. The system is designed for extensibility, reliability, and developer productivity.
+
+---
+
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Service Breakdown](#service-breakdown)
+- [Directory Structure](#directory-structure)
+- [Installation & Setup](#installation--setup)
+- [API Key System](#api-key-system)
+- [Development Guide](#development-guide)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgements](#acknowledgements)
+
+---
+
+## Architecture
+
+BullReckon is a **TypeScript monorepo** using [pnpm workspaces](https://pnpm.io/workspaces) and [TurboRepo](https://turbo.build/). Each major domain is a separate service, containerized with Docker and orchestrated via Docker Compose. Nginx is used for load balancing and CORS. Redis and MongoDB are used for queues and persistent storage.
+
+### High-Level Diagram
+
+```
+[ Web (Next.js) ]
+      |
+[ web-nginx ]
+      |
+[ API Gateway (api-nginx) ]
+      |
+-----------------------------
+|   |   |   |   |   |   |   |
+API CALC MARKET AUTH REDIS ...
 ```
 
-- pnpm (recommended as the repo uses pnpm workspace). Install globally if needed:
+### Service Communication Flow
 
-```cmd
-npm install -g pnpm
+```
+1. User Request → Web (Next.js Frontend)
+2. Web → Service APIs (Auth, Market, Calc, API Gateway)
+3. Services → Internal Auth Validation (JWT/Internal Secret)
+4. Services → Database (MongoDB) for persistence
+5. Services → Redis Queue for background jobs
+6. Workers → Process queued jobs
+7. Market Service → Yahoo Finance API for data
+8. WebSocket → Real-time updates to connected clients
 ```
 
+### Load Balancing Strategy
+
+Each backend service runs **3 replicated instances** behind an **Nginx reverse proxy** using the **least connections** algorithm for optimal load distribution:
+
+- **Web Service**: 3 instances (ports 3001-3003) → Nginx (port 3000)
+- **Auth Service**: 3 instances (ports 4001-4003) → Nginx (port 4000)
+- **Market Service**: 3 instances (ports 5001-5003) → Nginx (port 5000)
+- **Calc Service**: 3 instances (ports 8001-8003) → Nginx (port 8000)
+- **API Service**: 3 instances (ports 3005-3007) → Nginx (port 3004)
+
+---
+
+## Service Breakdown
+
+### 1. Web (Next.js Frontend)
+
+- **Path:** `apps/web`
+- **Stack:** Next.js, React, TailwindCSS, TypeScript
+- **Features:**
+  - Modern dashboard UI
+  - Real-time market data and portfolio updates
+  - User authentication (JWT, Google OAuth)
+  - API key management UI
+  - Strategy builder and backtesting
+  - Responsive/mobile support
+- **Dev:** `pnpm -C apps/web run dev`
+
+### 2. Auth Server
+
+- **Path:** `apps/auth_server`
+- **Stack:** Node.js, Express, TypeScript, MongoDB
+- **Features:**
+  - User registration, login, password reset
+  - JWT and session management
+  - Email verification (with templates)
+  - Secure password hashing
+  - Internal API for user info
+- **Dev:** `pnpm -C apps/auth_server run dev`
+
+### 3. Market Server
+
+- **Path:** `apps/market_server`
+- **Stack:** Node.js, Express, TypeScript
+- **Features:**
+  - Aggregates live market data (Yahoo Finance, etc.)
+  - Provides stock quotes, historical data, and symbol search
+  - Caches and rate-limits requests
+  - Exposes REST API for frontend and other services
+- **Dev:** `pnpm -C apps/market_server run dev`
+
+### 4. Calc Server
+
+- **Path:** `apps/calc_server`
+- **Stack:** Node.js, Express, TypeScript, BullMQ, Redis
+- **Features:**
+  - Risk management and monitoring
+  - Portfolio and position calculations
+  - Automated strategy execution
+  - Background jobs and queue workers
+  - Email alerts for risk events
+- **Dev:** `pnpm -C apps/calc_server run dev`
+
+### 5. API Server (Gateway)
+
+- **Path:** `apps/api_server`
+- **Stack:** Node.js, Express, TypeScript
+- **Features:**
+  - API gateway for all backend services
+  - Backtesting and script trading endpoints
+  - API key validation and rate limiting
+  - Aggregates and proxies requests to other services
+- **Dev:** `pnpm -C apps/api_server run dev`
+
+### 6. Shared, Middleware, Packages
+
+- **shared/**: Base classes, DB, queue, email, WebSocket, etc.
+- **middleware/**: Express middleware (auth, error handling, etc.)
+- **packages/**: Shared configs, UI, and TypeScript settings
+
+---
+
+## Directory Structure
+
+```
+bullReckon/
+├── apps/
+│   ├── web/           # Next.js frontend
+│   ├── api_server/    # API gateway
+│   ├── calc_server/   # Risk, portfolio, strategy
+│   ├── market_server/ # Market data
+│   └── auth_server/   # Auth & user management
+├── shared/            # Shared utilities
+├── middleware/        # Express middleware
+├── packages/          # Shared configs, UI, tsconfig
+├── docker-compose.yml # Service orchestration
+├── README.md
+└── ...
+```
+
+---
+
+## Installation & Setup
+
+### Prerequisites
+
+- Node.js (v18+ recommended)
+- pnpm (preferred, or npm/yarn)
+- Docker & Docker Compose
 - Git
-- (Optional) MongoDB if you plan to run auth/calc servers with a local DB. If you use hosted MongoDB, set the connection string in the service `.env` files.
-- (Optional) Redis if you want to enable queues. The repo supports disabling Redis via env.
+- (Optional) MongoDB and Redis locally, or use cloud providers
 
-## Quick repo clone
+### 1. Clone the Repository
 
-Clone the repository and open a terminal in the repo folder:
-
-```cmd
-git clone <your-repo-url> BullReckon
-cd BullReckon
+```bash
+git clone https://github.com/yourorg/bullReckon.git
+cd bullReckon
 ```
 
-Replace `<your-repo-url>` with the GitHub HTTPS or SSH URL.
+### 2. Install Dependencies
 
-## Install dependencies
-
-From the repository root run:
-
-```cmd
+```bash
 pnpm install
+# or npm install
 ```
 
-This installs dependencies for all workspace packages.
+### 3. Configure Environment Variables
 
-## Environment variables
+- Copy `.env.example` to `.env` in the root and in each service folder as needed:
+  ```bash
+  cp .env.example .env
+  cp apps/auth_server/.env.example apps/auth_server/.env
+  cp apps/calc_server/.env.example apps/calc_server/.env
+  # Edit apps/market_server/.env as needed
+  ```
+- Edit the `.env` files to set secrets, DB URLs, ports, and service URLs. See comments in each file for required values.
 
-There are several `.env` files used by services. The repo contains examples in a few places (for example: `apps/auth_server/.env.example`, `apps/calc_server/.env.example`, and `apps/market_server/.env`). There is also a root `.env` with values used for mail & local development.
+### 4. Build and Start All Services (Recommended)
 
-Recommended approach:
-
-1. Copy example env files into each service that needs them and edit values.
-
-```cmd
-copy apps\auth_server\.env.example apps\auth_server\.env
-copy apps\calc_server\.env.example apps\calc_server\.env
-rem  (market_server may have an .env already; edit if needed)
+```bash
+docker-compose up --build
 ```
 
-2. Edit the copied files and set values for:
+- This will build and start all backend services, Nginx, Redis, and MongoDB (if configured in Docker).
+- Access the app at:
+  - Frontend: http://localhost:3000
+  - API: http://localhost:3004
+  - Market: http://localhost:5000
+  - Auth: http://localhost:4000
+  - Calc: http://localhost:8000
 
-- PORT (we recommend using the ports below so the web app's defaults match)
-- DB_URL (if using MongoDB locally)
-- SESSION_SECRET or JWT secrets
-- NEXT_PUBLIC_GOOGLE_CLIENT_ID (for Google OAuth in the web app)
+### 5. Running Services Individually (Development)
 
-Important: The web app expects the backend services to be available at these defaults (see `apps/web/lib/config.ts`):
+- You can run any service in dev mode with hot reload:
+  ```bash
+  pnpm -C apps/auth_server run dev
+  pnpm -C apps/market_server run dev
+  pnpm -C apps/calc_server run dev
+  pnpm -C apps/api_server run dev
+  pnpm -C apps/web run dev
+  ```
+- Set the `PORT` env variable as needed (see `.env` and service docs).
 
-- AUTH_SERVER: http://localhost:4000
-- MARKET_SERVER: http://localhost:5000
-- CALC_SERVER: http://localhost:8000
-- API_SERVER: http://localhost:3004
+### 6. Useful Commands
 
-To match those defaults set the `PORT` variable when starting each service (examples below).
+- Type checking: `pnpm run check-types`
+- Lint: `pnpm run lint`
+- Build web: `pnpm -C apps/web run build`
+- Run all dev services: `pnpm run dev` (uses turbo)
 
-Sensitive secrets (API keys, mail credentials) should not be committed to git. Use environment variables or a local `.env` excluded by `.gitignore`.
+### 7. Database & Queues
 
-## Start services (development)
+- MongoDB: Set `DB_URL` in each service's `.env`.
+- Redis: Set `REDIS_HOST` and `REDIS_PORT` in `.env`.
+- To disable queues for local dev, set `DISABLE_REDIS_QUEUES=true` in root `.env`.
 
-You can start services individually (one terminal per service) or start the full monorepo with Turbo.
+---
 
-A. Start an individual service
+## API Key System
 
-Open separate terminals (cmd.exe) for each service and run the following commands. These examples set the PORT on Windows cmd and start the service using the package script defined in `package.json`.
+BullReckon uses an API key system to secure and manage access to backend APIs. Each user or integration can generate and manage their own API keys via the web UI or API endpoints.
 
-Auth server (recommended port 4000 to match web defaults):
+**How API Keys Work:**
 
-```cmd
-cd D:\Codes\webdev\prep\BullReckon
-set PORT=4000
-pnpm -C apps/auth_server run dev
+- API keys are stored in the database and associated with a user.
+- To access protected endpoints, include your API key in the `x-api-key` header.
+- The backend validates the key, checks permissions, and rate limits requests.
+- API keys can be revoked or rotated at any time.
+
+**Example Usage:**
+
+```http
+GET /api/market/quotes
+x-api-key: <your-api-key>
 ```
 
-Market server (recommended port 5000):
+**API Key Management:**
 
-```cmd
-cd D:\Codes\webdev\prep\BullReckon
-set PORT=5000
-pnpm -C apps/market_server run dev
-```
+- Generate, view, and revoke keys in the web dashboard (Profile > API Keys)
+- Or use the API endpoints (see `apps/api_server/routes/api.routes..ts` and `apps/api_server/models/apiKey.ts`)
 
-Calc server (recommended port 8000):
+**Security:**
 
-```cmd
-cd D:\Codes\webdev\prep\BullReckon
-set PORT=8000
-pnpm -C apps/calc_server run dev
-```
+- Never share your API key publicly.
+- Use HTTPS in production to protect keys in transit.
+- Keys are hashed in the database for security.
 
-API server (if used; default API port expected by web is 3004):
+**More Info:**
 
-```cmd
-cd D:\Codes\webdev\prep\BullReckon
-set PORT=3004
-pnpm -C apps/api_server run dev
-```
+- See the [API Documentation](https://bull-reckon-web.vercel.app/docs/api) for full API reference, endpoints, and usage examples.
 
-B. Start the web frontend
+---
 
-The web frontend is a Next.js app located in `apps/web` (port 3000 by default). Start it in a separate terminal:
+## Development Guide
 
-```cmd
-cd D:\Codes\webdev\prep\BullReckon
-pnpm -C apps/web run dev
-```
+- Each service can be run and debugged independently.
+- Use `.env` files in each service for configuration.
+- Hot-reload supported via `dev.Dockerfile` and `pnpm dev`.
+- Shared code is in `shared/` and `packages/`.
+- Lint and typecheck before pushing code.
 
-Visit http://localhost:3000 in your browser.
+---
 
-C. Start the whole monorepo (turbo)
+## Testing
 
-The repository root defines a `dev` script that runs `turbo run dev`. If you prefer one command to start all workspace services that expose a `dev` task, run:
+- Unit and integration tests are located in each service's `tests/` folder (if present).
+- Run tests with:
+  ```bash
+  pnpm test
+  # or npm test
+  ```
 
-```cmd
-cd D:\Codes\webdev\prep\BullReckon
-pnpm run dev
-```
+---
 
-Turbo will look up `dev` scripts defined in workspace packages and run them according to `turbo.json` configuration. This is convenient but you may still prefer to start services individually so you can inspect logs in separate terminals.
-
-## Useful developer commands
-
-- Run TypeScript checks across the monorepo (root):
-
-```cmd
-pnpm run check-types
-```
-
-- Typecheck only web app:
-
-```cmd
-pnpm -C apps/web run check-types
-```
-
-- Lint (root):
-
-```cmd
-pnpm run lint
-```
-
-- Build the web app for production:
-
-```cmd
-pnpm -C apps/web run build
-pnpm -C apps/web run start
-```
-## Initial Progress Vedio 
-- Since the initial progress is made majorly in backend services frontend progress is not that much \
-[Frontend Demo Till Now](https://drive.google.com/file/d/1lekm_c6IZvpCATRel7cfC7EXiMOaTlyz/view?usp=sharing)
 ## Local DB and queues
 
 - MongoDB: If you run `auth_server` or `calc_server` and they rely on MongoDB, make sure a local MongoDB is running and set `DB_URL` appropriately in the respective `.env`.
@@ -175,56 +307,37 @@ pnpm -C apps/web run start
 - Missing env vars: Many services expect secrets (JWT, mail). If the service crashes on startup with missing env, check the .env and add required values.
 - Toasts or client UI not appearing: ensure the web app is started in dev mode and that the browser console has no hydration error. If you modified `app/layout.tsx` or client components, ensure they are client components (`"use client"`) where required.
 
-## Running tests (if any)
+---
 
-This repo currently does not include a centralized test command. If/when tests are added, run them via pnpm scripts defined in package.json at the package level.
+## Deployment
 
-## Production / Deployment recommendations
-
-- Web (Next.js): Deploy to Vercel for easiest integration. The app uses Next.js v15 so Vercel supports it out of the box.
-- Backend services: Containerize with Docker and deploy to a cloud provider (AWS ECS/Fargate, DigitalOcean App Platform, Render, or Heroku). Provide environment variables from a secrets store.
-- Databases: Use managed MongoDB (Atlas) and managed Redis (ElastiCache, Redis Cloud) in production.
-
-Estimated monthly cost (very rough) for a small production setup:
-
-- Basic deployment (web on Vercel free/Pro, backends on a single small VM or Render): $20–100/month.
-- Medium production (managed DB + Redis + 2–3 small app instances): $150–500/month.
-- Scaled production (replicated DB, autoscaling, monitoring): $500+/month (depends heavily on traffic and retention, and whether you use paid data/APIs).
-
-## Deliverables & paperwork (course / project)
-
-You asked for PART A/B deliverables. Prepare these files in the repository root:
-
-- `README.md` — high level project README (link to the rest of the docs).
-- `PART_A_WRITEUP.md` — approach, architecture, challenges, progress, cost estimate.
-- `PART_A_CONTRIBUTIONS.md` — per-team-member contributions.
-- `PART_B_PLAN.md` — roadmap and innovation layer plan for Part B.
-
-Add these files to the repo and commit them. Example:
-
-```cmd
-cd D:\Codes\webdev\prep\BullReckon
-echo "# PART A Writeup" > PART_A_WRITEUP.md
-git add PART_A_WRITEUP.md PART_A_CONTRIBUTIONS.md PART_B_PLAN.md README.md
-git commit -m "Add project writeups and deliverables placeholders"
-git push origin master
-```
-
-## GitHub / Collaboration notes
-
-- Add collaborators (via GitHub UI): go to the repository -> Settings -> Manage access -> Invite teams or collaborators. Add the users `varun-kolanu` and `criticic` as requested.
-- To open a PR, create a branch, commit, push, and open a pull request on GitHub.
-
-## Next steps & verification checklist
-
-1. Ensure you have Node >=18 and pnpm installed.
-2. Copy/edit `.env` files for each server you plan to run.
-3. Start backend services (auth, market, calc) — recommended ports above.
-4. Start the web app: `pnpm -C apps/web run dev` and visit `http://localhost:3000`.
-5. Log in (use mock user or register) and exercise flows (market page, search, trade modal). Check browser console and server logs if something fails.
-
-If you'd like, I can also add a small `run-all` task or a `docker-compose` file to orchestrate services locally — tell me which option you prefer and I will implement it.
+- **Current Status:** Four backend service instances are deployed on [Render](https://render.com). The web frontend (Next.js) is deployed on [Vercel](https://vercel.com).
+- **Nginx:** Not currently in use for production, but planned for future deployment to enable advanced load balancing and reverse proxy features.
+- **Cloud Deployment:** Ensure environment variables and persistent storage are configured for each service.
+- **Databases:** Use managed MongoDB (e.g., Atlas) and managed Redis (e.g., Redis Cloud, using a free instance from [redis.com](https://redis.com)) for production reliability and scalability.
 
 ---
 
-If anything above is unclear or you want the exact `docker-compose` and minimal scripts to start everything with a single command, say the word and I will add them.
+## Contributing
+
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Acknowledgements
+
+- Yahoo Finance for market data
+- BullMQ for queue management
+- All open-source contributors
+
+---
+
+_Built with ❤️ by the BullReckon team._
+
+---
