@@ -1,5 +1,6 @@
 import { Queue, Worker, Job, QueueEvents } from "bullmq";
 import IORedis from "ioredis";
+import { RedisManager } from "./redisManager";
 
 /**
  * Queue Framework - Professional Queue Management System
@@ -8,7 +9,7 @@ import IORedis from "ioredis";
  * Each service should register its own queues and workers independently.
  *
  * Features:
- * - Centralized Redis connection management
+ * - Centralized Redis connection management (via RedisManager)
  * - Queue registration and lifecycle management
  * - Worker registration with custom processors
  * - Automatic fallback to direct processing when Redis is unavailable
@@ -51,6 +52,7 @@ export type JobProcessor<T = any> = (job: Job<T>) => Promise<any>;
 
 export class QueueManager {
   private static instance: QueueManager;
+  private redisManager: RedisManager;
   private redisConnection?: IORedis | null;
   private isInitialized: boolean = false;
 
@@ -60,30 +62,13 @@ export class QueueManager {
   private queueEvents: Map<string, QueueEvents> = new Map();
 
   private constructor() {
-    if (process.env.DISABLE_REDIS_QUEUES !== "true") {
-      try {
-        this.redisConnection = new IORedis({
-          host: process.env.REDIS_HOST || "localhost",
-          port: Number(process.env.REDIS_PORT) || 6379,
-          password: process.env.REDIS_PASSWORD || undefined,
-          enableReadyCheck: false,
-          maxRetriesPerRequest: null,
-          lazyConnect: true,
-        });
+    // Use centralized RedisManager
+    this.redisManager = RedisManager.getInstance();
 
-        // Suppress connection errors when Redis is disabled
-        this.redisConnection.on("error", (err: any) => {
-          if (process.env.DISABLE_REDIS_QUEUES === "true") {
-            return;
-          }
-          console.error("Redis connection error:", err);
-        });
-      } catch (error) {
-        console.log("⚠️ Redis connection failed - running in fallback mode");
-        this.redisConnection = null;
-      }
+    if (process.env.DISABLE_REDIS_QUEUES !== "true") {
+      console.log("🔧 QueueManager: Using centralized RedisManager");
     } else {
-      console.log("⚠️ Redis queues disabled - running in fallback mode");
+      console.log("⚠️  Redis queues disabled - running in fallback mode");
       this.redisConnection = null;
     }
   }
@@ -99,43 +84,35 @@ export class QueueManager {
    * Initialize the queue manager and test Redis connection
    */
   public async initialize(): Promise<void> {
-    try {
-      if (process.env.DISABLE_REDIS_QUEUES === "true") {
-        console.log("⚠️ Redis queues disabled - running in fallback mode");
-        this.isInitialized = true;
-        return;
-      }
+    if (this.isInitialized) {
+      console.log("📦 QueueManager already initialized");
+      return;
+    }
 
-      // Test Redis connection
-      if (this.redisConnection) {
-        let retries = 0;
-        const maxRetries = 5;
-
-        while (retries < maxRetries) {
-          try {
-            await this.redisConnection.ping();
-            console.log("✅ Connected to Redis");
-            break;
-          } catch (error) {
-            retries++;
-            if (retries < maxRetries) {
-              console.log(
-                `⏳ Waiting for Redis connection (attempt ${retries}/${maxRetries})...`
-              );
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-            } else {
-              throw error;
-            }
-          }
-        }
-      }
-
+    if (process.env.DISABLE_REDIS_QUEUES === "true") {
+      console.log("⚠️  Redis queues disabled - skipping initialization");
       this.isInitialized = true;
-      console.log("✅ Queue Manager initialized successfully");
+      return;
+    }
+
+    try {
+      // Connect via RedisManager
+      await this.redisManager.connect();
+      this.redisConnection = this.redisManager.getConnection();
+
+      if (this.redisConnection && this.redisManager.isReady()) {
+        console.log("✅ QueueManager initialized with Redis connection");
+        this.isInitialized = true;
+      } else {
+        console.log(
+          "⚠️  Redis connection not available - running in fallback mode"
+        );
+        this.isInitialized = true;
+      }
     } catch (error) {
-      console.error("❌ Failed to initialize Queue Manager:", error);
-      console.log("⚠️ Falling back to direct processing");
-      this.isInitialized = false;
+      console.error("❌ Failed to initialize QueueManager:", error);
+      this.redisConnection = null;
+      this.isInitialized = true;
     }
   }
 

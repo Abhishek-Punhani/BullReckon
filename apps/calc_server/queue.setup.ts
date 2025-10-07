@@ -375,16 +375,21 @@ async function initializeRiskMonitoring(
     // Debug: Check all risk settings first
     const allSettings = await RiskSettings.find({});
     console.log(`📊 Total risk settings in DB: ${allSettings.length}`);
-    
+
     if (allSettings.length > 0) {
-      console.log("Sample risk setting:", JSON.stringify(allSettings[0], null, 2));
+      console.log(
+        "Sample risk setting:",
+        JSON.stringify(allSettings[0], null, 2)
+      );
     }
 
     // Find all users with risk monitoring enabled and auto features turned on
     const activeRiskSettings = await RiskSettings.find({
       $and: [
         { $or: [{ enabled: { $ne: false } }, { enabled: { $exists: false } }] }, // enabled is true or doesn't exist (backward compatibility)
-        { $or: [{ autoStopLossEnabled: true }, { autoTakeProfitEnabled: true }] },
+        {
+          $or: [{ autoStopLossEnabled: true }, { autoTakeProfitEnabled: true }],
+        },
       ],
     });
 
@@ -404,10 +409,10 @@ async function initializeRiskMonitoring(
 
       try {
         // Remove any existing job first
-        await riskMonitorQueue.removeRepeatable(
-          "monitor-risk-settings",
-          { jobId, every: 30000 }
-        );
+        await riskMonitorQueue.removeRepeatable("monitor-risk-settings", {
+          jobId,
+          every: 30000,
+        });
       } catch (error) {
         // Ignore if job doesn't exist
       }
@@ -419,7 +424,7 @@ async function initializeRiskMonitoring(
         {
           jobId,
           repeat: {
-            every: 30000*20, // 10 min
+            every: 30000 * 20, // 10 min
           },
           removeOnComplete: true,
           removeOnFail: false,
@@ -427,6 +432,9 @@ async function initializeRiskMonitoring(
       );
 
       console.log(`✅ Initialized risk monitoring for user ${settings.userId}`);
+
+      // Wait 2 minutes before scheduling the next user to avoid market server overload
+      await new Promise((resolve) => setTimeout(resolve, 2 * 60 * 1000));
     }
 
     console.log(

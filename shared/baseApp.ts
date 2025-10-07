@@ -14,6 +14,7 @@ import rateLimit from "express-rate-limit";
 import { Server } from "socket.io";
 import http from "http";
 import { QueueManager } from "./queueManager";
+import { RedisManager } from "./redisManager";
 
 import { errorHandler } from "../middleware/errorHandler";
 import { BaseConfig } from "../types/config";
@@ -149,8 +150,6 @@ export class BaseApp {
       req.io = this.io;
       next();
     });
-
-
   }
 
   private initializeSessions(): void {
@@ -261,6 +260,17 @@ export class BaseApp {
   public async start(db: DatabaseManager, port: number) {
     try {
       await db.connect();
+
+      // Initialize Redis if queues are enabled or if Redis is needed
+      // Only connect if not already connected (may have been connected during queue initialization)
+      const redisManager = RedisManager.getInstance();
+      if (
+        process.env.DISABLE_REDIS_QUEUES !== "true" &&
+        !redisManager.isReady()
+      ) {
+        await redisManager.connect();
+      }
+
       await this.listen(port);
       console.log(`🚀 ${this.serviceName} started successfully`);
     } catch (error) {
@@ -274,6 +284,11 @@ export class BaseApp {
     if (this.queueManager) {
       await this.queueManager.shutdown();
     }
+
+    // Disconnect Redis
+    const redisManager = RedisManager.getInstance();
+    await redisManager.disconnect();
+
     await this.close();
     await db.disconnect();
     process.exit(0);

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import IORedis from "ioredis";
 import crypto from "crypto";
+import { RedisManager } from "../shared/redisManager";
 
 interface CacheOptions {
   ttl?: number;
@@ -18,50 +19,12 @@ interface CachedResponse {
 }
 
 class CacheManager {
+  private redisManager: RedisManager;
   private redis: IORedis | null = null;
-  private isConnected = false;
 
   constructor() {
-    this.initializeRedis();
-  }
-
-  private async initializeRedis() {
-    try {
-      if (process.env.DISABLE_REDIS_QUEUES === "true") {
-        console.log("⚠️ Redis caching disabled via environment variable");
-        return;
-      }
-
-      this.redis = new IORedis({
-        host: process.env.REDIS_HOST || "localhost",
-        port: Number(process.env.REDIS_PORT) || 6379,
-        password: process.env.REDIS_PASSWORD || undefined,
-        maxRetriesPerRequest: 3,
-        lazyConnect: true,
-      });
-
-      this.redis.on("connect", () => {
-        console.log("✅ Cache Redis connected successfully");
-        this.isConnected = true;
-      });
-
-      this.redis.on("error", (err) => {
-        console.error("❌ Cache Redis connection error:", err.message);
-        this.isConnected = false;
-      });
-
-      this.redis.on("close", () => {
-        console.log("⚠️ Cache Redis connection closed");
-        this.isConnected = false;
-      });
-
-      // Test connection
-      await this.redis.ping();
-    } catch (error) {
-      console.error("❌ Failed to initialize cache Redis:", error);
-      this.redis = null;
-      this.isConnected = false;
-    }
+    this.redisManager = RedisManager.getInstance();
+    this.redis = this.redisManager.getConnection();
   }
 
   private generateCacheKey(req: Request, options: CacheOptions = {}): string {
@@ -123,7 +86,7 @@ class CacheManager {
    * Get data from cache
    */
   async get(key: string): Promise<CachedResponse | null> {
-    if (!this.redis || !this.isConnected) {
+    if (!this.redisManager.isReady() || !this.redis) {
       return null;
     }
 
@@ -150,7 +113,7 @@ class CacheManager {
     statusCode: number = 200,
     ttl: number = 300
   ): Promise<void> {
-    if (!this.redis || !this.isConnected) {
+    if (!this.redisManager.isReady() || !this.redis) {
       return;
     }
 
@@ -171,7 +134,7 @@ class CacheManager {
    * Delete cache entries by pattern
    */
   async deletePattern(pattern: string): Promise<number> {
-    if (!this.redis || !this.isConnected) {
+    if (!this.redisManager.isReady() || !this.redis) {
       return 0;
     }
 
@@ -196,7 +159,7 @@ class CacheManager {
    * Delete specific cache key
    */
   async delete(key: string): Promise<boolean> {
-    if (!this.redis || !this.isConnected) {
+    if (!this.redisManager.isReady() || !this.redis) {
       return false;
     }
 
@@ -213,7 +176,7 @@ class CacheManager {
    * Clear all cache
    */
   async clear(): Promise<void> {
-    if (!this.redis || !this.isConnected) {
+    if (!this.redisManager.isReady() || !this.redis) {
       return;
     }
 
@@ -233,7 +196,7 @@ class CacheManager {
     keyCount: number;
     memoryUsage?: string;
   }> {
-    if (!this.redis || !this.isConnected) {
+    if (!this.redisManager.isReady() || !this.redis) {
       return {
         connected: false,
         keyCount: 0,
