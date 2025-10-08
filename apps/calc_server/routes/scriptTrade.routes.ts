@@ -2,13 +2,15 @@ import { Router } from "express";
 import { ScriptTrade } from "../models/scriptTrade";
 import { Trade } from "../models/trade";
 import { protectRoute } from "../../../middleware/authMiddleware";
+import { AuthenticatedRequest } from "types/auth";
 
 const router: Router = Router();
 
-// GET /script-trades (get all script trades with details)
-router.get("/", protectRoute,async (req, res, next) => {
+// GET /script-trades (get all script trades with details for the authenticated user)
+router.get("/", protectRoute, async (req:AuthenticatedRequest, res, next) => {
   try {
-    const scriptTrades = await ScriptTrade.find().lean();
+    const filter = { userId: req.user._id };
+    const scriptTrades = await ScriptTrade.find(filter).lean();
 
     // Populate trade details for each script
     const scriptsWithTrades = await Promise.all(
@@ -43,7 +45,7 @@ router.get("/", protectRoute,async (req, res, next) => {
 });
 
 // GET /script-trades/:scriptName (populated)
-router.get("/:id",protectRoute, async (req, res, next) => {
+router.get("/:id",protectRoute, async (req:AuthenticatedRequest, res, next) => {
   try {
     const { id } = req.params;
     if (!id) {
@@ -57,6 +59,9 @@ router.get("/:id",protectRoute, async (req, res, next) => {
     const populatedTrades = await Promise.all(
       scriptTrade.trades.map(async (tradeInfo) => {
         const trade = await Trade.findById(tradeInfo.tradeId).lean();
+        if (!trade || trade.userId.toString() !== req.user._id.toString()) {
+          throw new Error("Unauthorized access to trade");
+        }
         return {
           ...tradeInfo,
           trade: trade,

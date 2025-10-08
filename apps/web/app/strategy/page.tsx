@@ -53,7 +53,6 @@ import {
 import { strategyService, Strategy } from "@/services/strategyService";
 import {
   scriptTradeService,
-  ScriptWithTrades,
 } from "@/services/scriptTradeService";
 
 interface ScriptInfo {
