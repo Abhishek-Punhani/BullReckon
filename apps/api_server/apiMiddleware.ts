@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
 import { ErrorHandling } from "../../middleware/errorHandler";
 import { ApiKey } from "./models/apiKey";
+import { internalApi } from "../../shared/internalApi.client";
 
 declare global {
   namespace Express {
@@ -28,13 +29,12 @@ export const authenticateApiKey = async (
     // Get email and public key from headers
     const email = req.headers["x-api-email"] as string;
     const publicKey = req.headers["x-api-key"] as string;
-    const signature = req.headers["x-api-signature"] as string;
     const timestamp = req.headers["x-api-timestamp"] as string;
 
-    if (!email || !publicKey || !signature || !timestamp) {
+    if (!email || !publicKey || !timestamp) {
       return next(
         new ErrorHandling(
-          "Missing required headers: x-api-email, x-api-key, x-api-signature, x-api-timestamp",
+          "Missing required headers: x-api-email, x-api-key, x-api-timestamp",
           401
         )
       );
@@ -42,16 +42,20 @@ export const authenticateApiKey = async (
 
     // Check timestamp to prevent replay attacks (5 min window)
     const currentTimestamp = Date.now();
-    const requestTime = parseInt(timestamp);
-    if (Math.abs(currentTimestamp - requestTime) > 5 * 60 * 1000) {
-      return next(new ErrorHandling("Request timestamp expired", 401));
+    const requestTime = parseInt(timestamp, 10);
+    if (
+      isNaN(requestTime) ||
+      Math.abs(currentTimestamp - requestTime) > 5 * 60 * 1000
+    ) {
+      return next(
+        new ErrorHandling("Request timestamp expired or invalid", 401)
+      );
     }
-
-    // Find the API key record
+    // Find the API key record (for rate limits / status). do not require privateKey here.
     const apiKeyRecord = await ApiKey.findOne({
       email,
       isActive: true,
-    }).select("+privateKey");
+    });
 
     if (!apiKeyRecord) {
       return next(new ErrorHandling("Invalid API credentials", 401));
@@ -62,23 +66,43 @@ export const authenticateApiKey = async (
       return next(new ErrorHandling("API key has expired", 401));
     }
 
-    // Verify signature using stored private key
     try {
-      const verifier = crypto.createVerify("SHA256");
-      const message = `${email}:${timestamp}:${req.method}:${req.originalUrl}`;
-      verifier.update(message);
-      verifier.end();
+      // Normalize header public key to a canonical PEM form
+      const headerPublicKeyObj = crypto.createPublicKey(publicKey);
+      const headerPublicPem = headerPublicKeyObj
+        .export({ type: "spki", format: "pem" })
+        .toString()
+        .trim();
 
-      const isValid = verifier.verify(publicKey, signature, "base64");
-
-      if (!isValid) {
-        return next(new ErrorHandling("Invalid signature", 401));
+      // Derive public key from the stored private key and compare
+      if (!apiKeyRecord.privateKey) {
+        return next(
+          new ErrorHandling(
+            "No server-side private key available for validation",
+            401
+          )
+        );
       }
-    } catch (error) {
-      console.error("Signature verification error:", error);
-      return next(new ErrorHandling("Signature verification failed", 401));
-    }
 
+      const privKeyObj = crypto.createPrivateKey(apiKeyRecord.privateKey);
+      const derivedPubPem = crypto
+        .createPublicKey(privKeyObj)
+        .export({ type: "spki", format: "pem" })
+        .toString()
+        .trim();
+
+      if (derivedPubPem !== headerPublicPem) {
+        return next(
+          new ErrorHandling(
+            "Public key does not match private key on record",
+            401
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Error validating key pair:", err);
+      return next(new ErrorHandling("Unable to validate key pair", 500));
+    }
     // Rate limiting check
     const nowDate = new Date();
     const windowStart = apiKeyRecord.rateLimit.windowStart;
