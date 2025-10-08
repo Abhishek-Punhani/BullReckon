@@ -150,6 +150,7 @@ export const tradingController = {
         price,
         scriptName,
         confidence,
+        source,
         reason,
       } = req.body;
 
@@ -158,9 +159,9 @@ export const tradingController = {
           new ErrorHandling("Project name (scriptName) not specified", 400)
         );
       }
-      if (!symbol || !action || !quantity) {
+      if (!symbol || !action || !quantity || !source) {
         return next(
-          new ErrorHandling("Symbol, action, and quantity are required", 400)
+          new ErrorHandling("Symbol, action, source and quantity are required", 400)
         );
       }
       if (!["BUY", "SELL"].includes(action.toUpperCase())) {
@@ -180,6 +181,7 @@ export const tradingController = {
         apiKeyId: req.apiUser.keyId,
         scriptName,
         confidence,
+        source,
         reason,
       };
 
@@ -188,9 +190,7 @@ export const tradingController = {
         tradeData,
         {
           headers: {
-            "X-Internal-Service": "api-server",
             "X-API-Email": req.apiUser.email,
-            "X-API-Key-ID": req.apiUser.keyId,
           },
         }
       );

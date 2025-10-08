@@ -10,6 +10,7 @@ import { sendTradeConfirmationEmail } from "../utils/emailUtils";
 import { logScriptTrade } from "../utils/scriptTradeLogger";
 import { RiskManagementService } from "../services/riskManagement.service";
 import { clearTradeRelatedCache } from "../../../middleware/cacheMiddleware";
+import { internalApi } from "../../../shared/internalApi.client";
 
 // Add a type declaration for global.queueManager
 declare global {
@@ -54,13 +55,49 @@ export const trade = async (
       stopLoss,
       takeProfit,
     } = req.body;
-    const userId = req.user._id;
+    
+    // Handle both JWT-authenticated and internal API calls
+    let userId: mongoose.Types.ObjectId;
+    
+    if (req.user?._id) {
+      // JWT authenticated request (from web app)
+      userId =
+      typeof req.user._id === "string"
+        ? new mongoose.Types.ObjectId(req.user._id)
+        : (req.user._id as mongoose.Types.ObjectId);
+    } else if (req.headers["x-api-email"]) {
+      // Internal API call from api_server - email is sent in headers (X-API-Email)
+      const userEmail = String(req.headers["x-api-email"]);
+      const AUTH_SERVER_URL =
+      process.env.AUTH_SERVER_URL || "http://localhost:3000";
+      try {
+      const userResponse = await internalApi.get(
+        `${AUTH_SERVER_URL}/api/internal/user-by-email/${encodeURIComponent(
+        userEmail
+        )}`
+      );
+      if (!userResponse.data?.user?._id) {
+        return next(
+        new ErrorHandling("User not found for provided email", 404)
+        );
+      }
+      userId = new mongoose.Types.ObjectId(userResponse.data.user._id);
+      } catch (error: any) {
+      console.error("Error fetching user by email:", error);
+      return next(
+        new ErrorHandling("Failed to authenticate internal request", 500)
+      );
+      }
+    } else {
+      return next(new ErrorHandling("Authentication required", 401));
+    }
+    
     const currentPrice = await fetchLivePrice(symbol);
 
     // RISK CHECK: Validate trade against risk settings before execution
     const riskService = new RiskManagementService();
     const riskValidation = await riskService.validateTradeRisk(
-      userId,
+      userId.toString(),
       symbol,
       action,
       quantity,
@@ -304,7 +341,7 @@ export const trade = async (
     const { scriptName, confidence, reason } = req.body;
     for (const t of createdTrades) {
       if (scriptName) {
-        await logScriptTrade(userId.toString(), scriptName, {
+        await logScriptTrade(userId, scriptName, {
           tradeId: t._id as mongoose.Types.ObjectId,
           confidence,
           reason,
@@ -314,7 +351,7 @@ export const trade = async (
 
     if (execute) {
       sendTradeConfirmationEmail(
-        userId,
+        userId.toString(),
         symbol,
         action,
         quantity,

@@ -116,4 +116,23 @@ router.get("/get-public-key/:email", async (req, res) => {
   }
 });
 
+// Get user by email (for internal API calls from api_server)
+router.get("/user-by-email/:email", async (req, res) => {
+  try {
+    const { email } = req.params;
+    const user = await User.findOne({ email })
+      .select("_id firstName lastName email role isEmailVerified")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error("Error fetching user by email:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export { router as internalRoutes };
