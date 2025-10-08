@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
 import { ErrorHandling } from "../../middleware/errorHandler";
 import { ApiKey } from "./models/apiKey";
-import { internalApi } from "../../shared/internalApi.client";
 
 declare global {
   namespace Express {
@@ -68,8 +67,27 @@ export const authenticateApiKey = async (
 
     try {
       // Normalize header public key to a canonical PEM form
-      const headerPublicKeyObj = crypto.createPublicKey(publicKey);
-      const headerPublicPem = headerPublicKeyObj
+      let headerPublicPem: string;
+
+      // Accept either a full PEM (with -----BEGIN PUBLIC KEY-----) or a bare base64 block
+      const headerKeyInput = publicKey.trim();
+      let headerPemCandidate: string;
+
+      if (!/-----BEGIN [A-Z ]+KEY-----/.test(headerKeyInput)) {
+        // header is likely bare base64; remove whitespace and wrap into PEM
+        const cleanB64 = headerKeyInput.replace(/\s+/g, "");
+        const wrapped = cleanB64.match(/.{1,64}/g)?.join("\n") ?? cleanB64;
+        headerPemCandidate = `-----BEGIN PUBLIC KEY-----\n${wrapped}\n-----END PUBLIC KEY-----`;
+      } else {
+        headerPemCandidate = headerKeyInput;
+      }
+
+      const headerPublicKeyObj = crypto.createPublicKey({
+        key: headerPemCandidate,
+        format: "pem",
+        type: "spki",
+      });
+      headerPublicPem = headerPublicKeyObj
         .export({ type: "spki", format: "pem" })
         .toString()
         .trim();
@@ -90,6 +108,25 @@ export const authenticateApiKey = async (
         .export({ type: "spki", format: "pem" })
         .toString()
         .trim();
+
+      // Optional safe debug: log only hashes when DEBUG_API_KEYS=true
+      if (process.env.DEBUG_API_KEYS === "true") {
+        try {
+          const headerHash = crypto
+            .createHash("sha256")
+            .update(headerPublicPem)
+            .digest("hex");
+          const derivedHash = crypto
+            .createHash("sha256")
+            .update(derivedPubPem)
+            .digest("hex");
+          console.debug(
+            `API key hashes - header:${headerHash} derived:${derivedHash} (truncated)`
+          );
+        } catch (e) {
+          console.debug("Unable to compute key hashes for debug");
+        }
+      }
 
       if (derivedPubPem !== headerPublicPem) {
         return next(
