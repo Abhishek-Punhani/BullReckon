@@ -85,7 +85,9 @@ const BacktestPage = () => {
 
   const fetchBacktests = async () => {
     try {
-      const res = await api.get(`${API_CONFIG.API_SERVER}/api/keys/get-backtests`);
+      const res = await api.get(
+        `${API_CONFIG.API_SERVER}/api/keys/get-backtests`
+      );
       setBacktests(res.data.data || []);
     } catch (err) {
       console.error("Failed to load backtests:", err);
@@ -235,7 +237,137 @@ const BacktestPage = () => {
             ))}
           </div>
         )}
+        {/* API Documentation Section */}
+        <Card className="border-2">
+          <CardHeader className="border-b bg-muted/30">
+            <CardTitle className="text-xl">Backtest Response Format</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                Backtest results are returned in the following JSON format:
+              </p>
 
+              <div className="bg-slate-950 p-6 rounded-lg border">
+                <pre className="text-sm text-slate-50 font-mono overflow-x-auto">
+                  {`{
+  "backtest_id": "bt_001",
+  "status": "completed",
+  "results": {
+    "summary": {
+      "symbol": "AAPL",
+      "period": {"start": "2023-01-01", "end": "2023-12-31"},
+      "total_trades": 120,
+      "winning_trades": 80,
+      "losing_trades": 40,
+      "win_rate": 66.67,
+      "profit_factor": 1.5,
+      "pnl": {
+        "gross_profit": 15000,
+        "gross_loss": -10000,
+        "net_profit": 5000,
+        "percentage_return": 10,
+        "max_drawdown": -5
+      },
+      "risk_metrics": {
+        "sharpe_ratio": 1.2,
+        "sortino_ratio": 1.5,
+        "alpha": 0.1,
+        "beta": 0.8,
+        "volatility": 0.2,
+        "confidence_level": 95
+      }
+    },
+    "equity_curve": [
+      {"date": "2023-01-01", "equity": 10000},
+      {"date": "2023-12-31", "equity": 11000}
+    ],
+    "trade_log": [
+      {
+        "trade_id": 1,
+        "entry_date": "2023-01-10",
+        "exit_date": "2023-01-20",
+        "entry_price": 150,
+        "exit_price": 155,
+        "position": "long",
+        "size": 100,
+        "pnl": 500
+      }
+    ]
+  }
+}`}
+                </pre>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-sm flex items-center gap-2">
+                    <div className="h-1 w-1 rounded-full bg-primary"></div>
+                    Summary Fields
+                  </h4>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        symbol
+                      </code>
+                      <span>Trading symbol (e.g., AAPL)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        period
+                      </code>
+                      <span>Start and end dates</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        total_trades
+                      </code>
+                      <span>Total number of trades</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        win_rate
+                      </code>
+                      <span>Percentage of winning trades</span>
+                    </li>
+                  </ul>
+                </div>
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-sm flex items-center gap-2">
+                    <div className="h-1 w-1 rounded-full bg-muted-foreground"></div>
+                    Key Metrics
+                  </h4>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        net_profit
+                      </code>
+                      <span>Total profit/loss amount</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        percentage_return
+                      </code>
+                      <span>Total return percentage</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        sharpe_ratio
+                      </code>
+                      <span>Risk-adjusted return metric</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        max_drawdown
+                      </code>
+                      <span>Maximum peak-to-trough decline</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         {/* Modal for detailed view */}
         {modalOpen && selectedBacktest && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
