@@ -343,6 +343,7 @@ export const changePassword = async (
   let decoded: any;
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET_EMAIL!);
+    console.log("Decoded token:", decoded);
   } catch (err) {
     if (
       typeof err === "object" &&
@@ -356,7 +357,7 @@ export const changePassword = async (
   }
 
   const user = await User.findById(decoded.id).select("+password");
-  if (!user || !user.password) {
+  if (!user) {
     return next(new ErrorHandling("User not found", 404));
   }
 

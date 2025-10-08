@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { Backtest } from "../models/backtest";
 import { internalApi } from "../../../shared/internalApi.client";
+import { AuthenticatedRequest } from "types/auth";
 export const postBacktestResults = async (  
   req: Request,
   res: Response,
@@ -58,6 +59,23 @@ export const getBacktestResults = async (
     const backtest = await Backtest.findOne({ backtest_id: req.params.id });
     if (!backtest) return res.status(404).json({ error: "Backtest not found" });
     return res.json(backtest);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getUserBacktests = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user._id;
+    const backtests = await Backtest.find({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({ success: true, data: backtests });
   } catch (err) {
     next(err);
   }

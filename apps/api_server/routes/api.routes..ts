@@ -10,6 +10,7 @@ import backtestRoutes from "./backtest.routes";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import { internalApi } from "../../../shared/internalApi.client";
 import cors from "cors";
+import { getUserBacktests } from "../contollers/backtest.controller";
 
 // Define route-level CORS configs here to avoid circular imports with server.ts
 const corsForCookies = {
@@ -59,6 +60,12 @@ apiRoutes.get(
   apiKeyController.getUserApiKeys
 );
 
+apiRoutes.get(
+  "/keys/get-backtests",
+  cors(corsForCookies),
+  protectRoute,
+  getUserBacktests
+);
 // DELETE /api/keys/:keyId
 apiRoutes.delete(
   "/keys/:keyId",

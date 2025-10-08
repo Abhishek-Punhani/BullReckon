@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,12 @@ const LoginPage = () => {
   const { toast } = useToast();
   const router = useRouter();
 
+  useEffect(() => {
+    if (authService.isAuthenticated()) {
+      router.push("/dashboard");
+    }
+  }, [router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -38,8 +44,6 @@ const LoginPage = () => {
       const result = await authService.login(email, password);
 
       if (result.status === "success") {
-        localStorage.setItem("access_token", result.token);
-        localStorage.setItem("user", JSON.stringify(result.user));
         toast({
           title: "Welcome back!",
           description: "You have successfully logged in.",

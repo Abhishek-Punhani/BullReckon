@@ -1,100 +1,111 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navigation from "@/components/Navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { mockBacktestResult, SYMBOLS, BacktestResult } from "@/lib/mockData";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { FlaskConical, Play } from "lucide-react";
-// Recharts components removed (not used on this page)
+  FlaskConical,
+  TrendingUp,
+  TrendingDown,
+  BarChart3,
+  PieChart,
+} from "lucide-react";
 import Link from "next/link";
+import api from "@/lib/api";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell,
+} from "recharts";
+import { API_CONFIG } from "@/config";
 
-const Backtest = () => {
-  const [backtestConfig, setBacktestConfig] = useState({
-    symbol: "BTCUSDT",
-    start_date: "2023-01-01",
-    end_date: "2023-12-31",
-    strategy_url: "",
-    initial_capital: 10000,
-  });
-
-  const [isRunning, setIsRunning] = useState(false);
-  const [results, setResults] = useState<BacktestResult>(mockBacktestResult);
-  const [hasResults, setHasResults] = useState(true);
-  const { toast } = useToast();
-
-  const runBacktest = async () => {
-    if (!backtestConfig.strategy_url) {
-      toast({
-        title: "Missing Strategy URL",
-        description: "Please provide a strategy API endpoint to backtest.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsRunning(true);
-    setHasResults(false);
-
-    // Simulate backtesting process
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-
-    // Generate mock results
-    const mockResults: BacktestResult = {
-      ...mockBacktestResult,
-      total_return: Math.random() * 30 - 5, // -5% to 25%
-      max_drawdown: Math.random() * 15 + 2, // 2% to 17%
-      sharpe_ratio: Math.random() * 2 + 0.5, // 0.5 to 2.5
-      win_rate: Math.random() * 40 + 40, // 40% to 80%
-      trades: [
-        ...mockBacktestResult.trades,
-        {
-          id: "bt3",
-          timestamp: "2023-03-15T14:30:00Z",
-          symbol: backtestConfig.symbol,
-          action: "BUY",
-          quantity: 0.5,
-          price: 25000,
-          fees: 12.5,
-          pnl: 0,
-        },
-        {
-          id: "bt4",
-          timestamp: "2023-04-20T09:15:00Z",
-          symbol: backtestConfig.symbol,
-          action: "SELL",
-          quantity: 0.5,
-          price: 27500,
-          fees: 13.75,
-          pnl: 2463.75,
-        },
-      ],
+interface Backtest {
+  _id: string;
+  backtest_id: string;
+  status: string;
+  results: {
+    summary: {
+      symbol: string;
+      period: { start: string; end: string };
+      total_trades: number;
+      winning_trades: number;
+      losing_trades: number;
+      win_rate: number;
+      profit_factor: number;
+      pnl: {
+        gross_profit: number;
+        gross_loss: number;
+        net_profit: number;
+        percentage_return: number;
+        max_drawdown: number;
+      };
+      risk_metrics: {
+        sharpe_ratio: number;
+        sortino_ratio: number;
+        alpha: number;
+        beta: number;
+        volatility: number;
+        confidence_level: number;
+      };
     };
+    equity_curve: Array<{ date: string; equity: number }>;
+    trade_log: Array<{
+      trade_id: number;
+      entry_date: string;
+      exit_date: string;
+      entry_price: number;
+      exit_price: number;
+      position: string;
+      size: number;
+      pnl: number;
+    }>;
+  };
+  createdAt: string;
+}
 
-    setResults(mockResults);
-    setHasResults(true);
+const BacktestPage = () => {
+  const [backtests, setBacktests] = useState<Backtest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedBacktest, setSelectedBacktest] = useState<Backtest | null>(
+    null
+  );
+  const [modalOpen, setModalOpen] = useState(false);
 
-    toast({
-      title: "Backtest Complete",
-      description: `Strategy achieved ${mockResults.total_return.toFixed(
-        2
-      )}% return with ${mockResults.win_rate.toFixed(1)}% win rate.`,
-    });
+  useEffect(() => {
+    fetchBacktests();
+  }, []);
 
-    setIsRunning(false);
+  const fetchBacktests = async () => {
+    try {
+      const res = await api.get(`${API_CONFIG.API_SERVER}/api/keys/get-backtests`);
+      setBacktests(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to load backtests:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const isPositiveReturn = results.total_return >= 0;
+  const openDetails = (backtest: Backtest) => {
+    setSelectedBacktest(backtest);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setSelectedBacktest(null);
+  };
+
+  const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
+  const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/40 to-background/80">
@@ -104,10 +115,10 @@ const Backtest = () => {
           <div>
             <h1 className="text-4xl font-extrabold tracking-tight flex items-center gap-2">
               <FlaskConical className="h-7 w-7 text-primary" />
-              Strategy Backtesting
+              My Backtests
             </h1>
             <p className="text-base text-muted-foreground mt-2">
-              Test your trading strategies against historical data
+              View and analyze your backtesting results
             </p>
           </div>
         </div>
@@ -131,308 +142,394 @@ const Backtest = () => {
           </CardContent>
         </Card>
 
-        {/* Backtest Configuration */}
-        <Card className="border-2 shadow-lg bg-gradient-to-br from-muted/30 to-background/70">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <FlaskConical className="h-5 w-5 text-primary" />
-              Backtest Configuration
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="symbol">Trading Symbol</Label>
-                <Select
-                  value={backtestConfig.symbol}
-                  onValueChange={(value) =>
-                    setBacktestConfig((prev) => ({ ...prev, symbol: value }))
-                  }
-                >
-                  <SelectTrigger className="h-11 border rounded-lg shadow-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SYMBOLS.map((symbol) => (
-                      <SelectItem key={symbol.value} value={symbol.value}>
-                        <div className="flex items-center gap-2">
-                          <span>{symbol.icon}</span>
-                          <span>{symbol.label}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        {loading ? (
+          <div className="text-center py-10">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading backtests...</p>
+          </div>
+        ) : backtests.length === 0 ? (
+          <Card className="border-2 shadow-lg bg-gradient-to-br from-muted/30 to-background/70">
+            <CardContent className="text-center py-10">
+              <FlaskConical className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Backtests Found</h3>
+              <p className="text-muted-foreground">
+                You haven&apos;t run any backtests yet. Start by creating a
+                strategy and running a backtest.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {backtests.map((backtest) => (
+              <Card
+                key={backtest._id}
+                className="border-2 shadow-lg bg-gradient-to-br from-muted/30 to-background/70 hover:shadow-xl transition-shadow"
+              >
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-lg">
+                      {backtest.backtest_id}
+                    </CardTitle>
+                    <Badge
+                      variant={
+                        backtest.status === "completed"
+                          ? "default"
+                          : "secondary"
+                      }
+                    >
+                      {backtest.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Symbol:</span>
+                      <p className="font-semibold">
+                        {backtest.results.summary.symbol}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Period:</span>
+                      <p className="font-semibold text-xs">
+                        {new Date(
+                          backtest.results.summary.period.start
+                        ).toLocaleDateString()}{" "}
+                        -{" "}
+                        {new Date(
+                          backtest.results.summary.period.end
+                        ).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Win Rate:</span>
+                      <p className="font-semibold">
+                        {formatPercent(backtest.results.summary.win_rate)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Return:</span>
+                      <p
+                        className={`font-semibold ${backtest.results.summary.pnl.percentage_return >= 0 ? "text-green-600" : "text-red-600"}`}
+                      >
+                        {backtest.results.summary.pnl.percentage_return >= 0 ? (
+                          <TrendingUp className="inline h-4 w-4 mr-1" />
+                        ) : (
+                          <TrendingDown className="inline h-4 w-4 mr-1" />
+                        )}
+                        {formatPercent(
+                          backtest.results.summary.pnl.percentage_return
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => openDetails(backtest)}
+                    className="w-full"
+                  >
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    View Details
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Modal for detailed view */}
+        {modalOpen && selectedBacktest && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-background rounded-lg shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-background border-b p-6 flex justify-between items-center">
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <PieChart className="h-6 w-6 text-primary" />
+                  {selectedBacktest.backtest_id} Analysis
+                </h2>
+                <Button onClick={closeModal} variant="outline">
+                  Close
+                </Button>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="start-date">Start Date</Label>
-                <Input
-                  id="start-date"
-                  type="date"
-                  className="h-11 border rounded-lg shadow-sm"
-                  value={backtestConfig.start_date}
-                  onChange={(e) =>
-                    setBacktestConfig((prev) => ({
-                      ...prev,
-                      start_date: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="end-date">End Date</Label>
-                <Input
-                  id="end-date"
-                  type="date"
-                  className="h-11 border rounded-lg shadow-sm"
-                  value={backtestConfig.end_date}
-                  onChange={(e) =>
-                    setBacktestConfig((prev) => ({
-                      ...prev,
-                      end_date: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="strategy-url">Strategy API URL</Label>
-                <Input
-                  id="strategy-url"
-                  placeholder="https://api.example.com/strategy"
-                  className="h-11 border rounded-lg shadow-sm"
-                  value={backtestConfig.strategy_url}
-                  onChange={(e) =>
-                    setBacktestConfig((prev) => ({
-                      ...prev,
-                      strategy_url: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="initial-capital">Initial Capital ($)</Label>
-                <Input
-                  id="initial-capital"
-                  type="number"
-                  placeholder="10000"
-                  className="h-11 border rounded-lg shadow-sm"
-                  value={backtestConfig.initial_capital}
-                  onChange={(e) =>
-                    setBacktestConfig((prev) => ({
-                      ...prev,
-                      initial_capital: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-
-            <Button
-              onClick={runBacktest}
-              disabled={isRunning}
-              className="w-full md:w-auto shadow glow-success font-semibold text-base"
-            >
-              <Play className="h-4 w-4 mr-2" />
-              {isRunning ? "Running Backtest..." : "Run Backtest"}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Results */}
-        {hasResults && (
-          <>
-            {/* Trade History */}
-            <Card className="border-2 shadow-lg bg-gradient-to-br from-muted/30 to-background/70">
-              <CardHeader>
-                <CardTitle>Backtest Trade History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto rounded-lg border">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/40">
-                        <th className="text-left p-4 font-semibold text-muted-foreground">
-                          Date
-                        </th>
-                        <th className="text-left p-4 font-semibold text-muted-foreground">
-                          Action
-                        </th>
-                        <th className="text-right p-4 font-semibold text-muted-foreground">
-                          Quantity
-                        </th>
-                        <th className="text-right p-4 font-semibold text-muted-foreground">
-                          Price
-                        </th>
-                        <th className="text-right p-4 font-semibold text-muted-foreground">
-                          Fees
-                        </th>
-                        <th className="text-right p-4 font-semibold text-muted-foreground">
-                          P&L
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {results.trades.map((trade) => (
-                        <tr
-                          key={trade.id}
-                          className="border-b border-border hover:bg-accent/40 transition"
-                        >
-                          <td className="p-4">
-                            {new Date(trade.timestamp).toLocaleDateString()}
-                          </td>
-                          <td className="p-4">
-                            <Badge
-                              variant={
-                                trade.action === "BUY"
-                                  ? "default"
-                                  : "destructive"
-                              }
-                              className={
-                                trade.action === "BUY"
-                                  ? "bg-green-500/10 text-green-700 border-green-500/20"
-                                  : "bg-red-500/10 text-red-700 border-red-500/20"
-                              }
-                            >
-                              {trade.action}
-                            </Badge>
-                          </td>
-                          <td className="p-4 text-right font-mono">
-                            {trade.quantity}
-                          </td>
-                          <td className="p-4 text-right font-mono">
-                            ${trade.price.toLocaleString()}
-                          </td>
-                          <td className="p-4 text-right font-mono text-muted-foreground">
-                            ${trade.fees.toFixed(2)}
-                          </td>
-                          <td className="p-4 text-right font-mono">
-                            {trade.pnl !== 0 && (
-                              <span
-                                className={
-                                  trade.pnl > 0
-                                    ? "text-green-600"
-                                    : "text-red-600"
-                                }
-                              >
-                                {trade.pnl > 0 ? "+" : ""}$
-                                {trade.pnl.toFixed(2)}
-                              </span>
-                            )}
-                            {trade.pnl === 0 && (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div className="p-6 space-y-8">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-2xl font-bold">
+                        {selectedBacktest.results.summary.total_trades}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Total Trades
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-2xl font-bold text-green-600">
+                        {formatPercent(
+                          selectedBacktest.results.summary.win_rate
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">Win Rate</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div
+                        className={`text-2xl font-bold ${selectedBacktest.results.summary.pnl.net_profit >= 0 ? "text-green-600" : "text-red-600"}`}
+                      >
+                        {formatCurrency(
+                          selectedBacktest.results.summary.pnl.net_profit
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Net Profit
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="text-2xl font-bold">
+                        {selectedBacktest.results.summary.risk_metrics.sharpe_ratio.toFixed(
+                          2
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Sharpe Ratio
+                      </p>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Performance Analysis */}
-            <Card className="border-2 shadow-lg bg-gradient-to-br from-muted/30 to-background/70">
-              <CardHeader>
-                <CardTitle>Performance Analysis</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  <div className="space-y-2">
-                    <h4 className="font-semibold">Risk Metrics</h4>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          Volatility:
-                        </span>
-                        <span>18.3%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Beta:</span>
-                        <span>0.85</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          VaR (95%):
-                        </span>
-                        <span className="text-red-600">-$245</span>
-                      </div>
-                    </div>
-                  </div>
+                {/* Equity Curve Chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Equity Curve</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <LineChart data={selectedBacktest.results.equity_curve}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip
+                          formatter={(value) => [
+                            formatCurrency(value as number),
+                            "Equity",
+                          ]}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="equity"
+                          stroke="#8884d8"
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
 
-                  <div className="space-y-2">
-                    <h4 className="font-semibold">Trade Statistics</h4>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          Total Trades:
-                        </span>
-                        <span>{results.trades.length}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          Avg Hold Time:
-                        </span>
-                        <span>4.2 days</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          Profit Factor:
-                        </span>
-                        <span>1.45</span>
-                      </div>
-                    </div>
-                  </div>
+                {/* PnL Bar Chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Trade P&L Distribution</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={selectedBacktest.results.trade_log}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="trade_id" />
+                        <YAxis />
+                        <Tooltip
+                          formatter={(value) => [
+                            formatCurrency(value as number),
+                            "P&L",
+                          ]}
+                        />
+                        <Bar dataKey="pnl" fill="#8884d8">
+                          {selectedBacktest.results.trade_log.map(
+                            (entry, index) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={entry.pnl >= 0 ? "#10b981" : "#ef4444"}
+                              />
+                            )
+                          )}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
 
-                  <div className="space-y-2">
-                    <h4 className="font-semibold">Benchmark Comparison</h4>
-                    <div className="space-y-1 text-sm">
+                {/* Detailed Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Performance Metrics</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          Strategy Return:
-                        </span>
+                        <span>Total Return:</span>
                         <span
                           className={
-                            isPositiveReturn ? "text-green-600" : "text-red-600"
-                          }
-                        >
-                          {isPositiveReturn ? "+" : ""}
-                          {results.total_return.toFixed(2)}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          Market Return:
-                        </span>
-                        <span className="text-green-600">+8.5%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Alpha:</span>
-                        <span
-                          className={
-                            results.total_return > 8.5
+                            selectedBacktest.results.summary.pnl
+                              .percentage_return >= 0
                               ? "text-green-600"
                               : "text-red-600"
                           }
                         >
-                          {(results.total_return - 8.5).toFixed(2)}%
+                          {formatPercent(
+                            selectedBacktest.results.summary.pnl
+                              .percentage_return
+                          )}
                         </span>
                       </div>
-                    </div>
-                  </div>
+                      <div className="flex justify-between">
+                        <span>Max Drawdown:</span>
+                        <span className="text-red-600">
+                          {formatPercent(
+                            selectedBacktest.results.summary.pnl.max_drawdown
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Profit Factor:</span>
+                        <span>
+                          {selectedBacktest.results.summary.profit_factor.toFixed(
+                            2
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Sortino Ratio:</span>
+                        <span>
+                          {selectedBacktest.results.summary.risk_metrics.sortino_ratio.toFixed(
+                            2
+                          )}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Risk Metrics</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Volatility:</span>
+                        <span>
+                          {formatPercent(
+                            selectedBacktest.results.summary.risk_metrics
+                              .volatility
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Beta:</span>
+                        <span>
+                          {selectedBacktest.results.summary.risk_metrics.beta.toFixed(
+                            2
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Alpha:</span>
+                        <span>
+                          {selectedBacktest.results.summary.risk_metrics.alpha.toFixed(
+                            2
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Confidence Level:</span>
+                        <span>
+                          {formatPercent(
+                            selectedBacktest.results.summary.risk_metrics
+                              .confidence_level
+                          )}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
-          </>
+
+                {/* Trade Log */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Trade Log</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-3 font-semibold">
+                              Trade ID
+                            </th>
+                            <th className="text-left p-3 font-semibold">
+                              Entry Date
+                            </th>
+                            <th className="text-left p-3 font-semibold">
+                              Exit Date
+                            </th>
+                            <th className="text-right p-3 font-semibold">
+                              Entry Price
+                            </th>
+                            <th className="text-right p-3 font-semibold">
+                              Exit Price
+                            </th>
+                            <th className="text-right p-3 font-semibold">
+                              Size
+                            </th>
+                            <th className="text-right p-3 font-semibold">
+                              P&L
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedBacktest.results.trade_log.map((trade) => (
+                            <tr
+                              key={trade.trade_id}
+                              className="border-b hover:bg-muted/50"
+                            >
+                              <td className="p-3">{trade.trade_id}</td>
+                              <td className="p-3">
+                                {new Date(
+                                  trade.entry_date
+                                ).toLocaleDateString()}
+                              </td>
+                              <td className="p-3">
+                                {new Date(trade.exit_date).toLocaleDateString()}
+                              </td>
+                              <td className="p-3 text-right">
+                                {formatCurrency(trade.entry_price)}
+                              </td>
+                              <td className="p-3 text-right">
+                                {formatCurrency(trade.exit_price)}
+                              </td>
+                              <td className="p-3 text-right">{trade.size}</td>
+                              <td
+                                className="p-3 text-right"
+                                style={{
+                                  color: trade.pnl >= 0 ? "green" : "red",
+                                }}
+                              >
+                                {formatCurrency(trade.pnl)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
   );
 };
 
-export default Backtest;
+export default BacktestPage;

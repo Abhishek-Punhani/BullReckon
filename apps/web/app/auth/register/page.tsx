@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { TrendingUp, Mail, Lock, User, Image as ImageIcon } from "lucide-react";
 import { uploadFiles } from "@/lib/upload";
 import Image from "next/image";
-import { authService } from "@/services";
+import { authService } from "@/services/authService";
 import GoogleAuthButton from "@/components/GoogleAuthBtn";
 import { AutoSaveProvider } from "@/hooks/AutoSaveContext";
 
@@ -29,6 +29,12 @@ const RegisterPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+
+  useEffect(() => {
+    if (authService.isAuthenticated()) {
+      router.push("/dashboard");
+    }
+  }, [router]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();

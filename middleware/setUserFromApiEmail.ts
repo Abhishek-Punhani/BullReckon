@@ -1,7 +1,6 @@
 import { Response, NextFunction } from "express";
+import { internalApi } from "../shared/internalApi.client";
 import { AuthenticatedRequest } from "types/auth";
-import axios from "axios";
-import { internalApi } from "shared/internalApi.client";
 
 export async function setUserFromApiEmail(
   req: AuthenticatedRequest,
