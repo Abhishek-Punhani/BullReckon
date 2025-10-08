@@ -229,6 +229,173 @@ const SectionContent: React.FC<SectionContentProps> = ({
               </ul>
             </CardContent>
           </Card>
+          {/* Fetching Live Prices */}
+          <Card className="border-2">
+            <CardHeader className="border-b bg-muted/30">
+              <CardTitle className="text-xl">Fetching Live Prices</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-6">
+                <p className="text-sm text-muted-foreground">
+                  Fetch real-time stock prices using the market quote endpoint.
+                  Make sure to set the authentication headers correctly as
+                  described in the Authentication section.
+                </p>
+
+                <div className="bg-slate-950 p-6 rounded-lg border">
+                  <pre className="text-sm text-slate-50 font-mono overflow-x-auto">
+                    {`def fetch_stock_price(symbol):
+    endpoint = f"{API_URL}/market/quote/{symbol}"
+    response = requests.get(endpoint, headers=HEADERS)
+    return response.json()`}
+                  </pre>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  Response format:
+                </p>
+
+                <div className="bg-slate-950 p-6 rounded-lg border">
+                  <pre className="text-sm text-slate-50 font-mono overflow-x-auto">
+                    {`{
+  "success": true,
+  "data": {
+    "success": true,
+    "data": {
+      "symbol": "AAPL",
+      "price": 257.84,
+      "change": 1.3599854,
+      "changePercent": 0.53025,
+      "dayHigh": 258.52,
+      "dayLow": 256.11,
+      "volume": 17073976,
+      "marketCap": 3826445975552,
+      "pe": 39.125946,
+      "timestamp": "2025-10-08T17:07:12.906Z"
+    },
+    "message": "Stock quote retrieved for AAPL"
+  },
+  "requestedBy": "punhaniabhishek17@gmail.com"
+}`}
+                  </pre>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-sm">Key Fields</h4>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        symbol
+                      </code>
+                      <span>Stock ticker symbol</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        price
+                      </code>
+                      <span>Current stock price</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        change
+                      </code>
+                      <span>Price change from previous close</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        changePercent
+                      </code>
+                      <span>Percentage change</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          {/* Strategy Endpoint Documentation */}
+          <Card className="border-2">
+            <CardHeader className="border-b bg-muted/30">
+              <CardTitle className="text-xl">
+                Strategy Endpoint Format
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-6">
+                <p className="text-sm text-muted-foreground">
+                  Your strategy endpoint should return JSON in the following
+                  format:
+                </p>
+
+                <div className="bg-slate-950 p-6 rounded-lg border">
+                  <pre className="text-sm text-slate-50 font-mono overflow-x-auto">
+                    {`{
+  "action": "BUY" | "SELL" | "HOLD",
+  "symbol": "BTCUSDT",
+  "quantity": 0.5,
+  "confidence": 85,
+  "reason": "Golden cross detected"
+}`}
+                  </pre>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <div className="h-1 w-1 rounded-full bg-primary"></div>
+                      Required Fields
+                    </h4>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          action
+                        </code>
+                        <span>BUY, SELL, or HOLD</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          symbol
+                        </code>
+                        <span>Trading pair (e.g., BTCUSDT)</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          quantity
+                        </code>
+                        <span>Amount to trade</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <div className="h-1 w-1 rounded-full bg-muted-foreground"></div>
+                      Optional Fields
+                    </h4>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          confidence
+                        </code>
+                        <span>Signal strength (0-100)</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          reason
+                        </code>
+                        <span>Human-readable explanation</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          price
+                        </code>
+                        <span>Suggested execution price</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Complete Trading Bot Example</CardTitle>
@@ -284,6 +451,224 @@ const SectionContent: React.FC<SectionContentProps> = ({
                 </li>
                 <li>Beware of overfitting—validate with out-of-sample data.</li>
               </ul>
+            </CardContent>
+          </Card>
+
+          {/* Fetching Live Prices */}
+          <Card className="border-2">
+            <CardHeader className="border-b bg-muted/30">
+              <CardTitle className="text-xl">Fetching Live Prices</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-6">
+                <p className="text-sm text-muted-foreground">
+                  Fetch real-time stock prices using the market quote endpoint.
+                  Make sure to set the authentication headers correctly as
+                  described in the Authentication section.
+                </p>
+
+                <div className="bg-slate-950 p-6 rounded-lg border">
+                  <pre className="text-sm text-slate-50 font-mono overflow-x-auto">
+                    {`def fetch_stock_price(symbol):
+    endpoint = f"{API_URL}/market/quote/{symbol}"
+    response = requests.get(endpoint, headers=HEADERS)
+    return response.json()`}
+                  </pre>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  Response format:
+                </p>
+
+                <div className="bg-slate-950 p-6 rounded-lg border">
+                  <pre className="text-sm text-slate-50 font-mono overflow-x-auto">
+                    {`{
+  "success": true,
+  "data": {
+    "success": true,
+    "data": {
+      "symbol": "AAPL",
+      "price": 257.84,
+      "change": 1.3599854,
+      "changePercent": 0.53025,
+      "dayHigh": 258.52,
+      "dayLow": 256.11,
+      "volume": 17073976,
+      "marketCap": 3826445975552,
+      "pe": 39.125946,
+      "timestamp": "2025-10-08T17:07:12.906Z"
+    },
+    "message": "Stock quote retrieved for AAPL"
+  },
+  "requestedBy": "punhaniabhishek17@gmail.com"
+}`}
+                  </pre>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-sm">Key Fields</h4>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        symbol
+                      </code>
+                      <span>Stock ticker symbol</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        price
+                      </code>
+                      <span>Current stock price</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        change
+                      </code>
+                      <span>Price change from previous close</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                        changePercent
+                      </code>
+                      <span>Percentage change</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Backtest Response Documentation */}
+          <Card className="border-2">
+            <CardHeader className="border-b bg-muted/30">
+              <CardTitle className="text-xl">
+                Backtest Response Format
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-6">
+                <p className="text-sm text-muted-foreground">
+                  Backtest results are returned in the following JSON format:
+                </p>
+
+                <div className="bg-slate-950 p-6 rounded-lg border">
+                  <pre className="text-sm text-slate-50 font-mono overflow-x-auto">
+                    {`{
+  "backtest_id": "bt_001",
+  "status": "completed",
+  "results": {
+    "summary": {
+      "symbol": "AAPL",
+      "period": {"start": "2023-01-01", "end": "2023-12-31"},
+      "total_trades": 120,
+      "winning_trades": 80,
+      "losing_trades": 40,
+      "win_rate": 66.67,
+      "profit_factor": 1.5,
+      "pnl": {
+        "gross_profit": 15000,
+        "gross_loss": -10000,
+        "net_profit": 5000,
+        "percentage_return": 10,
+        "max_drawdown": -5
+      },
+      "risk_metrics": {
+        "sharpe_ratio": 1.2,
+        "sortino_ratio": 1.5,
+        "alpha": 0.1,
+        "beta": 0.8,
+        "volatility": 0.2,
+        "confidence_level": 95
+      }
+    },
+    "equity_curve": [
+      {"date": "2023-01-01", "equity": 10000},
+      {"date": "2023-12-31", "equity": 11000}
+    ],
+    "trade_log": [
+      {
+        "trade_id": 1,
+        "entry_date": "2023-01-10",
+        "exit_date": "2023-01-20",
+        "entry_price": 150,
+        "exit_price": 155,
+        "position": "long",
+        "size": 100,
+        "pnl": 500
+      }
+    ]
+  }
+}`}
+                  </pre>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <div className="h-1 w-1 rounded-full bg-primary"></div>
+                      Summary Fields
+                    </h4>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          symbol
+                        </code>
+                        <span>Trading symbol (e.g., AAPL)</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          period
+                        </code>
+                        <span>Start and end dates</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          total_trades
+                        </code>
+                        <span>Total number of trades</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          win_rate
+                        </code>
+                        <span>Percentage of winning trades</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <div className="h-1 w-1 rounded-full bg-muted-foreground"></div>
+                      Key Metrics
+                    </h4>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          net_profit
+                        </code>
+                        <span>Total profit/loss amount</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          percentage_return
+                        </code>
+                        <span>Total return percentage</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          sharpe_ratio
+                        </code>
+                        <span>Risk-adjusted return metric</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <code className="px-2 py-0.5 bg-muted rounded text-xs font-mono mt-0.5">
+                          max_drawdown
+                        </code>
+                        <span>Maximum peak-to-trough decline</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
           <Card>
