@@ -153,31 +153,12 @@ const SectionContent: React.FC<SectionContentProps> = ({
                     </p>
                   </div>
                   <div className="bg-muted p-3 rounded-lg">
-                    <code className="text-sm">x-api-signature</code>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Base64 encoded signature of the request
-                    </p>
-                  </div>
-                  <div className="bg-muted p-3 rounded-lg">
                     <code className="text-sm">x-api-timestamp</code>
                     <p className="text-xs text-muted-foreground mt-1">
                       Current Unix timestamp in milliseconds
                     </p>
                   </div>
                 </div>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">Generating Signature</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Create a signature using SHA256 with your private key:
-                </p>
-                <CodeBlock
-                  codes={{
-                    Algorithm:
-                      "message = email + ':' + timestamp + ':' + method + ':' + path\nsignature = sign_with_private_key(message, private_key)\nbase64_signature = base64_encode(signature)",
-                  }}
-                  defaultLanguage="Algorithm"
-                />
               </div>
             </CardContent>
           </Card>

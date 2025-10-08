@@ -21,7 +21,6 @@ const corsForCookies = {
     "Content-Type",
     "Authorization",
     "x-api-key",
-    "x-api-signature",
     "x-api-timestamp",
     "x-api-email",
   ],
@@ -35,7 +34,6 @@ const corsForApiKeys = {
   allowedHeaders: [
     "Content-Type",
     "x-api-key",
-    "x-api-signature",
     "x-api-timestamp",
     "x-api-email",
     "Authorization",
