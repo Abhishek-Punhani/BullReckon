@@ -152,7 +152,6 @@ export const tradingController = {
         scriptName,
         confidence,
         source,
-        source,
         reason,
       } = req.body;
 
@@ -161,7 +160,7 @@ export const tradingController = {
           new ErrorHandling("Project name (scriptName) not specified", 400)
         );
       }
-      if (!symbol || !action || !quantity || !source) {
+
       if (!symbol || !action || !quantity || !source) {
         return next(
           new ErrorHandling(
@@ -170,7 +169,7 @@ export const tradingController = {
           )
         );
       }
-      if (!["BUY", "SELL"].includes(action.toUpperCase())) {
+      if (!["BUY", "SELL"].includes(String(action).toUpperCase())) {
         return next(new ErrorHandling("Action must be BUY or SELL", 400));
       }
       if (!req.apiUser) {
@@ -180,14 +179,13 @@ export const tradingController = {
       // Forward the trade request to calc server using internal route
       const tradeData = {
         symbol,
-        action: action.toUpperCase(),
+        action: String(action).toUpperCase(),
         quantity: Number(quantity),
         price: price ? Number(price) : undefined,
         userEmail: req.apiUser.email,
         apiKeyId: req.apiUser.keyId,
         scriptName,
         confidence,
-        source,
         source,
         reason,
       };
@@ -199,7 +197,7 @@ export const tradingController = {
       );
       res.json({
         success: true,
-        message: `${action.toUpperCase()} order executed successfully`,
+        message: `${String(action).toUpperCase()} order executed successfully`,
         data: response.data,
         executedBy: req.apiUser.email,
       });
