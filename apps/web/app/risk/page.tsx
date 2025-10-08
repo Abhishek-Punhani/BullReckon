@@ -282,16 +282,31 @@ const RiskPage = () => {
                   <Shield
                     className={`h-8 w-8 ${settings.enabled ? "text-green-600" : "text-red-600"}`}
                   />
-                  <div>
-                    <h3 className="text-xl font-bold">
-                      Risk Management {settings.enabled ? "Active" : "Disabled"}
+                    <div>
+                    <h3
+                      className={`text-xl font-extrabold tracking-tight ${
+                      settings.enabled
+                        ? "text-green-700 dark:text-green-300"
+                        : "text-red-700 dark:text-red-300"
+                      }`}
+                    >
+                      Risk Management{" "}
+                      <span
+                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ml-2 ${
+                        settings.enabled
+                        ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200"
+                        : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200"
+                      }`}
+                      >
+                      {settings.enabled ? "Active" : "Disabled"}
+                      </span>
                     </h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm mt-1 text-muted-foreground leading-relaxed">
                       {settings.enabled
-                        ? "All risk rules are being monitored and enforced"
-                        : "Risk monitoring is currently disabled. Your positions are not being protected."}
+                      ? "All risk rules are being monitored and enforced to protect your portfolio."
+                      : "Risk monitoring is currently disabled. Your positions are not being protected."}
                     </p>
-                  </div>
+                    </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium">

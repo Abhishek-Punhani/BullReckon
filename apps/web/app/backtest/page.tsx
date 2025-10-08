@@ -15,23 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  FlaskConical,
-  Play,
-  TrendingUp,
-  TrendingDown,
-  BarChart3,
-  Target,
-} from "lucide-react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { FlaskConical, Play } from "lucide-react";
+// Recharts components removed (not used on this page)
+import Link from "next/link";
 
 const Backtest = () => {
   const [backtestConfig, setBacktestConfig] = useState({
@@ -125,6 +111,25 @@ const Backtest = () => {
             </p>
           </div>
         </div>
+
+        {/* Documentation reference */}
+        <Card className="border-2">
+          <CardHeader>
+            <CardTitle className="text-sm">Documentation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-2">
+              For detailed backtesting guides, examples and configuration
+              options, see the API docs.
+            </p>
+            <Link
+              href="/docs/api#backtesting"
+              className="text-primary hover:underline"
+            >
+              Open API Docs — Backtesting →
+            </Link>
+          </CardContent>
+        </Card>
 
         {/* Backtest Configuration */}
         <Card className="border-2 shadow-lg bg-gradient-to-br from-muted/30 to-background/70">

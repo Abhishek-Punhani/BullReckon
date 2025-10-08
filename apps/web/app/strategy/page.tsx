@@ -37,7 +37,6 @@ import {
   Play,
   Pause,
   Settings,
-  BarChart3,
   Code,
   Brain,
   Blocks,
@@ -71,9 +70,6 @@ const StrategyPage = () => {
   const [scripts, setScripts] = useState<ScriptInfo[]>([]);
   const [loadingScripts, setLoadingScripts] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [executingStrategy, setExecutingStrategy] = useState<string | null>(
-    null
-  );
   const router = useRouter();
   const { toast } = useToast();
 
@@ -273,37 +269,6 @@ const StrategyPage = () => {
     }
   };
 
-  const handleExecuteStrategy = async (strategyId: string) => {
-    setExecutingStrategy(strategyId);
-    try {
-      // Get a symbol from the strategy's rules to test with
-      const strategy = strategies.find((s) => s._id === strategyId);
-      if (!strategy || !strategy.rules?.length || strategy.rules.length === 0) {
-        throw new Error("Strategy has no rules to execute");
-      }
-
-      const symbol = strategy.rules[0]?.condition?.symbol || "BTCUSDT";
-      const result = await strategyService.executeStrategy(
-        strategyId,
-        symbol,
-        true
-      );
-
-      toast({
-        title: "Strategy Executed",
-        description: `Found ${result.executions.length} signal(s) for ${symbol} at $${result.currentPrice}`,
-      });
-    } catch (error) {
-      toast({
-        title: "Execution Failed",
-        description: (error as Error).message,
-        variant: "destructive",
-      });
-    } finally {
-      setExecutingStrategy(null);
-    }
-  };
-
   const maskKey = (key: string) => {
     if (key.length < 20) return key;
     return `${key.substring(0, 10)}...${key.substring(key.length - 10)}`;
@@ -374,6 +339,24 @@ const StrategyPage = () => {
 
         {/* Content */}
         <div className="container max-w-7xl mx-auto px-6 py-8 space-y-8">
+          {/* Documentation reference */}
+          <Card className="border-2">
+            <CardHeader>
+              <CardTitle className="text-sm">Documentation</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-2">
+                For detailed guides and API examples for strategy development,
+                see the API docs.
+              </p>
+              <Link
+                href="/docs/api#algo-trading"
+                className="text-primary hover:underline"
+              >
+                Open API Docs — Algorithmic Trading →
+              </Link>
+            </CardContent>
+          </Card>
           {/* Trading Strategies Section */}
           <Card className="border-2 shadow-lg">
             <CardHeader className="border-b bg-muted/30">
