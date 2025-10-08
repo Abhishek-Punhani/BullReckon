@@ -38,9 +38,9 @@ export const scriptTradeService = {
     return response.data;
   },
 
-  async getScriptTradesByName(scriptName: string) {
+  async getScriptTradesByName(scriptId: string) {
     const response = await api.get(
-      `${API_CONFIG.CALC_SERVER}/api/script-trades/${encodeURIComponent(scriptName)}`
+      `${API_CONFIG.CALC_SERVER}/api/script-trades/${encodeURIComponent(scriptId)}`
     );
     return response.data;
   },

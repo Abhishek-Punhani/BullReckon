@@ -95,9 +95,8 @@ const StrategyPage = () => {
   const [loadingScripts, setLoadingScripts] = useState(true);
   const [expandedScript, setExpandedScript] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const router = useRouter();
   const { toast } = useToast();
-
+  const router=useRouter();
   // Fetch API keys on mount
   useEffect(() => {
     fetchApiKeys();
@@ -751,11 +750,23 @@ const StrategyPage = () => {
                               </span>
                             </div>
                           </div>
-                          {isExpanded ? (
-                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                          )}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/strategy/${script._id}`);
+                              }}
+                            >
+                              View Details
+                            </Button>
+                            {isExpanded ? (
+                              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </div>
                         </div>
 
                         {isExpanded && (

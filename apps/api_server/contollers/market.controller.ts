@@ -151,7 +151,7 @@ export const tradingController = {
         price,
         scriptName,
         confidence,
-        source,
+        source="market",
         reason,
       } = req.body;
 
@@ -161,7 +161,7 @@ export const tradingController = {
         );
       }
 
-      if (!symbol || !action || !quantity || !source) {
+      if (!symbol || !action || !quantity) {
         return next(
           new ErrorHandling(
             "Symbol, action, source and quantity are required",

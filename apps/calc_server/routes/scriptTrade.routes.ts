@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { getScriptTradeLogWithDetails } from "../utils/scriptTradeLogger";
 import { ScriptTrade } from "../models/scriptTrade";
 import { Trade } from "../models/trade";
 import { protectRoute } from "../../../middleware/authMiddleware";
@@ -7,7 +6,7 @@ import { protectRoute } from "../../../middleware/authMiddleware";
 const router: Router = Router();
 
 // GET /script-trades (get all script trades with details)
-router.get("/", async (req, res, next) => {
+router.get("/", protectRoute,async (req, res, next) => {
   try {
     const scriptTrades = await ScriptTrade.find().lean();
 
@@ -44,14 +43,33 @@ router.get("/", async (req, res, next) => {
 });
 
 // GET /script-trades/:scriptName (populated)
-router.get("/:scriptName", async (req, res, next) => {
+router.get("/:id",protectRoute, async (req, res, next) => {
   try {
-    const { scriptName } = req.params;
-    if (!scriptName) {
-      return res.status(400).json({ error: "Script name required" });
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: "ID required" });
     }
-    const scriptTrade = await getScriptTradeLogWithDetails(scriptName);
-    res.json({ success: true, scriptTrade });
+    const scriptTrade = await ScriptTrade.findById(id).lean();
+    if (!scriptTrade) {
+      return res.status(404).json({ error: "Script trade not found" });
+    }
+    // Populate trade details
+    const populatedTrades = await Promise.all(
+      scriptTrade.trades.map(async (tradeInfo) => {
+        const trade = await Trade.findById(tradeInfo.tradeId).lean();
+        return {
+          ...tradeInfo,
+          trade: trade,
+        };
+      })
+    );
+    const scriptWithTrades = {
+      _id: scriptTrade._id,
+      scriptName: scriptTrade.scriptName,
+      userId: scriptTrade.userId,
+      trades: populatedTrades,
+    };
+    res.json({ success: true, scriptTrade: scriptWithTrades });
   } catch (err) {
     next(err);
   }
