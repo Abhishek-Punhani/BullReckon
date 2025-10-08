@@ -75,6 +75,7 @@ const RegisterPage = () => {
       });
     } finally {
       setIsLoading(false);
+      localStorage.removeItem("registerForm");
       localStorage.setItem("mailConfirmationRequested", "activate");
       await new Promise((resolve) => setTimeout(resolve, 200));
       router.push("/auth/post-register-mail-confirmation?type=activate");
@@ -105,7 +106,13 @@ const RegisterPage = () => {
             <AutoSaveProvider
               storageKey="registerForm"
               formData={{ firstName, lastName, email, password, image }}
-              setFormData={({ firstName, lastName, email, password, image }) => {
+              setFormData={({
+                firstName,
+                lastName,
+                email,
+                password,
+                image,
+              }) => {
                 setFirstName(firstName ?? "");
                 setLastName(lastName ?? "");
                 setEmail(email ?? "");
