@@ -28,6 +28,7 @@ export interface AppOptions {
   enableSessions?: boolean;
   enableFileUpload?: boolean;
   enableQueues?: boolean;
+  disableCors?: boolean; // new option, default false
   customRateLimit?: {
     windowMs: number;
     max: number;
@@ -98,7 +99,10 @@ export class BaseApp {
       methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
     };
-    this.app.use(cors(corsOptions));
+    // Apply CORS only if not explicitly disabled (default: enabled)
+    if (!options.disableCors) {
+      this.app.use(cors(corsOptions));
+    }
 
     // Body parsing middleware
     this.app.use(cookieParser() as express.RequestHandler);

@@ -9,23 +9,71 @@ import { authenticateApiKey } from "../apiMiddleware";
 import backtestRoutes from "./backtest.routes";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import { internalApi } from "../../../shared/internalApi.client";
+import cors from "cors";
+
+// Define route-level CORS configs here to avoid circular imports with server.ts
+const corsForCookies = {
+  origin: (origin: any, callback: any) => callback(null, true),
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "x-api-key",
+    "x-api-signature",
+    "x-api-timestamp",
+    "x-api-email",
+  ],
+};
+
+const corsForApiKeys = {
+  origin: "*", // allow any origin for API-key header flows (no credentials)
+  credentials: false,
+  optionsSuccessStatus: 200,
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "x-api-key",
+    "x-api-signature",
+    "x-api-timestamp",
+    "x-api-email",
+    "Authorization",
+  ],
+};
 
 const apiRoutes: Router = Router();
 
 // API Key Management Routes (JWT Protected)
 // POST /api/keys/generate
-apiRoutes.post("/keys/generate", protectRoute, apiKeyController.generateApiKey);
+apiRoutes.post(
+  "/keys/generate",
+  cors(corsForCookies),
+  protectRoute,
+  apiKeyController.generateApiKey
+);
 
 // GET /api/keys
-apiRoutes.get("/keys", protectRoute, apiKeyController.getUserApiKeys);
+apiRoutes.get(
+  "/keys",
+  cors(corsForCookies),
+  protectRoute,
+  apiKeyController.getUserApiKeys
+);
 
 // DELETE /api/keys/:keyId
-apiRoutes.delete("/keys/:keyId", protectRoute, apiKeyController.revokeApiKey);
+apiRoutes.delete(
+  "/keys/:keyId",
+  cors(corsForCookies),
+  protectRoute,
+  apiKeyController.revokeApiKey
+);
 
 // Market Data Routes (API Key Protected)
 // GET /api/market/quote/:symbol
 apiRoutes.get(
   "/market/quote/:symbol",
+  cors(corsForApiKeys),
   authenticateApiKey,
   marketController.getQuote
 );
@@ -34,6 +82,7 @@ apiRoutes.get(
 // OR for backtest: GET /api/market/historical/:symbol?interval=1h&start=2023-01-01T00:00:00Z&end=2023-12-31T23:59:59Z
 apiRoutes.get(
   "/market/historical/:symbol",
+  cors(corsForApiKeys),
   authenticateApiKey,
   marketController.getHistoricalData
 );
@@ -41,16 +90,23 @@ apiRoutes.get(
 // GET /api/market/company/:symbol
 apiRoutes.get(
   "/market/company/:symbol",
+  cors(corsForApiKeys),
   authenticateApiKey,
   marketController.getCompanyInfo
 );
 
 // Trading Routes (API Key Protected)
-apiRoutes.post("/trade", authenticateApiKey, tradingController.executeTrade);
+apiRoutes.post(
+  "/trade",
+  cors(corsForApiKeys),
+  authenticateApiKey,
+  tradingController.executeTrade
+);
 
 // Get trades by script name (forward to calc_server)
 apiRoutes.get(
   "/trades/by-script/:scriptName",
+  cors(corsForApiKeys),
   authenticateApiKey,
   async (req, res, next) => {
     try {
@@ -85,9 +141,12 @@ apiRoutes.get(
   marketController.getHistoricalData
 );
 
-// Internal Routes (Service-to-Service)
-
 // Backtesting Routes (API Key Protected)
-apiRoutes.use("/backtest", authenticateApiKey, backtestRoutes);
+apiRoutes.use(
+  "/backtest",
+  cors(corsForApiKeys),
+  authenticateApiKey,
+  backtestRoutes
+);
 
 export default apiRoutes;

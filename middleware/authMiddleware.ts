@@ -24,6 +24,11 @@ export const protectRoute = async (
   next: NextFunction
 ) => {
   try {
+    // Allow CORS preflight requests to pass through without auth checks
+    if (req.method === "OPTIONS") {
+      return next();
+    }
+
     let token: string | undefined;
 
     // Get token from Authorization header

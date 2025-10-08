@@ -1,5 +1,5 @@
-"use client"
-import { useState } from "react";
+"use client";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,12 @@ import { authService } from "@/services/authService";
 const Navigation = () => {
   const pathname = usePathname();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Get user directly from authService
   const user = authService.getUser();
@@ -66,7 +71,8 @@ const Navigation = () => {
       <nav className="flex-1 px-4 space-y-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          // only compute active state after mount to avoid SSR/CSR mismatch
+          const isActive = mounted && pathname === item.href;
 
           return (
             <Link
@@ -91,8 +97,8 @@ const Navigation = () => {
       </nav>
 
       <div className="p-4 border-t border-border">
-        {/* Profile Section using user from authService */}
-        {user && (
+        {/* Profile Section using user from authService. Render only after mount to avoid SSR mismatch */}
+        {mounted && user && (
           <div className="flex items-center gap-3 mb-3">
             <Avatar
               className="h-10 w-10 cursor-pointer"

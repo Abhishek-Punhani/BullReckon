@@ -1,5 +1,24 @@
-import api from "@/lib/api";
 import { API_CONFIG } from "../config";
+import axios from "axios";
+
+// Create a dedicated axios instance for API server requests
+const apiServerClient = axios.create({
+  baseURL: API_CONFIG.API_SERVER,
+  withCredentials: true, // Send cookies with requests
+});
+
+// Add request interceptor to attach auth token
+apiServerClient.interceptors.request.use(
+  (config) => {
+    // Get token from localStorage or cookies
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 export interface ApiKeyData {
   id: string;
@@ -30,10 +49,9 @@ export const apiKeyService = {
    */
   async generateApiKey(expiresInDays?: number): Promise<GeneratedApiKey> {
     try {
-      const response = await api.post(
-        `${API_CONFIG.API_SERVER}/api/keys/generate`,
-        { expiresInDays }
-      );
+      const response = await apiServerClient.post(`/api/keys/generate`, {
+        expiresInDays,
+      });
 
       return response.data.data;
     } catch (error: any) {
@@ -50,7 +68,7 @@ export const apiKeyService = {
    */
   async getUserApiKeys(): Promise<ApiKeyData[]> {
     try {
-      const response = await api.get(`${API_CONFIG.API_SERVER}/api/keys`);
+      const response = await apiServerClient.get(`/api/keys`);
 
       return response.data.data.keys;
     } catch (error: any) {
@@ -67,7 +85,7 @@ export const apiKeyService = {
    */
   async revokeApiKey(keyId: string): Promise<void> {
     try {
-      await api.delete(`${API_CONFIG.API_SERVER}/api/keys/${keyId}`);
+      await apiServerClient.delete(`/api/keys/${keyId}`);
     } catch (error: any) {
       const message =
         error?.response?.data?.message ||

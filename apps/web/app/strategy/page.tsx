@@ -47,7 +47,6 @@ import {
   GeneratedApiKey,
 } from "@/services/apiKeyService";
 import { strategyService, Strategy } from "@/services/strategyService";
-import api from "@/lib/api";
 
 interface ScriptInfo {
   _id: string;
@@ -124,9 +123,19 @@ const StrategyPage = () => {
     const fetchScripts = async () => {
       setLoadingScripts(true);
       try {
-        const res = await api.get(`/api/trades/scripts`);
-        setScripts(res.data.scripts || []);
-      } catch {
+        const res = await strategyService.getStrategies({ limit: 100 });
+        const mapped = res.strategies.map((s) => ({
+          _id: s._id,
+          scriptName: s.name || "Untitled",
+          // Use execution log tradeIds if available, otherwise empty array
+          trades:
+            (s.executionLogs
+              ?.map((log) => log.tradeId)
+              .filter(Boolean) as string[]) || [],
+        }));
+        setScripts(mapped);
+      } catch (error) {
+        console.error("Failed to fetch strategies for scripts list", error);
         setScripts([]);
       } finally {
         setLoadingScripts(false);
@@ -461,9 +470,11 @@ const StrategyPage = () => {
                           </span>
                           <span>
                             Updated:{" "}
-                            {new Date(
-                              strategy.updatedAt || Date.now()
-                            ).toLocaleDateString()}
+                            {strategy.updatedAt
+                              ? new Date(
+                                  strategy.updatedAt
+                                ).toLocaleDateString()
+                              : "—"}
                           </span>
                         </div>
                       </div>
