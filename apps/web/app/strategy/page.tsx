@@ -29,6 +29,7 @@ import {
   Plus,
   TrendingUp,
   ChevronRight,
+  ChevronDown,
   Copy,
   Trash2,
   Loader2,
@@ -40,6 +41,9 @@ import {
   Code,
   Brain,
   Blocks,
+  DollarSign,
+  Clock,
+  Activity,
 } from "lucide-react";
 import {
   apiKeyService,
@@ -47,11 +51,32 @@ import {
   GeneratedApiKey,
 } from "@/services/apiKeyService";
 import { strategyService, Strategy } from "@/services/strategyService";
+import {
+  scriptTradeService,
+  ScriptWithTrades,
+} from "@/services/scriptTradeService";
 
 interface ScriptInfo {
   _id: string;
   scriptName: string;
-  trades: string[];
+  trades: Array<{
+    tradeId: string;
+    confidence?: number;
+    reason?: string;
+    trade?: {
+      _id: string;
+      symbol: string;
+      action: string;
+      quantity: number;
+      triggerPrice: number;
+      status: string;
+      executedAt?: string;
+      fees: number;
+      total: number;
+      source: string;
+      realizedPnL?: number;
+    };
+  }>;
 }
 
 const StrategyPage = () => {
@@ -68,6 +93,7 @@ const StrategyPage = () => {
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [scripts, setScripts] = useState<ScriptInfo[]>([]);
   const [loadingScripts, setLoadingScripts] = useState(true);
+  const [expandedScript, setExpandedScript] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState("all");
   const router = useRouter();
   const { toast } = useToast();
@@ -123,19 +149,15 @@ const StrategyPage = () => {
     const fetchScripts = async () => {
       setLoadingScripts(true);
       try {
-        const res = await strategyService.getStrategies({ limit: 100 });
-        const mapped = res.strategies.map((s) => ({
-          _id: s._id,
-          scriptName: s.name || "Untitled",
-          // Use execution log tradeIds if available, otherwise empty array
-          trades:
-            (s.executionLogs
-              ?.map((log) => log.tradeId)
-              .filter(Boolean) as string[]) || [],
+        const response = await scriptTradeService.getAllScriptTrades();
+        const mappedScripts = response.scripts.map((script) => ({
+          _id: script._id,
+          scriptName: script.scriptName,
+          trades: script.trades,
         }));
-        setScripts(mapped);
+        setScripts(mappedScripts);
       } catch (error) {
-        console.error("Failed to fetch strategies for scripts list", error);
+        console.error("Failed to fetch script trades", error);
         setScripts([]);
       } finally {
         setLoadingScripts(false);
@@ -679,21 +701,164 @@ const StrategyPage = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {scripts.map((script) => (
-                    <div
-                      key={script._id}
-                      className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border hover:shadow-md cursor-pointer transition-all"
-                      onClick={() => router.push(`/strategy/${script._id}`)}
-                    >
-                      <div>
-                        <h3 className="font-semibold">{script.scriptName}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Trades: {script.trades.length}
-                        </p>
+                  {scripts.map((script) => {
+                    const isExpanded = expandedScript === script._id;
+                    const totalPnL = script.trades.reduce((sum, tradeInfo) => {
+                      return sum + (tradeInfo.trade?.realizedPnL || 0);
+                    }, 0);
+                    const executedTrades = script.trades.filter(
+                      (t) => t.trade?.status === "executed"
+                    );
+                    const pendingTrades = script.trades.filter(
+                      (t) => t.trade?.status === "pending"
+                    );
+
+                    return (
+                      <div key={script._id} className="border rounded-lg">
+                        <div
+                          className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:shadow-md cursor-pointer transition-all"
+                          onClick={() =>
+                            setExpandedScript(isExpanded ? null : script._id)
+                          }
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3">
+                              <h3 className="font-semibold text-lg">
+                                {script.scriptName}
+                              </h3>
+                              <Badge variant="outline" className="text-xs">
+                                {script.trades.length} total trades
+                              </Badge>
+                              {executedTrades.length > 0 && (
+                                <Badge
+                                  variant={
+                                    totalPnL >= 0 ? "default" : "destructive"
+                                  }
+                                  className="text-xs"
+                                >
+                                  ${totalPnL.toFixed(2)} P&L
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Activity className="h-4 w-4" />
+                                {executedTrades.length} executed
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-4 w-4" />
+                                {pendingTrades.length} pending
+                              </span>
+                            </div>
+                          </div>
+                          {isExpanded ? (
+                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+
+                        {isExpanded && (
+                          <div className="border-t bg-background">
+                            <div className="p-4 space-y-3">
+                              {script.trades.length === 0 ? (
+                                <p className="text-sm text-muted-foreground text-center py-4">
+                                  No trades recorded for this script
+                                </p>
+                              ) : (
+                                script.trades.map((tradeInfo, index) => (
+                                  <div
+                                    key={index}
+                                    className="flex items-center justify-between p-3 bg-muted/30 rounded border"
+                                  >
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <Badge
+                                          variant={
+                                            tradeInfo.trade?.action === "BUY"
+                                              ? "default"
+                                              : "secondary"
+                                          }
+                                          className="text-xs"
+                                        >
+                                          {tradeInfo.trade?.action || "Unknown"}
+                                        </Badge>
+                                        <span className="font-medium">
+                                          {tradeInfo.trade?.symbol ||
+                                            "Unknown Symbol"}
+                                        </span>
+                                        <span className="text-sm text-muted-foreground">
+                                          {tradeInfo.trade?.quantity} shares
+                                        </span>
+                                        <Badge
+                                          variant={
+                                            tradeInfo.trade?.status ===
+                                            "executed"
+                                              ? "default"
+                                              : "outline"
+                                          }
+                                          className="text-xs"
+                                        >
+                                          {tradeInfo.trade?.status || "unknown"}
+                                        </Badge>
+                                      </div>
+                                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                        <span className="flex items-center gap-1">
+                                          <DollarSign className="h-3 w-3" />$
+                                          {tradeInfo.trade?.triggerPrice?.toFixed(
+                                            2
+                                          ) || "0.00"}
+                                        </span>
+                                        {tradeInfo.trade?.executedAt && (
+                                          <span>
+                                            {new Date(
+                                              tradeInfo.trade.executedAt
+                                            ).toLocaleDateString()}
+                                          </span>
+                                        )}
+                                        {tradeInfo.confidence && (
+                                          <span>
+                                            Confidence:{" "}
+                                            {(
+                                              tradeInfo.confidence * 100
+                                            ).toFixed(0)}
+                                            %
+                                          </span>
+                                        )}
+                                      </div>
+                                      {tradeInfo.reason && (
+                                        <p className="text-xs text-muted-foreground mt-1 italic">
+                                          "{tradeInfo.reason}"
+                                        </p>
+                                      )}
+                                    </div>
+                                    {tradeInfo.trade?.realizedPnL !==
+                                      undefined &&
+                                      tradeInfo.trade.realizedPnL !== 0 && (
+                                        <div
+                                          className={`text-right ${tradeInfo.trade.realizedPnL >= 0 ? "text-green-600" : "text-red-600"}`}
+                                        >
+                                          <div className="font-medium text-sm">
+                                            {tradeInfo.trade.realizedPnL >= 0
+                                              ? "+"
+                                              : ""}
+                                            $
+                                            {tradeInfo.trade.realizedPnL.toFixed(
+                                              2
+                                            )}
+                                          </div>
+                                          <div className="text-xs">P&L</div>
+                                        </div>
+                                      )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
