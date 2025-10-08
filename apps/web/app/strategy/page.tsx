@@ -148,6 +148,13 @@ const StrategyPage = () => {
     try {
       setGenerating(true);
       const newKey = await apiKeyService.generateApiKey(expiresInDays);
+      // Strip PEM headers/footers and trim whitespace from the public key
+      if (newKey.publicKey) {
+        newKey.publicKey = newKey.publicKey
+          .replace(/-----BEGIN PUBLIC KEY-----/g, "")
+          .replace(/-----END PUBLIC KEY-----/g, "")
+          .trim();
+      }
       setGeneratedKey(newKey);
       setShowKeyDialog(true);
 
