@@ -4,6 +4,7 @@ import { ErrorHandling } from "../../../middleware/errorHandler";
 import { AuthenticatedRequest } from "types/auth";
 import { ApiKey } from "../models/apiKey";
 import { internalApi } from "../../../shared/internalApi.client";
+import { Backtest } from "../models/backtest";
 
 export const apiKeyController = {
   generateApiKey: async (
@@ -160,6 +161,24 @@ export const apiKeyController = {
     } catch (error) {
       console.error("Error revoking API key:", error);
       next(new ErrorHandling("Failed to revoke API key", 500));
+    }
+  },
+
+  getUserBacktests: async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const userId = req.user._id;
+      const backtests = await Backtest.find({ userId })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      res.json({ success: true, data: backtests });
+    } catch (error) {
+      console.error("Error fetching user backtests:", error);
+      next(new ErrorHandling("Failed to fetch backtests", 500));
     }
   },
 };

@@ -45,9 +45,9 @@ const sendPasswordResetEmail = async (
   type: "reset" | "forgot"
 ) => {
   const CLIENT_URL = process.env.CLIENT_URL;
-  const JWT_SECRET_PASSWORD = process.env.JWT_SECRET_PASSWORD;
+  const JWT_SECRET_EMAIL = process.env.JWT_SECRET_EMAIL;
 
-  const token = jwt.sign({ id: user_id }, JWT_SECRET_PASSWORD!, {
+  const token = jwt.sign({ id: user_id }, JWT_SECRET_EMAIL!, {
     expiresIn: "5m",
   });
 
