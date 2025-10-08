@@ -33,7 +33,7 @@ The Strategy Management System provides a comprehensive interface for managing, 
 ### **Tabs Navigation**
 
 1. **Overview**: Strategy information, performance metrics, and key statistics
-2. **Rules**: Strategy rules management with drag-and-drop editing
+2. **Rules**: Strategy rules management with form-based editing
 3. **Configuration**: Risk management and execution settings
 4. **Logs**: Execution history and performance tracking
 
@@ -216,7 +216,7 @@ StrategyDetailPage (Main Container)
 
 ### **Planned Features**
 
-- Visual strategy builder with drag-and-drop
+- Enhanced visual strategy builder with improved forms
 - Advanced backtesting integration
 - Strategy template marketplace
 - Multi-timeframe analysis
