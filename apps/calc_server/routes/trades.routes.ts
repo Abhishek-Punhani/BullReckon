@@ -3,7 +3,7 @@ import { protectRoute } from "../../../middleware/authMiddleware";
 import { internalAuth } from "../../../middleware/internalAuthMiddleware";
 import { trade } from "../controllers/trades.controllers";
 import type { Router as ExpressRouter } from "express";
-import { setUserFromApiEmail } from "middleware/setUserFromApiEmail";
+import { setUserFromApiEmail } from "../../../middleware/setUserFromApiEmail";
 const tradeRoutes: ExpressRouter = Router();
 
 // User trade route (JWT protected)
