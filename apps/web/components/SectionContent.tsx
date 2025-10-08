@@ -90,7 +90,7 @@ const SectionContent: React.FC<SectionContentProps> = ({
                       <Zap className="h-8 w-8 mb-2 text-primary" />
                       <h4 className="font-semibold mb-2">No-Code Builder</h4>
                       <p className="text-sm text-muted-foreground mb-3">
-                        Visual strategy builder with drag-and-drop interface
+                        Visual strategy builder with form-based interface
                       </p>
                       <button
                         onClick={() => handleSectionChange("no-code-builder")}
@@ -313,20 +313,20 @@ const SectionContent: React.FC<SectionContentProps> = ({
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">
                 Build trading strategies without writing code using our visual
-                drag-and-drop interface. The builder lets you design entry/exit
-                rules, risk management, and asset selection with simple blocks.
+                form-based interface. The builder lets you design entry/exit
+                rules, risk management, and asset selection with intuitive
+                forms.
               </p>
               <h3 className="font-semibold mb-2">Features</h3>
               <ul className="list-disc ml-6 text-sm text-muted-foreground mb-2">
                 <li>
-                  Drag-and-drop blocks for technical indicators, signals, and
-                  order types.
+                  Form-based configuration for technical indicators, signals,
+                  and order types.
                 </li>
                 <li>Real-time strategy simulation and validation.</li>
                 <li>
                   Export strategies to code or deploy directly to live trading.
                 </li>
-                <li>Collaborate and share strategies with your team.</li>
               </ul>
               <h3 className="font-semibold mb-2">Getting Started</h3>
               <ol className="list-decimal ml-6 text-sm text-muted-foreground mb-2">
