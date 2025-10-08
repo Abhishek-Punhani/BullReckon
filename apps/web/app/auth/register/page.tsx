@@ -63,6 +63,7 @@ const RegisterPage = () => {
           title: "Registration successful!",
           description: "Please check your email to verify your account.",
         });
+        localStorage.removeItem("registerForm");
       } else {
         throw new Error(result.message || "Registration failed");
       }
@@ -75,7 +76,6 @@ const RegisterPage = () => {
       });
     } finally {
       setIsLoading(false);
-      localStorage.removeItem("registerForm");
       localStorage.setItem("mailConfirmationRequested", "activate");
       await new Promise((resolve) => setTimeout(resolve, 200));
       router.push("/auth/post-register-mail-confirmation?type=activate");
