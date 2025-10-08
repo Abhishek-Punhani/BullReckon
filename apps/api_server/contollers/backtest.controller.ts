@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { Backtest } from "../models/backtest";
 import { internalApi } from "../../../shared/internalApi.client";
-export const postBacktestResults = async (
+export const postBacktestResults = async (  
   req: Request,
   res: Response,
   next: NextFunction
@@ -25,7 +25,7 @@ export const postBacktestResults = async (
     try {
       // Get user details using internal route
       const userRes = await internalApi.get(
-        `${authServerUrl}/internal/get-user-details/${encodeURIComponent(apiUserEmail)}`
+        `${authServerUrl}/api/internal/user-by-email/${encodeURIComponent(apiUserEmail)}`
       );
       const userId = userRes.data?.user?._id;
       if (!userId) {

@@ -12,6 +12,12 @@
     "rootDir": "../../",
     "outDir": "./dist"
   },
-  "include": ["../../shared/**/*.ts", "../../middleware/**/*.ts", "../../types/**/*.ts", "./**/*.ts"],
+  "include": [
+    "../../shared/**/*.ts",
+    "../../middleware/**/*.ts",
+    "../../types/**/*.ts",
+    "./**/*.ts",
+    "../api_server/apiServerInternalClient.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

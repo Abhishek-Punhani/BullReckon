@@ -2,10 +2,12 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { User } from "../models/user";
 import { internalAuth } from "../../../middleware/internalAuthMiddleware";
+import { setUserFromApiEmail } from "../../../middleware/setUserFromApiEmail";
 
 const router: Router = Router();
 
 router.use(internalAuth);
+router.use(setUserFromApiEmail);
 
 router.post("/validate-token", async (req, res) => {
   try {

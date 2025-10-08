@@ -16,7 +16,8 @@
     "../../shared/**/*.ts",
     "../../middleware/**/*.ts",
     "../../types/**/*.ts",
-    "./**/*.ts"
+    "./**/*.ts",
+    "../api_server/apiServerInternalClient.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

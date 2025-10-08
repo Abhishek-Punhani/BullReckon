@@ -2,6 +2,7 @@ import { Response, NextFunction, Request } from "express";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import axios from "axios";
 import { internalApi } from "../../../shared/internalApi.client";
+import { apiServerInternalClient } from "../apiServerInternalClient";
 
 const MARKET_SERVER_URL =
   process.env.MARKET_SERVER_URL || "http://localhost:5000";
@@ -151,6 +152,7 @@ export const tradingController = {
         scriptName,
         confidence,
         source,
+        source,
         reason,
       } = req.body;
 
@@ -160,8 +162,12 @@ export const tradingController = {
         );
       }
       if (!symbol || !action || !quantity || !source) {
+      if (!symbol || !action || !quantity || !source) {
         return next(
-          new ErrorHandling("Symbol, action, source and quantity are required", 400)
+          new ErrorHandling(
+            "Symbol, action, source and quantity are required",
+            400
+          )
         );
       }
       if (!["BUY", "SELL"].includes(action.toUpperCase())) {
@@ -182,17 +188,14 @@ export const tradingController = {
         scriptName,
         confidence,
         source,
+        source,
         reason,
       };
 
-      const response = await internalApi.post(
+      const client = apiServerInternalClient(req.apiUser.email);
+      const response = await client.post(
         `${CALC_SERVER_URL}/api/trades/internal`,
-        tradeData,
-        {
-          headers: {
-            "X-API-Email": req.apiUser.email,
-          },
-        }
+        tradeData
       );
       res.json({
         success: true,
