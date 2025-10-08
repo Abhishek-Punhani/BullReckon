@@ -1,7 +1,7 @@
 "use client";
 import { authService } from "@/services/authService";
 import { Card } from "@/components/ui/card";
-import { AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Camera, User, Mail } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { useState, useRef } from "react";
@@ -10,10 +10,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import api from "@/lib/api";
 import { uploadFiles } from "@/lib/upload";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-
-const AVATAR_SIZE = 96; // px
 
 const ProfilePage = () => {
   const user = authService.getUser();
@@ -110,20 +107,6 @@ const ProfilePage = () => {
     }
   };
 
-  // Avatar rendering with next/image for auto scaling
-  const AvatarImage = ({ src, alt }: { src?: string; alt?: string }) =>
-    src ? (
-      <Image
-        src={src}
-        alt={alt || "Profile photo"}
-        width={AVATAR_SIZE}
-        height={AVATAR_SIZE}
-        className="rounded-full object-cover"
-        style={{ width: AVATAR_SIZE, height: AVATAR_SIZE }}
-        priority
-      />
-    ) : null;
-
   return (
     <div className="flex min-h-screen">
       <aside className="w-64 border-r bg-background">
@@ -138,17 +121,18 @@ const ProfilePage = () => {
                 <form onSubmit={handleProfileUpdate} className="space-y-6">
                   <div className="flex items-center gap-6 mb-6">
                     <div className="relative h-24 w-24">
-                      <div className="rounded-full overflow-hidden w-full h-full bg-muted flex items-center justify-center">
-                        <AvatarImage
-                          src={photoPreview || user.photo || user.avatar || ""}
-                          alt={getInitials()}
-                        />
-                        {!photoPreview && !user.photo && !user.avatar && (
-                          <AvatarFallback className="text-2xl">
-                            {getInitials()}
-                          </AvatarFallback>
+                      <Avatar className="w-full h-full">
+                        {(photoPreview || user.photo || user.avatar) && (
+                          <AvatarImage
+                            src={photoPreview || user.photo || user.avatar || ""}
+                            alt={getInitials()}
+                            className="object-cover"
+                          />
                         )}
-                      </div>
+                        <AvatarFallback className="text-2xl bg-muted">
+                          {getInitials()}
+                        </AvatarFallback>
+                      </Avatar>
                       <input
                         type="file"
                         accept="image/*"
@@ -195,17 +179,18 @@ const ProfilePage = () => {
                 <>
                   <div className="flex items-center gap-6 mb-6">
                     <div className="relative h-24 w-24">
-                      <div className="rounded-full overflow-hidden w-full h-full bg-muted flex items-center justify-center">
-                        <AvatarImage
-                          src={user.photo || user.avatar || ""}
-                          alt={getInitials()}
-                        />
-                        {!user.photo && !user.avatar && (
-                          <AvatarFallback className="text-2xl">
-                            {getInitials()}
-                          </AvatarFallback>
+                      <Avatar className="w-full h-full">
+                        {(user.photo || user.avatar) && (
+                          <AvatarImage
+                            src={user.photo || user.avatar || ""}
+                            alt={getInitials()}
+                            className="object-cover"
+                          />
                         )}
-                      </div>
+                        <AvatarFallback className="text-2xl bg-muted">
+                          {getInitials()}
+                        </AvatarFallback>
+                      </Avatar>
                       <span className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full">
                         <Camera className="h-4 w-4 opacity-50" />
                       </span>
