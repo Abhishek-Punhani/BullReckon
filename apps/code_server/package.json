@@ -1,0 +1,23 @@
+{
+  "name": "code_server",
+  "version": "1.0.0",
+  "description": "Code execution server for BullReckon playground",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "npx tsx watch --require tsconfig-paths/register server.ts",
+    "build": "tsc",
+    "start": "node -r tsconfig-paths/register dist/apps/code_server/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bullmq": "^5.12.9",
+    "tsconfig-paths": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "tsx": "^4.20.6"
+  }
+}

@@ -50,8 +50,40 @@ export default function CodePlayground() {
 
     try {
       if (isBacktesting) {
-        const result = await codeExecutionService.executeCode(language, code);
-        setOutput(result);
+        const { jobId } = await codeExecutionService.executeCode(
+          language,
+          code
+        );
+
+        // Poll for status
+        const pollInterval = setInterval(async () => {
+          try {
+            const status = await codeExecutionService.getExecutionStatus(jobId);
+            if (status.status === "completed") {
+              setOutput(status.output || "No output");
+              setIsRunning(false);
+              clearInterval(pollInterval);
+            } else if (status.status === "failed") {
+              setOutput(`Error: ${status.output || "Execution failed"}`);
+              setIsRunning(false);
+              clearInterval(pollInterval);
+            }
+            // If still active, continue polling
+          } catch (error) {
+            setOutput(`Error polling status: ${error}`);
+            setIsRunning(false);
+            clearInterval(pollInterval);
+          }
+        }, 2000); // Poll every 2 seconds
+
+        // Timeout after 60 seconds
+        setTimeout(() => {
+          clearInterval(pollInterval);
+          if (isRunning) {
+            setOutput("Error: Execution timed out");
+            setIsRunning(false);
+          }
+        }, 60000);
       } else {
         if (!apiKey) {
           setOutput("Error: API key required for live trading mode.");
@@ -66,7 +98,10 @@ export default function CodePlayground() {
     } catch (error) {
       setOutput(`Error executing code: ${error}`);
     } finally {
-      setIsRunning(false);
+      // Only set false if not polling
+      if (!isBacktesting) {
+        setIsRunning(false);
+      }
     }
   };
 
@@ -83,31 +118,33 @@ export default function CodePlayground() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="container mx-auto p-6 space-y-6 w-full">
-        <ConfigurationPanel
-          language={language}
-          setLanguage={handleLanguageChange}
-          code={code}
-          setCode={setCode}
-          apiKey={apiKey}
-          setApiKey={setApiKey}
-          isBacktesting={isBacktesting}
-          setIsBacktesting={setIsBacktesting}
-          isRunning={isRunning}
-          onRunCode={handleRunCode}
-          onReset={handleReset}
-        />
-        <div className="space-y-6 w-f">
-          <div className="h-[500px]">
-            <CodeEditor
-              language={language}
-              code={code}
-              onChange={(value) => setCode(value || "")}
-            />
+      <main className="lg:pl-64">
+        <div className="container mx-auto p-6 space-y-6 w-full">
+          <ConfigurationPanel
+            language={language}
+            setLanguage={handleLanguageChange}
+            code={code}
+            setCode={setCode}
+            apiKey={apiKey}
+            setApiKey={setApiKey}
+            isBacktesting={isBacktesting}
+            setIsBacktesting={setIsBacktesting}
+            isRunning={isRunning}
+            onRunCode={handleRunCode}
+            onReset={handleReset}
+          />
+          <div className="space-y-6 w-full">
+            <div className="h-[500px]">
+              <CodeEditor
+                language={language}
+                code={code}
+                onChange={(v) => setCode(v || "")}
+              />
+            </div>
+            <OutputConsole output={output} isRunning={isRunning} />
           </div>
-          <OutputConsole output={output} isRunning={isRunning} />
         </div>
-      </div>
+      </main>
     </div>
   );
 }

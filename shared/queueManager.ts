@@ -1,5 +1,5 @@
-import { Queue, Worker, Job, QueueEvents } from "bullmq";
 import IORedis from "ioredis";
+import { Queue, Worker, Job, QueueEvents } from "bullmq";
 import { RedisManager } from "./redisManager";
 
 /**
@@ -151,6 +151,7 @@ export class QueueManager {
     });
 
     this.queues.set(name, queue);
+    this.queueEvents.set(name, new QueueEvents(name, { connection }));
     console.log(`✅ Registered queue: ${name}`);
     return queue;
   }

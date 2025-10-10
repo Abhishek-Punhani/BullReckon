@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "../../",
+    "paths": {
+      "shared/*": ["shared/*"],
+      "middleware/*": ["middleware/*"],
+      "types/*": ["types/*"],
+      "@/*": ["*"],
+      "@repo/*": ["packages/*"]
+    },
+    "rootDir": "../../",
+    "outDir": "./dist"
+  },
+  "include": [
+    "../../shared/**/*.ts",
+    "../../middleware/**/*.ts",
+    "../../types/**/*.ts",
+    "./**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
