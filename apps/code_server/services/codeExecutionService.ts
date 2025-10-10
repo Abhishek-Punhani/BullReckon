@@ -10,9 +10,9 @@ export const languageConfigs: Record<
 > = {
   python: {
     image: "python:3.10",
-    command: "python {file}",
+    command: "pip install --quiet requests pandas numpy yfinance matplotlib 2>/dev/null || true; python {file}",
     extension: "py",
-    needsNetwork: false,
+    needsNetwork: true,
   },
   go: {
     image: "golang:1.20",
@@ -148,9 +148,7 @@ export async function executeCodeInDocker(
           const executionTime = Date.now() - startTime;
 
           // Log raw output for debugging
-          console.log(
-            `[Debug] stdout length: ${stdout?.length || 0}, stderr length: ${stderr?.length || 0}`
-          );
+          console.log(`[Debug] stdout length: ${stdout?.length || 0}, stderr length: ${stderr?.length || 0}`);
           console.log(`[Debug] stdout:`, stdout);
           console.log(`[Debug] stderr:`, stderr);
 
@@ -187,15 +185,11 @@ export async function executeCodeInDocker(
           }
 
           // Combine stdout and stderr for complete output
-          const combinedOutput = [stdout, stderr]
-            .filter(Boolean)
-            .join("\n")
-            .trim();
+          const combinedOutput = [stdout, stderr].filter(Boolean).join("\n").trim();
 
           resolve({
             success: true,
-            output:
-              combinedOutput || "Code executed successfully with no output",
+            output: combinedOutput || "Code executed successfully with no output",
             executionTime,
           });
         }
