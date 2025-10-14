@@ -240,6 +240,54 @@ services:
       - api2
       - api3
 
+  # CODE SERVER
+  code1:
+    build:
+      context: .
+      dockerfile: apps/code_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=2001
+    ports:
+      - "2001:2001"
+    env_file:
+      - .env
+      - apps/code_server/.env
+  code2:
+    build:
+      context: .
+      dockerfile: apps/code_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=2002
+    ports:
+      - "2002:2002"
+    env_file:
+      - .env
+      - apps/code_server/.env
+  code3:
+    build:
+      context: .
+      dockerfile: apps/code_server/Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=2003
+    ports:
+      - "2003:2003"
+    env_file:
+      - .env
+      - apps/code_server/.env
+  code-nginx:
+    image: nginx:alpine
+    volumes:
+      - ./apps/code_server/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "2000:2000"
+    depends_on:
+      - code1
+      - code2
+      - code3
+
   # REDIS
   redis:
     image: redis:7-alpine

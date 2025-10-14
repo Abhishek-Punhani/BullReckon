@@ -72,6 +72,7 @@ Each backend service runs **3 replicated instances** behind an **Nginx reverse p
 - **Market Service**: 3 instances (ports 5001-5003) → Nginx (port 5000)
 - **Calc Service**: 3 instances (ports 8001-8003) → Nginx (port 8000)
 - **API Service**: 3 instances (ports 3005-3007) → Nginx (port 3004)
+- **Code Service**: 3 instances (ports 2001-2003) → Nginx (port 2000)
 
 ---
 
@@ -136,7 +137,19 @@ Each backend service runs **3 replicated instances** behind an **Nginx reverse p
   - Aggregates and proxies requests to other services
 - **Dev:** `pnpm -C apps/api_server run dev`
 
-### 6. Shared, Middleware, Packages
+### 6. Code Server
+
+- **Path:** `apps/code_server`
+- **Stack:** Node.js, Express, TypeScript, BullMQ, Redis, Docker
+- **Features:**
+  - Secure code execution in isolated Docker containers
+  - Support for Python, JavaScript, and Go languages
+  - Resource limits and security constraints
+  - Real-time execution status polling
+  - Package installation for common libraries
+- **Dev:** `pnpm -C apps/code_server run dev`
+
+### 7. Shared, Middleware, Packages
 
 - **shared/**: Base classes, DB, queue, email, WebSocket, etc.
 - **middleware/**: Express middleware (auth, error handling, etc.)
@@ -153,7 +166,8 @@ bullReckon/
 │   ├── api_server/    # API gateway
 │   ├── calc_server/   # Risk, portfolio, strategy
 │   ├── market_server/ # Market data
-│   └── auth_server/   # Auth & user management
+│   ├── auth_server/   # Auth & user management
+│   └── code_server/   # Code execution service
 ├── shared/            # Shared utilities
 ├── middleware/        # Express middleware
 ├── packages/          # Shared configs, UI, tsconfig
@@ -212,6 +226,7 @@ docker-compose up --build
   - Market: http://localhost:5000
   - Auth: http://localhost:4000
   - Calc: http://localhost:8000
+  - Code: http://localhost:2000
 
 ### 5. Running Services Individually (Development)
 
@@ -221,6 +236,7 @@ docker-compose up --build
   pnpm -C apps/market_server run dev
   pnpm -C apps/calc_server run dev
   pnpm -C apps/api_server run dev
+  pnpm -C apps/code_server run dev
   pnpm -C apps/web run dev
   ```
 - Set the `PORT` env variable as needed (see `.env` and service docs).

@@ -112,6 +112,77 @@ services:
       - /app/node_modules
       - /app/apps/calc_server/node_modules
 
+  # Code Server
+  code-server:
+    build:
+      context: .
+      dockerfile: apps/code_server/Dockerfile
+      target: development
+    container_name: bullreckon-code
+    restart: unless-stopped
+    ports:
+      - "2000:2000"
+    env_file:
+      - .env
+      - apps/code_server/.env
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AUTH_SERVER_URL: http://auth-server:4000
+      MARKET_SERVER_URL: http://market-server:5000
+      API_SERVER_URL: http://api-nginx:3004
+    depends_on:
+      redis:
+        condition: service_healthy
+      auth-server:
+        condition: service_started
+      market-server:
+        condition: service_started
+    networks:
+      - bullreckon-network
+    volumes:
+      - ./apps/code_server:/app/apps/code_server
+      - ./shared:/app/shared
+      - ./types:/app/types
+      - ./middleware:/app/middleware
+      - ./tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+      - /app/apps/code_server/node_modules
+
+  # API Server
+  api-server:
+      build:
+        context: .
+        dockerfile: apps/api_server/Dockerfile
+        target: development
+      container_name: bullreckon-api
+      restart: unless-stopped
+      ports:
+        - "3004:3004"
+      env_file:
+        - .env
+        - apps/api_server/.env
+      environment:
+        NODE_ENV: ${NODE_ENV:-development}
+        AUTH_SERVER_URL: http://auth-server:4000
+        MARKET_SERVER_URL: http://market-server:5000
+        CALC_SERVER_URL: http://calc-server:8000
+      depends_on:
+        - auth-server
+        - market-server
+        - calc-server
+      networks:
+        - bullreckon-network
+      volumes:
+        - ./apps/api_server:/app/apps/api_server
+        - ./shared:/app/shared
+        - ./types:/app/types  
+        - ./middleware:/app/middleware
+        - ./tsconfig.json:/app/tsconfig.json
+        - /app/node_modules
+        - /app/apps/api_server/node_modules
+
   # Web Frontend (Next.js)
   web:
     build:
@@ -133,6 +204,8 @@ services:
       - auth-server
       - market-server
       - calc-server
+      - api-server
+      - code-server
     networks:
       - bullreckon-network
     volumes:
@@ -150,3 +223,4 @@ networks:
 volumes:
   redis_data:
     driver: local
+
