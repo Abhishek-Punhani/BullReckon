@@ -1,4 +1,4 @@
-import { InternalApiClient as internalApi } from "../../../shared/js/internalApi.client";
+import {internalApi } from "../../../shared/js/internalApi.client";
 
 export async function fetchLivePrice(symbol: string): Promise<number> {
   try {

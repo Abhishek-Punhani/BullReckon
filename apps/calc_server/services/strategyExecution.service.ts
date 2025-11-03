@@ -7,7 +7,7 @@ import {
   IExecutionLog,
 } from "../models";
 import { Trade, ITrade } from "../models";
-import { InternalApiClient as internalApi } from "../../../shared/js/internalApi.client";
+import { internalApi } from "../../../shared/js/internalApi.client";
 import mongoose from "mongoose";
 
 export interface ExecutionResult {

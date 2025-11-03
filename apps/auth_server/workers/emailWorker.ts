@@ -1,5 +1,5 @@
 import { Job } from "bullmq";
-import { EmailService as emailService } from "../../../shared/js/emailService";
+import { emailService } from "../../../shared/js/emailService";
 import { activateEmail } from "../emails/activateEmail";
 import { passwordEmail } from "../emails/PasswordEmail";
 import { welcomeEmail } from "../emails/welcomeEmail";

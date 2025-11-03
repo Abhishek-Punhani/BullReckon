@@ -1,4 +1,4 @@
-import { EmailService as emailService } from "../../../shared/js/emailService";
+import { emailService } from "../../../shared/js/emailService";
 import { EmailJobData } from "../workers/emailWorker";
 import { addAuthEmailJob } from "../queue.setup";
 import jwt from "jsonwebtoken";

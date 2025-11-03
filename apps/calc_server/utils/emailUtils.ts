@@ -1,5 +1,5 @@
-import { EmailService as emailService } from "../../../shared/js/emailService";
-import { InternalApiClient as internalApi } from "../../../shared/js/internalApi.client";
+import { emailService } from "../../../shared/js/emailService";
+import { internalApi } from "../../../shared/js/internalApi.client";
 import { CalcEmailJobData } from "../workers/emailWorker";
 import { addCalcEmailJob } from "../queue.setup";
 import dotenv from "dotenv";
