@@ -13,6 +13,8 @@ import bodyParser from "body-parser";
 import rateLimit from "express-rate-limit";
 import { Server } from "socket.io";
 import http from "http";
+import cluster from "cluster";
+import os from "os";
 import { QueueManager } from "./queueManager";
 import { RedisManager } from "./redisManager";
 
@@ -262,11 +264,117 @@ export class BaseApp {
   }
 
   public async start(db: DatabaseManager, port: number) {
+    const useCluster = process.env.USE_CLUSTER === "true";
+
+    if (useCluster && cluster.isPrimary) {
+      // Primary process - fork workers
+      await this.startAsPrimary(db, port);
+    } else {
+      // Worker process or non-clustered mode
+      await this.startAsWorker(db, port);
+    }
+  }
+
+  private async startAsPrimary(db: DatabaseManager, port: number) {
+    const numCPUs = os.availableParallelism();
+    const maxWorkers = process.env.MAX_WORKERS
+      ? parseInt(process.env.MAX_WORKERS, 10)
+      : numCPUs;
+
+    console.log(
+      `🚀 ${this.serviceName} Primary process ${process.pid} starting`
+    );
+    console.log(
+      `📊 Detected ${numCPUs} CPU cores, spawning ${maxWorkers} workers`
+    );
+
+    // Fork workers
+    for (let i = 0; i < maxWorkers; i++) {
+      const worker = cluster.fork();
+      console.log(
+        `👷 Worker ${worker.id} (PID: ${worker.process.pid}) spawned`
+      );
+    }
+
+    // Handle worker lifecycle events
+    cluster.on("online", (worker) => {
+      console.log(
+        `✅ Worker ${worker.id} (PID: ${worker.process.pid}) is online`
+      );
+    });
+
+    cluster.on("listening", (worker, address) => {
+      console.log(
+        `🎧 Worker ${worker.id} (PID: ${worker.process.pid}) listening on ${address.address}:${address.port}`
+      );
+    });
+
+    cluster.on("disconnect", (worker) => {
+      console.log(
+        `⚠️  Worker ${worker.id} (PID: ${worker.process.pid}) disconnected`
+      );
+    });
+
+    cluster.on("exit", (worker, code, signal) => {
+      if (worker.exitedAfterDisconnect === true) {
+        console.log(
+          `👋 Worker ${worker.id} (PID: ${worker.process.pid}) exited voluntarily`
+        );
+      } else {
+        console.error(
+          `💥 Worker ${worker.id} (PID: ${worker.process.pid}) died unexpectedly (${signal || code}). Restarting...`
+        );
+
+        // Respawn the worker
+        const newWorker = cluster.fork();
+        console.log(
+          `🔄 New worker ${newWorker.id} (PID: ${newWorker.process.pid}) spawned as replacement`
+        );
+      }
+    });
+
+    // Graceful shutdown handler for primary
+    const shutdownPrimary = async () => {
+      console.log(`\n🛑 ${this.serviceName} Primary received shutdown signal`);
+      console.log("📢 Gracefully shutting down all workers...");
+
+      const workers = Object.values(cluster.workers || {});
+      const shutdownPromises = workers.map((worker) => {
+        return new Promise<void>((resolve) => {
+          if (!worker) {
+            resolve();
+            return;
+          }
+
+          const timeout = setTimeout(() => {
+            console.log(`⏰ Worker ${worker.id} timeout, forcing kill`);
+            worker.kill("SIGKILL");
+            resolve();
+          }, 10000); // 10 second timeout
+
+          worker.on("exit", () => {
+            clearTimeout(timeout);
+            resolve();
+          });
+
+          worker.disconnect();
+          worker.kill("SIGTERM");
+        });
+      });
+
+      await Promise.all(shutdownPromises);
+      console.log("✅ All workers shut down successfully");
+      process.exit(0);
+    };
+
+    process.on("SIGTERM", shutdownPrimary);
+    process.on("SIGINT", shutdownPrimary);
+  }
+
+  private async startAsWorker(db: DatabaseManager, port: number) {
     try {
       await db.connect();
-
       // Initialize Redis if queues are enabled or if Redis is needed
-      // Only connect if not already connected (may have been connected during queue initialization)
       const redisManager = RedisManager.getInstance();
       if (
         process.env.DISABLE_REDIS_QUEUES !== "true" &&
@@ -276,7 +384,16 @@ export class BaseApp {
       }
 
       await this.listen(port);
-      console.log(`🚀 ${this.serviceName} started successfully`);
+
+      if (cluster.isWorker) {
+        console.log(
+          `🚀 ${this.serviceName} Worker ${cluster.worker?.id} (PID: ${process.pid}) started successfully`
+        );
+      } else {
+        console.log(
+          `🚀 ${this.serviceName} started successfully (PID: ${process.pid})`
+        );
+      }
     } catch (error) {
       console.error(`💥 Failed to start ${this.serviceName}:`, error);
       process.exit(1);
@@ -284,7 +401,13 @@ export class BaseApp {
   }
 
   public async shutdown(db: DatabaseManager) {
-    console.log(`🛑 Shutting down ${this.serviceName}...`);
+    const isWorker = cluster.isWorker;
+    const processInfo = isWorker
+      ? `Worker ${cluster.worker?.id} (PID: ${process.pid})`
+      : `Process (PID: ${process.pid})`;
+
+    console.log(`🛑 Shutting down ${this.serviceName} ${processInfo}...`);
+
     if (this.queueManager) {
       await this.queueManager.shutdown();
     }
@@ -295,6 +418,8 @@ export class BaseApp {
 
     await this.close();
     await db.disconnect();
+
+    console.log(`✅ ${this.serviceName} ${processInfo} shutdown complete`);
     process.exit(0);
   }
 }
