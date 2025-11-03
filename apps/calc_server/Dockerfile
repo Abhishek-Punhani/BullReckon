@@ -7,7 +7,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.json ./
 COPY apps/calc_server/package.json ./apps/calc_server/
 COPY apps/calc_server ./apps/calc_server
-COPY shared ./shared
+COPY shared/js ./shared/js
 COPY types ./types
 COPY middleware ./middleware
 COPY packages ./packages
@@ -23,7 +23,7 @@ ENV NODE_ENV=production
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.json ./
 COPY apps/calc_server/package.json ./apps/calc_server/
 COPY --from=builder /app/apps/calc_server ./apps/calc_server
-COPY shared ./shared
+COPY shared/js ./shared/js
 COPY types ./types
 COPY middleware ./middleware
 COPY packages ./packages

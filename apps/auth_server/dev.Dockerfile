@@ -2,7 +2,7 @@
 FROM node:18-alpine AS builder
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
-COPY shared ./shared
+COPY shared/js ./shared/js
 COPY types ./types
 COPY middleware ./middleware
 COPY apps/auth_server ./apps/auth_server
@@ -14,7 +14,7 @@ COPY apps/auth_server/nginx/nginx.conf ./nginx.conf
 
 FROM node:18-alpine AS app
 WORKDIR /app
-COPY --from=builder /app/shared ./shared
+COPY --from=builder /app/shared/js ./shared/js
 COPY --from=builder /app/types ./types
 COPY --from=builder /app/middleware ./middleware
 COPY --from=builder /app/apps/auth_server ./apps/auth_server
