@@ -1,5 +1,5 @@
 import * as mongoose from "mongoose";
-import { BaseConfig } from "../types/config";
+import { BaseConfig } from "../../types/config";
 
 export class DatabaseManager {
   private static instance: DatabaseManager;

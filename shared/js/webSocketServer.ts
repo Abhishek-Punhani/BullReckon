@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from "socket.io";
-import { BaseConfig } from "../types/config";
+import { BaseConfig } from "../../types/config";
 
 interface SocketUser {
   id: string;
