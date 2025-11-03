@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import { AuthenticatedRequest } from "types/auth";
 import { ApiKey } from "../models/apiKey";
-import { internalApi } from "../../../shared/internalApi.client";
+import { internalApi } from "../../../shared/js/internalApi.client";
 import { Backtest } from "../models/backtest";
 
 export const apiKeyController = {

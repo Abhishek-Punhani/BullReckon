@@ -1,4 +1,4 @@
-import { QueueManager } from "../../shared/queueManager";
+import { QueueManager } from "../../shared/js/queueManager";
 import { processCalcEmailJob, CalcEmailJobData } from "./workers/emailWorker";
 import { processPendingOrder } from "./workers/pendingOrders";
 import {

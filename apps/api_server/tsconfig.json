@@ -4,7 +4,7 @@
     "outDir": "./dist"
   },
   "include": [
-    "../../shared/**/*.ts",
+    "../../shared/js/**/*.ts",
     "../../middleware/**/*.ts",
     "../../types/**/*.ts",
     "./**/*.ts"

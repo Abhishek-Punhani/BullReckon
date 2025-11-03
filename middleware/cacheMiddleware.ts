@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import IORedis from "ioredis";
 import crypto from "crypto";
-import { RedisManager } from "../shared/redisManager";
+import { RedisManager } from "../shared/js/redisManager";
 
 interface CacheOptions {
   ttl?: number;

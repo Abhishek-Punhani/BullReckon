@@ -1,4 +1,4 @@
-import { QueueManager } from "../../shared/queueManager";
+import { QueueManager } from "../../shared/js/queueManager";
 import { processEmailJob, EmailJobData } from "./workers/emailWorker";
 import { Queue } from "bullmq";
 

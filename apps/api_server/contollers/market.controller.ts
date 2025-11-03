@@ -1,7 +1,7 @@
 import { Response, NextFunction, Request } from "express";
 import { ErrorHandling } from "../../../middleware/errorHandler";
 import axios from "axios";
-import { internalApi } from "../../../shared/internalApi.client";
+import { internalApi } from "../../../shared/js/internalApi.client";
 import { apiServerInternalClient } from "../apiServerInternalClient";
 
 const MARKET_SERVER_URL =

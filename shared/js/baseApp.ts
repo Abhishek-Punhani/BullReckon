@@ -16,8 +16,8 @@ import http from "http";
 import { QueueManager } from "./queueManager";
 import { RedisManager } from "./redisManager";
 
-import { errorHandler } from "../middleware/errorHandler";
-import { BaseConfig } from "../types/config";
+import { errorHandler } from "../../middleware/errorHandler";
+import { BaseConfig } from "../../types/config";
 import webSocketService from "./webSocketServer";
 import { DatabaseManager } from "./dbManager";
 

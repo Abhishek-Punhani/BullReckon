@@ -1,6 +1,6 @@
-import { BaseApp } from "../../shared/baseApp";
-import { DatabaseManager } from "../../shared/dbManager";
-import { QueueManager } from "../../shared/queueManager";
+import { BaseApp } from "../../shared/js/baseApp";
+import { DatabaseManager } from "../../shared/js/dbManager";
+import { QueueManager } from "../../shared/js/queueManager";
 import { calcConfig } from "./config";
 import portfolioRoutes from "./routes/portfolio.routes";
 import { riskRoutes } from "./routes/risk_settings.routes";

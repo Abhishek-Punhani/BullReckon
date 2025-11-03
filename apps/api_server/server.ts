@@ -1,5 +1,5 @@
-import { BaseApp } from "../../shared/baseApp";
-import { DatabaseManager } from "../../shared/dbManager";
+import { DatabaseManager } from "shared/js/dbManager";
+import { BaseApp } from "../../shared/js/baseApp";
 import { apiConfig, allowedOrigins } from "./apiConfig";
 import apiRoutes from "./routes/api.routes.";
 import cors from "cors";

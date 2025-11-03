@@ -1,5 +1,5 @@
 import { Job } from "bullmq";
-import { emailService } from "../../../shared/emailService";
+import { EmailService as emailService } from "../../../shared/js/emailService";
 import { tradeConfirmationEmail } from "../emails/tradeConfirmationEmail";
 
 export interface CalcEmailJobData {

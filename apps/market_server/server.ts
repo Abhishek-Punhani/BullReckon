@@ -1,5 +1,5 @@
-import { BaseApp } from "../../shared/baseApp";
-import { DatabaseManager } from "../../shared/dbManager";
+import { BaseApp } from "../../shared/js/baseApp";
+import { DBManager as DatabaseManager } from "../../shared/js/dbManager";
 import { marketConfig, allowedOrigins } from "./config";
 import { marketRoutes } from "./routes/market.routes";
 

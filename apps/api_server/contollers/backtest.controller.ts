@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { Backtest } from "../models/backtest";
-import { internalApi } from "../../../shared/internalApi.client";
+import { internalApi } from "../../../shared/js/internalApi.client";
 import { AuthenticatedRequest } from "types/auth";
 export const postBacktestResults = async (  
   req: Request,

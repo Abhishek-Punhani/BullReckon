@@ -1,11 +1,11 @@
-import { BaseApp } from "../../shared/baseApp";
-import { DatabaseManager } from "../../shared/dbManager";
-import { QueueManager } from "../../shared/queueManager";
+import { BaseApp } from "../../shared/js/baseApp";
+import { QueueManager } from "../../shared/js/queueManager";
 import { authConfig } from "./config";
 import { authRoutes } from "./routes/auth.routes";
 import { internalRoutes } from "./routes/internal.routes";
 import { setupAuthQueues } from "./queue.setup";
 import { allowedOrigins } from "./config";
+import { DatabaseManager } from "shared/js/dbManager";
 
 // Initialize database
 const db = DatabaseManager.getInstance(authConfig);

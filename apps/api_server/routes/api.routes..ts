@@ -8,7 +8,7 @@ import { protectRoute } from "../../../middleware/authMiddleware";
 import { authenticateApiKey } from "../apiMiddleware";
 import backtestRoutes from "./backtest.routes";
 import { ErrorHandling } from "../../../middleware/errorHandler";
-import { internalApi } from "../../../shared/internalApi.client";
+import { internalApi } from "../../../shared/js/internalApi.client";
 import cors from "cors";
 import { getUserBacktests } from "../contollers/backtest.controller";
 

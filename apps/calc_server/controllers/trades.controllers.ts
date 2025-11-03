@@ -10,7 +10,7 @@ import { sendTradeConfirmationEmail } from "../utils/emailUtils";
 import { logScriptTrade } from "../utils/scriptTradeLogger";
 import { RiskManagementService } from "../services/riskManagement.service";
 import { clearTradeRelatedCache } from "../../../middleware/cacheMiddleware";
-import { internalApi } from "../../../shared/internalApi.client";
+import { InternalApiClient as internalApi } from "../../../shared/js/internalApi.client";
 
 // Add a type declaration for global.queueManager
 declare global {

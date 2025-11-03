@@ -1,5 +1,5 @@
 import { Response, NextFunction } from "express";
-import { internalApi } from "../shared/internalApi.client";
+import { internalApi } from "../shared/js/internalApi.client";
 import { AuthenticatedRequest } from "types/auth";
 
 export async function setUserFromApiEmail(
