@@ -23,7 +23,7 @@ ENV NODE_ENV=production
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.json ./
 COPY apps/code_server/package.json ./apps/code_server/
 COPY --from=builder /app/apps/code_server ./apps/code_server
-COPY shared/js ./shared/js
+COPY --from=builder /app/shared/js ./shared/js
 COPY types ./types
 COPY middleware ./middleware
 COPY packages ./packages

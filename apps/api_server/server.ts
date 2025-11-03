@@ -1,4 +1,4 @@
-import { DatabaseManager } from "shared/js/dbManager";
+import { DatabaseManager } from "../../shared/js/dbManager";
 import { BaseApp } from "../../shared/js/baseApp";
 import { apiConfig, allowedOrigins } from "./apiConfig";
 import apiRoutes from "./routes/api.routes.";

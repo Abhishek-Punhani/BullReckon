@@ -5,7 +5,7 @@ import { authRoutes } from "./routes/auth.routes";
 import { internalRoutes } from "./routes/internal.routes";
 import { setupAuthQueues } from "./queue.setup";
 import { allowedOrigins } from "./config";
-import { DatabaseManager } from "shared/js/dbManager";
+import { DatabaseManager } from "../../shared/js/dbManager";
 
 // Initialize database
 const db = DatabaseManager.getInstance(authConfig);
