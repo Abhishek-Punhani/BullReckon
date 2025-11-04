@@ -16,6 +16,7 @@ import {
   LogOut,
   Blocks,
   Code,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { authService } from "@/services/authService";
@@ -48,6 +49,7 @@ const Navigation = () => {
     { href: "/backtest", label: "Backtest", icon: FlaskConical },
     { href: "/no-code-builder", label: "Strategy Builder", icon: Blocks },
     { href: "/playground", label: "Code Playground", icon: Code },
+    { href: "/transcript-analysis", label: "Transcript Analysis", icon: FileText },
   ];
 
   const getInitials = () => {
