@@ -1,0 +1,16 @@
+User: Hi, I'd like to set up an investment portfolio.
+Advisor: Great! How much capital do you have available to invest?
+User: I have 10 lakh rupees set aside for this.
+Advisor: Excellent. What's your investment timeframe?
+User: I'm planning for the long term, around 5+ years.
+Advisor: What kind of returns are you targeting?
+User: I'm hoping for at least 12% annual returns.
+Advisor: How would you describe your risk tolerance?
+User: I'm pretty aggressive and comfortable with high risk for higher returns.
+Advisor: When might you need access to this capital?
+User: I don't need it soon - it's locked for years.
+Advisor: Any specific constraints or preferences?
+User: Yes, I want to limit IT exposure to max 25% and Banking to max 30%. Also, please exclude tobacco and gambling companies. Absolutely no leverage. And I want quarterly rebalancing with automatic execution.
+Advisor: Got it! And small-cap allocation?
+User: Keep small-cap limited to max 20%.
+

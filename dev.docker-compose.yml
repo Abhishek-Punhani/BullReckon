@@ -183,6 +183,34 @@ services:
         - /app/node_modules
         - /app/apps/api_server/node_modules
 
+  # Transcript Server (Python/FastAPI)
+  transcript-server:
+    build:
+      context: .
+      dockerfile: apps/transcript_server/dev.Dockerfile
+    container_name: bullreckon-transcript
+    restart: unless-stopped
+    ports:
+      - "5006:5006"
+    env_file:
+      - .env
+    environment:
+      TRANSCRIPT_SERVER_PORT: 5006
+      TRANSCRIPT_SERVER_HOST: 0.0.0.0
+      DEBUG: "true"
+      LOG_LEVEL: DEBUG
+      CORS_ORIGINS: "*"
+      REQUIRE_AUTH: "false"
+      AUTH_SERVICE_URL: http://auth-server:4000
+      JWT_SECRET: ${JWT_SECRET:-default-secret}
+    depends_on:
+      - auth-server
+    networks:
+      - bullreckon-network
+    volumes:
+      - ./apps/transcript_server:/app/apps/transcript_server
+      - ./shared:/app/shared
+
   # Web Frontend (Next.js)
   web:
     build:
@@ -199,6 +227,7 @@ services:
       NEXT_PUBLIC_MARKET_SERVER: http://localhost:5000
       NEXT_PUBLIC_CALC_SERVER: http://localhost:8000
       NEXT_PUBLIC_API_SERVER: http://localhost:3004
+      NEXT_PUBLIC_TRANSCRIPT_SERVER: http://localhost:5006
       NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     depends_on:
       - auth-server
@@ -206,6 +235,7 @@ services:
       - calc-server
       - api-server
       - code-server
+      - transcript-server
     networks:
       - bullreckon-network
     volumes:
